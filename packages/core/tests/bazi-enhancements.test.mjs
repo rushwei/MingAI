@@ -19,7 +19,7 @@ function toPillarString(pillar) {
 }
 
 test('bazi_calculate should expose enhanced pillar fields', async () => {
-  const result = await mcpCore.handleBaziCalculate(SAMPLE_INPUT);
+  const result = await mcpCore.calculateBaziData(SAMPLE_INPUT);
 
   assert.ok(result.fourPillars, 'missing fourPillars');
   assert.equal(typeof result.kongWang, 'object', 'missing top-level kongWang');
@@ -52,7 +52,7 @@ test('bazi_calculate should expose enhanced pillar fields', async () => {
 });
 
 test('bazi_calculate should output relation list with type/description/auspiciousness', async () => {
-  const result = await mcpCore.handleBaziCalculate({
+  const result = await mcpCore.calculateBaziData({
     gender: 'male',
     birthYear: 1980,
     birthMonth: 1,
@@ -86,7 +86,7 @@ test('bazi_calculate should output relation list with type/description/auspiciou
 });
 
 test('bazi_calculate should set consistent pillar kongWang objects', async () => {
-  const result = await mcpCore.handleBaziCalculate(SAMPLE_INPUT);
+  const result = await mcpCore.calculateBaziData(SAMPLE_INPUT);
   const pillars = ['year', 'month', 'day', 'hour'];
   const globalKong = result.kongWang;
 
@@ -105,7 +105,7 @@ test('bazi_calculate should return consistent chart for equivalent solar and lun
   const lunar = solar.getLunar();
   const lunarMonth = lunar.getMonth();
 
-  const solarResult = await mcpCore.handleBaziCalculate({
+  const solarResult = await mcpCore.calculateBaziData({
     gender: 'male',
     birthYear: 1992,
     birthMonth: 8,
@@ -115,7 +115,7 @@ test('bazi_calculate should return consistent chart for equivalent solar and lun
     calendarType: 'solar',
   });
 
-  const lunarResult = await mcpCore.handleBaziCalculate({
+  const lunarResult = await mcpCore.calculateBaziData({
     gender: 'male',
     birthYear: lunar.getYear(),
     birthMonth: Math.abs(lunarMonth),
@@ -139,8 +139,8 @@ test('bazi_calculate should reject invalid lunar leap month and out-of-range lun
     nonLeapYear += 1;
   }
 
-  await assert.rejects(
-    () => mcpCore.handleBaziCalculate({
+  assert.throws(
+    () => mcpCore.calculateBaziData({
       gender: 'female',
       birthYear: nonLeapYear,
       birthMonth: 1,
@@ -158,8 +158,8 @@ test('bazi_calculate should reject invalid lunar leap month and out-of-range lun
   const ym = leapMonth > 0 ? -Math.abs(month) : month;
   const dayCount = LunarMonth.fromYm(nonLeapYear, ym).getDayCount();
 
-  await assert.rejects(
-    () => mcpCore.handleBaziCalculate({
+  assert.throws(
+    () => mcpCore.calculateBaziData({
       gender: 'female',
       birthYear: nonLeapYear,
       birthMonth: month,
@@ -172,8 +172,8 @@ test('bazi_calculate should reject invalid lunar leap month and out-of-range lun
     /农历日期/
   );
 
-  await assert.rejects(
-    () => mcpCore.handleBaziCalculate({
+  assert.throws(
+    () => mcpCore.calculateBaziData({
       gender: 'female',
       birthYear: nonLeapYear,
       birthMonth: -1,
@@ -222,7 +222,7 @@ test('bazi_calculate should keep bazi-specific shensha after shared refactor', a
   ];
 
   for (const sample of samples) {
-    const result = await mcpCore.handleBaziCalculate(sample.input);
+    const result = await mcpCore.calculateBaziData(sample.input);
     assert.ok(
       result.fourPillars[sample.pillar].shenSha.includes(sample.star),
       `expected ${sample.star} in ${sample.pillar} pillar`
@@ -231,9 +231,9 @@ test('bazi_calculate should keep bazi-specific shensha after shared refactor', a
 });
 
 test('bazi_pillars_resolve should return candidates and next call hint', async () => {
-  assert.equal(typeof mcpCore.handleBaziPillarsResolve, 'function', 'handleBaziPillarsResolve should be exported');
+  assert.equal(typeof mcpCore.calculateBaziPillarsResolve, 'function', 'calculateBaziPillarsResolve should be exported');
 
-  const result = await mcpCore.handleBaziPillarsResolve({
+  const result = await mcpCore.calculateBaziPillarsResolve({
     yearPillar: '壬申',
     monthPillar: '戊申',
     dayPillar: '丙午',
@@ -269,11 +269,11 @@ test('bazi_pillars_resolve candidates should round-trip to identical four pillar
     hourPillar: '癸巳',
   };
 
-  const result = await mcpCore.handleBaziPillarsResolve(inputPillars);
+  const result = await mcpCore.calculateBaziPillarsResolve(inputPillars);
   assert.ok(result.count > 0, 'expected at least one candidate');
 
   for (const candidate of result.candidates) {
-    const chart = await mcpCore.handleBaziCalculate({
+    const chart = await mcpCore.calculateBaziData({
       gender: 'male',
       birthYear: candidate.birthYear,
       birthMonth: candidate.birthMonth,
@@ -293,7 +293,7 @@ test('bazi_pillars_resolve candidates should round-trip to identical four pillar
 
 test('bazi_pillars_resolve should reject invalid pillar strings', async () => {
   await assert.rejects(
-    () => mcpCore.handleBaziPillarsResolve({
+    () => mcpCore.calculateBaziPillarsResolve({
       yearPillar: '甲',
       monthPillar: '乙丑',
       dayPillar: '丙寅',
@@ -303,7 +303,7 @@ test('bazi_pillars_resolve should reject invalid pillar strings', async () => {
   );
 
   await assert.rejects(
-    () => mcpCore.handleBaziPillarsResolve({
+    () => mcpCore.calculateBaziPillarsResolve({
       yearPillar: '甲子',
       monthPillar: '乙X',
       dayPillar: '丙寅',
@@ -313,7 +313,7 @@ test('bazi_pillars_resolve should reject invalid pillar strings', async () => {
   );
 
   await assert.rejects(
-    () => mcpCore.handleBaziPillarsResolve({
+    () => mcpCore.calculateBaziPillarsResolve({
       yearPillar: '甲子',
       monthPillar: '甲子',
       dayPillar: '甲子',
@@ -324,7 +324,7 @@ test('bazi_pillars_resolve should reject invalid pillar strings', async () => {
 });
 
 test('bazi_pillars_resolve should return empty candidates for legal but unmatched pillars', async () => {
-  const result = await mcpCore.handleBaziPillarsResolve({
+  const result = await mcpCore.calculateBaziPillarsResolve({
     yearPillar: '甲子',
     monthPillar: '乙丑',
     dayPillar: '丙寅',

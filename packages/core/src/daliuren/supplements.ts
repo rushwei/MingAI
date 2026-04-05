@@ -3,7 +3,7 @@
  * 包括：课体细分、课名、十二长生、五行旺衰、桃花、游都
  */
 
-import { TIAN_GAN, DI_ZHI, GAN_WUXING, ZHI_WUXING } from '../constants/ganzhi.js';
+import { DI_ZHI, GAN_WUXING, TIAN_GAN, ZHI_WUXING } from '../constants/ganzhi.js';
 
 /** 地支序号 */
 function zhiIndex(zhi: string): number {
@@ -140,8 +140,8 @@ interface SiKeData {
 export function classifyKeTi(
   method: string,
   siKe: SiKeData,
-  sanChuan: { chu: string; zhong: string; mo: string },
-): { method: string; subTypes: string[]; extraTypes: string[] } {
+  sanChuan: { chu: string; zhong: string; mo: string; },
+): { method: string; subTypes: string[]; extraTypes: string[]; } {
   const subTypes: string[] = [];
   const extraTypes: string[] = [];
 
@@ -281,7 +281,7 @@ export function calcBenMingXingNian(
   birthYear: number,
   currentYear: number,
   gender: 'male' | 'female',
-): { benMing: string; xingNian: string } {
+): { benMing: string; xingNian: string; } {
   // 本命 = 出生年干支
   const benMingGanIdx = ((birthYear - 4) % 10 + 10) % 10;
   const benMingZhiIdx = ((birthYear - 4) % 12 + 12) % 12;
@@ -309,7 +309,5 @@ export function calcBenMingXingNian(
 // ===== 导出常量 =====
 
 export {
-  DI_ZHI, TIAN_GAN, ZHI_WUXING, GAN_WUXING,
-  YUE_JIANG_NAMES, TIAN_JIANG_SHORT,
-  zhiIndex, ganIndex, ganYinYang,
+  DI_ZHI, GAN_WUXING, ganIndex, ganYinYang, TIAN_GAN, TIAN_JIANG_SHORT, YUE_JIANG_NAMES, ZHI_WUXING, zhiIndex
 };

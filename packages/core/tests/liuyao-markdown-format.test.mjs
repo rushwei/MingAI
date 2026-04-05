@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleLiuyaoAnalyze, renderLiuyaoCanonicalJSON, renderToolResult } from '@mingai/core';
+import { calculateLiuyaoData, renderLiuyaoCanonicalJSON, renderToolResult } from '@mingai/core';
 import { buildToolSuccessPayload } from '@mingai/core/transport';
 
 const SAFE_SAMPLE = {
@@ -82,7 +82,7 @@ test('liuyao tool markdown defaults to AI-safe text', () => {
 });
 
 test('liuyao more detail level should expose deterministic facts without computed flags', async () => {
-  const result = await handleLiuyaoAnalyze({
+  const result = await calculateLiuyaoData({
     method: 'select',
     yongShenTargets: ['官鬼', '父母'],
     changedHexagramName: '巽为风',
@@ -105,7 +105,7 @@ test('liuyao more detail level should expose deterministic facts without compute
 });
 
 test('liuyao full detail level should expose facts and computed flags for the exam sample', async () => {
-  const result = await handleLiuyaoAnalyze({
+  const result = await calculateLiuyaoData({
     method: 'select',
     yongShenTargets: ['官鬼', '父母'],
     changedHexagramName: '巽为风',

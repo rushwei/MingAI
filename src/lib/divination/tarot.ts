@@ -4,10 +4,13 @@
  * 78张韦特塔罗牌完整数据，包含22张大阿卡纳和56张小阿卡纳
  */
 
-import type { TarotOutput as CoreTarotOutput } from '@mingai/core';
 import { renderTarotCanonicalJSON } from '@mingai/core/json';
 import { renderTarotCanonicalText } from '@mingai/core/text';
-import { handleTarotDraw, type TarotCardResult } from '@mingai/core/tarot';
+import {
+    calculateTarotData,
+    type TarotCardResult,
+    type TarotOutput as CoreTarotOutput,
+} from '@mingai/core/tarot-core';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 // 牌的类型
@@ -601,7 +604,7 @@ export async function drawCards(
     const safeCount = Math.max(1, Math.min(10, count));
     const spreadType = safeCount <= 1 ? 'single' : 'celtic-cross';
     const birthParts = parseBirthDateParts(options.birthDate);
-    const output = await handleTarotDraw({
+    const output = await calculateTarotData({
         spreadType,
         allowReversed,
         seed: resolveDrawSeed(options.seed),
@@ -624,7 +627,7 @@ export async function drawForSpread(
     if (!spread) return null;
 
     const birthParts = parseBirthDateParts(options.birthDate);
-    const output = await handleTarotDraw({
+    const output = await calculateTarotData({
         spreadType: spreadId,
         allowReversed,
         seed: resolveDrawSeed(options.seed),
@@ -666,7 +669,7 @@ export async function getDailyCard(
         }
     }
 
-    const output = await handleTarotDraw({
+    const output = await calculateTarotData({
         spreadType: 'single',
         allowReversed: true,
         seed,

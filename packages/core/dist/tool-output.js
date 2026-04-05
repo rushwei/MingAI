@@ -4,25 +4,16 @@ function stringifyResult(result) {
         ? JSON.stringify(result, null, 2)
         : String(result);
 }
-function attachStructuredRuntimeExtras(canonicalJSON, result) {
-    if (typeof canonicalJSON !== 'object' || canonicalJSON === null)
-        return canonicalJSON;
-    if (typeof result !== 'object' || result === null)
-        return canonicalJSON;
-    if (!('placeResolutionInfo' in result))
-        return canonicalJSON;
-    return {
-        ...canonicalJSON,
-        placeResolutionInfo: result.placeResolutionInfo,
-    };
-}
 export function renderToolResult(toolName, result, responseFormat = 'json', options) {
     const entry = getToolRegistryEntry(toolName);
     const canonicalJSON = entry?.jsonFormatter
         ? entry.jsonFormatter(result, options)
         : undefined;
+    // 运行时扩展：通过 manifest 钩子合并（替代原先的 placeResolutionInfo 硬编码）
     let structuredContent = canonicalJSON !== undefined
-        ? attachStructuredRuntimeExtras(canonicalJSON, result)
+        ? (entry?.mergeRuntimeExtras
+            ? entry.mergeRuntimeExtras(canonicalJSON, result)
+            : canonicalJSON)
         : (typeof result === 'object' && result !== null && !!entry?.definition.outputSchema ? result : undefined);
     const textContent = entry?.markdownFormatter
         ? entry.markdownFormatter(result, options)

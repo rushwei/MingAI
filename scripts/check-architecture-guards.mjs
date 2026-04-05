@@ -183,13 +183,13 @@ mustNotMatch(
 
 mustMatch(
   'src/lib/divination/tarot.ts',
-  /from ['"]@mingai\/core\/tarot['"]/u,
-  'tarot wrapper should import the dedicated tarot subpath',
+  /from ['"]@mingai\/core\/tarot-core['"]/u,
+  'tarot wrapper should import the dedicated tarot-core subpath',
 );
 mustMatch(
   'src/app/api/daliuren/route.ts',
-  /from ['"]@mingai\/core\/daliuren['"]/u,
-  'daliuren route should import the dedicated daliuren subpath',
+  /from ['"]@mingai\/core\/daliuren-core['"]/u,
+  'daliuren route should import the dedicated daliuren-core subpath',
 );
 mustNotMatch(
   'src/app/api/daliuren/route.ts',
@@ -198,8 +198,8 @@ mustNotMatch(
 );
 mustMatch(
   'src/lib/divination/qimen.ts',
-  /from ['"]@mingai\/core\/qimen['"]/u,
-  'qimen wrapper should import the dedicated qimen subpath',
+  /from ['"]@mingai\/core\/qimen-core['"]/u,
+  'qimen wrapper should import the dedicated qimen-core subpath',
 );
 mustNotMatch(
   'src/lib/divination/qimen.ts',
@@ -213,28 +213,28 @@ mustMatch(
 );
 mustMatch(
   'src/app/api/daliuren/route.ts',
-  /handleDaliurenCalculate\(\{[\s\S]*timezone[\s\S]*\}\)/u,
-  'daliuren route should forward timezone into the core handler',
+  /calculateDaliurenData\(\{[\s\S]*timezone[\s\S]*\}\)/u,
+  'daliuren route should forward timezone into the core calculation API',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
   /@mingai\/core\/liuyao-core/u,
-  'liuyao compatibility layer should import the shared liuyao core module',
+  'liuyao web adapter should import the shared liuyao core module',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
   /@mingai\/core\/data\/hexagram-data/u,
-  'liuyao compatibility layer should import shared hexagram data from core',
+  'liuyao web adapter should import shared hexagram data from core',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
   /@mingai\/core\/data\/shensha-data/u,
-  'liuyao compatibility layer should import shared shensha data from core',
+  'liuyao web adapter should import shared shensha data from core',
 );
 mustNotMatch(
   'src/lib/divination/liuyao.ts',
   /packages\/core\/dist\//u,
-  'liuyao compatibility layer should not import package dist files directly',
+  'liuyao web adapter should not import package dist files directly',
 );
 
 mustMatch(

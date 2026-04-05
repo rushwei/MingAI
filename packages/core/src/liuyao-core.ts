@@ -1,24 +1,30 @@
 import { Solar } from 'lunar-javascript';
-import { calculateBranchShenSha, calculateGlobalShenSha } from './shensha.js';
-import { GUA_CI, XIANG_CI, YAO_CI } from './hexagram-texts.js';
 import { HEXAGRAMS, type Hexagram } from './data/hexagram-data.js';
+import { XUN_KONG_TABLE as RAW_XUN_KONG_TABLE } from './data/shensha-data.js';
+import { GUA_CI, XIANG_CI, YAO_CI } from './hexagram-texts.js';
+import { createSeededRng, resolveSeed } from './seeded-rng.js';
+import { calculateBranchShenSha, calculateGlobalShenSha } from './shensha.js';
+import type {
+  DerivedHexagramInfo,
+  DiZhi,
+  GuaShenInfo,
+  KongWangState,
+  LiuQinType,
+  LiuyaoInput, LiuyaoOutput,
+  TianGan,
+  WangShuai,
+  WuXing,
+  YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus,
+} from './types.js';
+import { getKongWang as getKongWangByPillarSource } from './utils.js';
 export type { Hexagram } from './data/hexagram-data.js';
 
 // ── 卦象 Map 索引（O(1) 查找） ──
 const HEXAGRAM_BY_CODE = new Map<string, Hexagram>(HEXAGRAMS.map(h => [h.code, h]));
 const HEXAGRAM_BY_NAME = new Map<string, Hexagram>(HEXAGRAMS.map(h => [h.name, h]));
-import { XUN_KONG_TABLE as RAW_XUN_KONG_TABLE } from './data/shensha-data.js';
-import { getKongWang as getKongWangByPillarSource } from './utils.js';
-import type {
-  WuXing, DiZhi, TianGan, LiuQinType, WangShuai,
-  KongWangState, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus,
-  DerivedHexagramInfo, GuaShenInfo,
-} from './types.js';
 
 export type {
-  WuXing, DiZhi, TianGan, LiuQinType, WangShuai,
-  KongWangState, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus,
-  DerivedHexagramInfo, GuaShenInfo,
+  DerivedHexagramInfo, DiZhi, GuaShenInfo, KongWangState, LiuQinType, LiuyaoInput, LiuyaoOutput, TianGan, WangShuai, WuXing, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus
 } from './types.js';
 export type LiuShen = '青龙' | '朱雀' | '勾陈' | '螣蛇' | '白虎' | '玄武';
 export type YaoType = 0 | 1;
@@ -349,7 +355,7 @@ export function traditionalYaoName(pos: number, type: number): string {
 }
 
 /** 格式化干支时间为标准文本 */
-export function formatGanZhiTime(gz: { year: { gan: string; zhi: string }; month: { gan: string; zhi: string }; day: { gan: string; zhi: string }; hour: { gan: string; zhi: string } }): string {
+export function formatGanZhiTime(gz: { year: { gan: string; zhi: string; }; month: { gan: string; zhi: string; }; day: { gan: string; zhi: string; }; hour: { gan: string; zhi: string; }; }): string {
   return `${gz.year.gan}${gz.year.zhi}年 ${gz.month.gan}${gz.month.zhi}月 ${gz.day.gan}${gz.day.zhi}日 ${gz.hour.gan}${gz.hour.zhi}时`;
 }
 
@@ -358,16 +364,16 @@ export function formatGanZhiTime(gz: { year: { gan: string; zhi: string }; month
  * 返回纯文本行数组，调用方自行决定前缀
  */
 export function formatGuaLevelLines(analysis: {
-  liuChongGuaInfo?: { isLiuChongGua: boolean; description?: string };
-  liuHeGuaInfo?: { isLiuHeGua: boolean; description?: string };
-  chongHeTransition?: { type: string; description?: string };
-  guaFanFuYin?: { isFanYin: boolean; isFuYin: boolean; description?: string };
+  liuChongGuaInfo?: { isLiuChongGua: boolean; description?: string; };
+  liuHeGuaInfo?: { isLiuHeGua: boolean; description?: string; };
+  chongHeTransition?: { type: string; description?: string; };
+  guaFanFuYin?: { isFanYin: boolean; isFuYin: boolean; description?: string; };
   sanHeAnalysis?: {
     hasFullSanHe: boolean;
-    fullSanHe?: { name: string; result: string; description?: string };
-    fullSanHeList?: Array<{ name: string; result: string; description?: string }>;
+    fullSanHe?: { name: string; result: string; description?: string; };
+    fullSanHeList?: Array<{ name: string; result: string; description?: string; }>;
     hasBanHe: boolean;
-    banHe?: Array<{ branches: string[]; result: string; type: string }>;
+    banHe?: Array<{ branches: string[]; result: string; type: string; }>;
   };
   globalShenSha?: string[];
 }): string[] {
@@ -404,7 +410,7 @@ export function formatGuaLevelLines(analysis: {
 }
 
 /** 按位置降序排列爻（上爻→初爻） */
-export function sortYaosDescending<T extends { position: number }>(yaos: readonly T[]): T[] {
+export function sortYaosDescending<T extends { position: number; }>(yaos: readonly T[]): T[] {
   return [...yaos].sort((a, b) => b.position - a.position);
 }
 
@@ -520,7 +526,7 @@ const LIU_CHONG: Record<DiZhi, DiZhi> = {
   亥: '巳',
 };
 
-const LIU_HE: Record<DiZhi, { partner: DiZhi; result: WuXing }> = {
+const LIU_HE: Record<DiZhi, { partner: DiZhi; result: WuXing; }> = {
   子: { partner: '丑', result: '土' },
   丑: { partner: '子', result: '土' },
   寅: { partner: '亥', result: '木' },
@@ -550,14 +556,14 @@ const XIANG_PO: Record<DiZhi, DiZhi> = {
   戌: '未',
 };
 
-const SAN_HE_TABLE: Array<{ branches: [DiZhi, DiZhi, DiZhi]; result: WuXing; name: string }> = [
+const SAN_HE_TABLE: Array<{ branches: [DiZhi, DiZhi, DiZhi]; result: WuXing; name: string; }> = [
   { branches: ['申', '子', '辰'], result: '水', name: '申子辰合水局' },
   { branches: ['亥', '卯', '未'], result: '木', name: '亥卯未合木局' },
   { branches: ['寅', '午', '戌'], result: '火', name: '寅午戌合火局' },
   { branches: ['巳', '酉', '丑'], result: '金', name: '巳酉丑合金局' },
 ];
 
-const BAN_HE_TABLE: Array<{ branches: [DiZhi, DiZhi]; result: WuXing; type: 'sheng' | 'mu' }> = [
+const BAN_HE_TABLE: Array<{ branches: [DiZhi, DiZhi]; result: WuXing; type: 'sheng' | 'mu'; }> = [
   { branches: ['申', '子'], result: '水', type: 'sheng' },
   { branches: ['亥', '卯'], result: '木', type: 'sheng' },
   { branches: ['寅', '午'], result: '火', type: 'sheng' },
@@ -785,11 +791,11 @@ function findPalace(code: string): InternalPalace | undefined {
   return ALL_BA_GONG[code];
 }
 
-export function getPalaceInfo(code: string): { name: string; element: WuXing; order: number } | undefined {
+export function getPalaceInfo(code: string): { name: string; element: WuXing; order: number; } | undefined {
   return findPalace(code);
 }
 
-export function getShiYingPosition(code: string): { shi: number; ying: number } {
+export function getShiYingPosition(code: string): { shi: number; ying: number; } {
   const palace = findPalace(code);
   const [shi, ying] = SHI_YING_TABLE[palace?.order ?? 0] ?? [6, 3];
   return { shi, ying };
@@ -1181,7 +1187,7 @@ function analyzeSanHe(
   monthZhi: DiZhi,
   dayZhi: DiZhi
 ): SanHeAnalysis {
-  const sources: Array<{ zhi: DiZhi; position: number; source: 'dong' | 'bian' | 'yue' | 'ri' }> = [];
+  const sources: Array<{ zhi: DiZhi; position: number; source: 'dong' | 'bian' | 'yue' | 'ri'; }> = [];
   for (const yao of fullYaos) {
     if (yao.change === 'changing') {
       sources.push({ zhi: yao.naJia, position: yao.position, source: 'dong' });
@@ -2150,12 +2156,364 @@ export function performFullAnalysis(
   };
 }
 
-export function getHexagramContext(code: string): { hexagram?: Hexagram; palace?: { name: string; element: WuXing; order: number }; guaCi?: string; xiangCi?: string } {
+export function getHexagramContext(code: string): { hexagram?: Hexagram; palace?: { name: string; element: WuXing; order: number; }; guaCi?: string; xiangCi?: string; } {
   const hexagram = getHexagramByCode(code);
   return {
     hexagram,
     palace: findPalace(code),
     guaCi: hexagram ? GUA_CI[hexagram.name] : undefined,
     xiangCi: hexagram ? XIANG_CI[hexagram.name] : undefined,
+  };
+}
+
+const NUMBER_TO_TRIGRAM: Record<number, string> = {
+  1: '乾', 2: '兑', 3: '离', 4: '震',
+  5: '巽', 6: '坎', 7: '艮', 8: '坤',
+};
+
+const TRIGRAM_LINES: Record<string, [number, number, number]> = {
+  乾: [1, 1, 1], 兑: [1, 1, 0], 离: [1, 0, 1], 震: [1, 0, 0],
+  巽: [0, 1, 1], 坎: [0, 1, 0], 艮: [0, 0, 1], 坤: [0, 0, 0],
+};
+
+function calculateChangedLines(mainCode: string, changedCode: string): number[] {
+  const lines: number[] = [];
+  for (let index = 0; index < 6; index += 1) {
+    if (mainCode[index] !== changedCode[index]) {
+      lines.push(index + 1);
+    }
+  }
+  return lines;
+}
+
+function calculateChangedHexagram(code: string, changedLines: number[]): string {
+  const chars = code.split('');
+  for (const line of changedLines) {
+    const index = line - 1;
+    chars[index] = chars[index] === '1' ? '0' : '1';
+  }
+  return chars.join('');
+}
+
+function divine(rng: () => number): { yaos: YaoInput[]; hexagramCode: string; changedLines: number[]; } {
+  const yaos: YaoInput[] = [];
+  const changedLines: number[] = [];
+
+  for (let index = 0; index < 6; index += 1) {
+    const coins = [
+      rng() > 0.5 ? 3 : 2,
+      rng() > 0.5 ? 3 : 2,
+      rng() > 0.5 ? 3 : 2,
+    ];
+    const sum = coins.reduce((left, right) => left + right, 0);
+
+    let type: YaoType;
+    let change: 'stable' | 'changing' = 'stable';
+
+    if (sum === 6) {
+      type = 0;
+      change = 'changing';
+    } else if (sum === 7) {
+      type = 1;
+    } else if (sum === 8) {
+      type = 0;
+    } else {
+      type = 1;
+      change = 'changing';
+    }
+
+    if (change === 'changing') {
+      changedLines.push(index + 1);
+    }
+
+    yaos.push({
+      type,
+      change,
+      position: index + 1,
+    });
+  }
+
+  return {
+    yaos,
+    hexagramCode: yaos.map((item) => item.type).join(''),
+    changedLines,
+  };
+}
+
+function divineByTime(date: Date): { yaos: YaoInput[]; hexagramCode: string; changedLines: number[]; } {
+  const solar = Solar.fromDate(date);
+  const lunar = solar.getLunar();
+
+  const yearBranch = lunar.getYearShengXiao();
+  const zodiacToBranch: Record<string, number> = {
+    鼠: 1, 牛: 2, 虎: 3, 兔: 4, 龙: 5, 蛇: 6,
+    马: 7, 羊: 8, 猴: 9, 鸡: 10, 狗: 11, 猪: 12,
+  };
+  const yearBranchNum = zodiacToBranch[yearBranch] || 1;
+
+  const lunarMonth = Math.abs(lunar.getMonth());
+  const lunarDay = lunar.getDay();
+  const hour = date.getHours();
+  const hourBranchIndex = Math.floor((hour + 1) / 2) % 12;
+  const hourBranchNum = hourBranchIndex + 1;
+
+  let upperNum = (yearBranchNum + lunarMonth + lunarDay) % 8;
+  if (upperNum === 0) upperNum = 8;
+
+  let lowerNum = (yearBranchNum + lunarMonth + lunarDay + hourBranchNum) % 8;
+  if (lowerNum === 0) lowerNum = 8;
+
+  let movingLine = (yearBranchNum + lunarMonth + lunarDay + hourBranchNum) % 6;
+  if (movingLine === 0) movingLine = 6;
+
+  const upperTrigram = NUMBER_TO_TRIGRAM[upperNum];
+  const lowerTrigram = NUMBER_TO_TRIGRAM[lowerNum];
+  const lowerLines = TRIGRAM_LINES[lowerTrigram];
+  const upperLines = TRIGRAM_LINES[upperTrigram];
+  const lines: number[] = [...lowerLines, ...upperLines];
+  const hexagramCode = lines.join('');
+
+  const changedLines = [movingLine];
+  const yaos: YaoInput[] = lines.map((line, index) => ({
+    type: line as YaoType,
+    change: (index + 1) === movingLine ? 'changing' : 'stable',
+    position: index + 1,
+  }));
+
+  return { yaos, hexagramCode, changedLines };
+}
+
+function divineByNumber(numbers: number[]): { yaos: YaoInput[]; hexagramCode: string; changedLines: number[]; } {
+  if (numbers.length < 2 || numbers.length > 3) {
+    throw new Error('数字起卦需要提供2或3个数字');
+  }
+  if (!numbers.every((value) => Number.isInteger(value) && value > 0)) {
+    throw new Error('数字起卦的 numbers 必须是正整数');
+  }
+
+  let upperNum: number;
+  let lowerNum: number;
+  let movingLine: number;
+
+  if (numbers.length === 2) {
+    upperNum = numbers[0] % 8;
+    if (upperNum === 0) upperNum = 8;
+    lowerNum = numbers[1] % 8;
+    if (lowerNum === 0) lowerNum = 8;
+    movingLine = (numbers[0] + numbers[1]) % 6;
+    if (movingLine === 0) movingLine = 6;
+  } else {
+    upperNum = numbers[0] % 8;
+    if (upperNum === 0) upperNum = 8;
+    lowerNum = numbers[1] % 8;
+    if (lowerNum === 0) lowerNum = 8;
+    movingLine = numbers[2] % 6;
+    if (movingLine === 0) movingLine = 6;
+  }
+
+  const upperTrigram = NUMBER_TO_TRIGRAM[upperNum];
+  const lowerTrigram = NUMBER_TO_TRIGRAM[lowerNum];
+  const lowerLines = TRIGRAM_LINES[lowerTrigram];
+  const upperLines = TRIGRAM_LINES[upperTrigram];
+  const lines: number[] = [...lowerLines, ...upperLines];
+  const hexagramCode = lines.join('');
+
+  const changedLines = [movingLine];
+  const yaos: YaoInput[] = lines.map((line, index) => ({
+    type: line as YaoType,
+    change: (index + 1) === movingLine ? 'changing' : 'stable',
+    position: index + 1,
+  }));
+
+  return { yaos, hexagramCode, changedLines };
+}
+
+function toLiuyaoOutput(params: {
+  question: string;
+  hexagramCode: string;
+  changedCode?: string;
+  analysisDate: Date;
+  yaos: YaoInput[];
+  changedLines: number[];
+  selectedTargets: ReturnType<typeof normalizeYongShenTargets>;
+}): LiuyaoOutput {
+  const { question, hexagramCode, changedCode, analysisDate, yaos } = params;
+  const baseHexagram = findHexagram(hexagramCode);
+  const changedHexagram = changedCode ? findHexagram(changedCode) : undefined;
+  const basePalace = getPalaceInfo(hexagramCode);
+  const changedPalace = changedCode ? getPalaceInfo(changedCode) : undefined;
+
+  if (!baseHexagram) {
+    throw new Error(`未找到卦象：${hexagramCode}`);
+  }
+
+  const analysis = performFullAnalysis(
+    yaos,
+    hexagramCode,
+    changedCode,
+    question,
+    analysisDate,
+    { yongShenTargets: params.selectedTargets },
+  );
+
+  const fullYaos: LiuyaoOutput['fullYaos'] = analysis.fullYaos.map((item) => {
+    const { change: omittedChange, ...yao } = item;
+    void omittedChange;
+    return {
+      ...yao,
+      yaoCi: YAO_CI[baseHexagram.name]?.[yao.position - 1],
+    };
+  });
+
+  const { nuclearHexagram, oppositeHexagram, reversedHexagram } = calculateDerivedHexagrams(hexagramCode);
+  const guaShen = calculateGuaShen(hexagramCode);
+
+  return {
+    question,
+    hexagramName: baseHexagram.name,
+    hexagramGong: basePalace?.name || '',
+    hexagramElement: baseHexagram.element,
+    hexagramBrief: baseHexagram.nature,
+    guaCi: GUA_CI[baseHexagram.name],
+    xiangCi: XIANG_CI[baseHexagram.name],
+    changedHexagramName: changedHexagram?.name,
+    changedHexagramGong: changedPalace?.name,
+    changedHexagramElement: changedHexagram?.element,
+    changedGuaCi: changedHexagram ? GUA_CI[changedHexagram.name] : undefined,
+    changedXiangCi: changedHexagram ? XIANG_CI[changedHexagram.name] : undefined,
+    ganZhiTime: analysis.ganZhiTime,
+    kongWang: analysis.kongWang,
+    kongWangByPillar: analysis.kongWangByPillar,
+    fullYaos,
+    yongShen: analysis.yongShen,
+    fuShen: analysis.fuShen,
+    shenSystemByYongShen: analysis.shenSystemByYongShen,
+    globalShenSha: analysis.globalShenSha,
+    liuChongGuaInfo: analysis.liuChongGuaInfo,
+    liuHeGuaInfo: analysis.liuHeGuaInfo,
+    chongHeTransition: analysis.chongHeTransition,
+    guaFanFuYin: analysis.guaFanFuYin,
+    sanHeAnalysis: analysis.sanHeAnalysis,
+    warnings: analysis.warnings,
+    timeRecommendations: analysis.timeRecommendations,
+    nuclearHexagram,
+    oppositeHexagram,
+    reversedHexagram,
+    guaShen,
+  };
+}
+
+export async function calculateLiuyaoData(input: LiuyaoInput): Promise<LiuyaoOutput> {
+  const question = typeof input.question === 'string' ? input.question.trim() : '';
+  if (!question) {
+    throw new Error('请先明确问题后再解卦');
+  }
+  if (hasInvalidYongShenTargets(input.yongShenTargets)) {
+    throw new Error('yongShenTargets 含非法值');
+  }
+  const selectedTargets = normalizeYongShenTargets(input.yongShenTargets);
+  if (selectedTargets.length === 0) {
+    throw new Error('请至少选择一个分析目标');
+  }
+
+  const {
+    method = 'auto',
+    hexagramName,
+    changedHexagramName,
+    date,
+  } = input;
+
+  if (!date) {
+    throw new Error('date 为必填项，请提供占卜日期时间（格式：YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS）');
+  }
+  const trimmedDate = date.trim();
+  const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d{1,3})?([zZ]|[+-]\d{2}:\d{2})?$/;
+  if (!DATE_TIME_RE.test(trimmedDate)) {
+    throw new Error('date 格式无效，必须包含时间，请使用 YYYY-MM-DDTHH:MM[:SS] 或带时区偏移的 ISO 时间');
+  }
+
+  const normalizedDateInput = trimmedDate.replace(' ', 'T');
+  const analysisDate = new Date(normalizedDateInput);
+  if (Number.isNaN(analysisDate.getTime())) {
+    throw new Error('date 日期无效，请检查年月日时分是否合理');
+  }
+
+  const dateKey = `${analysisDate.getFullYear()}-${String(analysisDate.getMonth() + 1).padStart(2, '0')}-${String(analysisDate.getDate()).padStart(2, '0')}T${String(analysisDate.getHours()).padStart(2, '0')}`;
+  const seed = resolveSeed(
+    input.seed,
+    `${dateKey}|${question}|${method}|${hexagramName || ''}|${changedHexagramName || ''}`,
+    input.seedScope,
+  );
+  const rng = createSeededRng(seed);
+
+  let yaos: YaoInput[];
+  let hexagramCode: string;
+  let changedCode: string | undefined;
+  let changedLines: number[] = [];
+
+  if (method === 'select') {
+    if (!hexagramName) {
+      throw new Error('select 模式必须提供 hexagramName');
+    }
+    const baseHexagram = findHexagram(hexagramName);
+    if (!baseHexagram) {
+      throw new Error(`未找到卦象：${hexagramName}`);
+    }
+    hexagramCode = baseHexagram.code;
+    if (changedHexagramName) {
+      const changedHexagram = findHexagram(changedHexagramName);
+      if (!changedHexagram) {
+        throw new Error(`未找到变卦：${changedHexagramName}`);
+      }
+      changedCode = changedHexagram.code;
+      changedLines = calculateChangedLines(hexagramCode, changedCode);
+    }
+    yaos = hexagramCode.split('').map((char, index) => ({
+      type: Number.parseInt(char, 10) as YaoType,
+      change: changedLines.includes(index + 1) ? 'changing' : 'stable',
+      position: index + 1,
+    }));
+  } else if (method === 'time') {
+    const result = divineByTime(analysisDate);
+    yaos = result.yaos;
+    hexagramCode = result.hexagramCode;
+    changedLines = result.changedLines;
+    if (changedLines.length > 0) {
+      changedCode = calculateChangedHexagram(hexagramCode, changedLines);
+    }
+  } else if (method === 'number') {
+    if (!input.numbers || input.numbers.length < 2) {
+      throw new Error('数字起卦需要提供 numbers 数组（2或3个数字）');
+    }
+    const result = divineByNumber(input.numbers);
+    yaos = result.yaos;
+    hexagramCode = result.hexagramCode;
+    changedLines = result.changedLines;
+    if (changedLines.length > 0) {
+      changedCode = calculateChangedHexagram(hexagramCode, changedLines);
+    }
+  } else {
+    const result = divine(rng);
+    yaos = result.yaos;
+    hexagramCode = result.hexagramCode;
+    changedLines = result.changedLines;
+    if (changedLines.length > 0) {
+      changedCode = calculateChangedHexagram(hexagramCode, changedLines);
+    }
+  }
+
+  const output = toLiuyaoOutput({
+    question,
+    hexagramCode,
+    changedCode,
+    analysisDate,
+    yaos,
+    changedLines,
+    selectedTargets,
+  });
+
+  return {
+    ...output,
+    seed: method === 'auto' || input.seed || input.seedScope ? seed : undefined,
   };
 }

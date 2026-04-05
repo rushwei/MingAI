@@ -1,5 +1,6 @@
-import { toolRegistry } from './tool-registry.js';
+import type { RenderOptions } from './tool-contract.js';
 import { renderToolResult } from './tool-output.js';
+import { toolRegistry } from './tool-registry.js';
 
 export type ToolResponseFormat = 'json' | 'markdown';
 
@@ -19,7 +20,7 @@ export function buildToolSuccessPayload(
   toolName: string,
   result: unknown,
   responseFormat: ToolResponseFormat = 'json',
-  options?: { detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug' },
+  options?: RenderOptions,
 ) {
   const rendered = renderToolResult(toolName, result, responseFormat, options);
 

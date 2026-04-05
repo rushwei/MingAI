@@ -1,5 +1,5 @@
-import { toolRegistry } from './tool-registry.js';
 import { renderToolResult } from './tool-output.js';
+import { toolRegistry } from './tool-registry.js';
 export function buildListToolsPayload() {
     return {
         tools: toolRegistry.map(({ definition }) => ({

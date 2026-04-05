@@ -7,7 +7,7 @@ import { createMockUIMessageResult } from './helpers/ui-message-result';
 ensureRouteTestEnv();
 
 test('qimen route persists analysis after streaming completes', async (t) => {
-    const { handleQimenCalculate } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
+    const { calculateQimenData } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -21,7 +21,7 @@ test('qimen route persists analysis after streaming completes', async (t) => {
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
-    const chartData = await handleQimenCalculate({
+    const chartData = await calculateQimenData({
         year: 2025,
         month: 1,
         day: 15,
@@ -121,7 +121,7 @@ test('qimen route persists analysis after streaming completes', async (t) => {
 });
 
 test('qimen route surfaces SSE error when stream persistence fails after content generation', async (t) => {
-    const { handleQimenCalculate } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
+    const { calculateQimenData } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -133,7 +133,7 @@ test('qimen route surfaces SSE error when stream persistence fails after content
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalConsoleError = console.error;
 
-    const chartData = await handleQimenCalculate({
+    const chartData = await calculateQimenData({
         year: 2025,
         month: 1,
         day: 15,

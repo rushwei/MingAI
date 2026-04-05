@@ -3,7 +3,7 @@ import { Edit3, Save, Check, Share2, Copy } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 export function ResultHeader({
-    chartId: _chartId,
+    chartId,
     saving,
     saved,
     copied,
@@ -27,6 +27,7 @@ export function ResultHeader({
     onCopyJson?: () => void;
     onShare: () => void;
 }) {
+    void chartId;
     return (
         <div className="hidden md:flex items-center justify-between mb-6">
             <Link

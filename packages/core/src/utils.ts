@@ -1,26 +1,21 @@
 /**
  * 共享工具函数和常量
  *
- * 基础干支常量已迁移至 ./constants/ganzhi.ts，此处 re-export 保持向后兼容。
+ * 干支基础常量统一从 ./constants/ganzhi.ts 汇总导出。
  */
 
 import {
-  TIAN_GAN,
   DI_ZHI,
   GAN_WUXING,
   getStemYinYang,
+  TIAN_GAN,
 } from './constants/ganzhi.js';
 
 export {
-  TIAN_GAN,
   DI_ZHI,
-  GAN_WUXING,
-  STEM_ELEMENTS,
-  ZHI_WUXING,
-  YI_MA_MAP,
-  getStemYinYang,
+  GAN_WUXING, getStemYinYang, STEM_ELEMENTS, TIAN_GAN, YI_MA_MAP, ZHI_WUXING
 } from './constants/ganzhi.js';
-export type { TianGan, DiZhi } from './constants/ganzhi.js';
+export type { DiZhi, TianGan } from './constants/ganzhi.js';
 
 // 五行顺序
 export const WU_XING_ORDER = ['木', '火', '土', '金', '水'];
@@ -77,7 +72,7 @@ const DI_SHI_START_BRANCH: Record<string, string> = {
 };
 
 // 计算空亡
-export function getKongWang(dayGan: string, dayZhi: string): { xun: string; kongZhi: [string, string] } {
+export function getKongWang(dayGan: string, dayZhi: string): { xun: string; kongZhi: [string, string]; } {
   const ganIdx = TIAN_GAN.indexOf(dayGan as typeof TIAN_GAN[number]);
   const zhiIdx = DI_ZHI.indexOf(dayZhi as typeof DI_ZHI[number]);
   if (ganIdx < 0 || zhiIdx < 0) {

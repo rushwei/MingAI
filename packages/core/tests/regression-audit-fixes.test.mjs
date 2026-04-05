@@ -7,8 +7,8 @@ import * as mcpCore from '@mingai/core';
 
 function runQimenUnderTimeZone(timeZone) {
   const script = `
-    import { handleQimenCalculate } from '@mingai/core';
-    const result = await handleQimenCalculate({
+    import { calculateQimenData } from '@mingai/core';
+    const result = await calculateQimenData({
       year: 2026,
       month: 3,
       day: 15,
@@ -45,10 +45,25 @@ test('qimen should stay stable across process time zones for the same wall-clock
   );
 });
 
+test('qimen should throw synchronously for invalid timezones', async () => {
+  assert.throws(
+    () =>
+      mcpCore.calculateQimenData({
+        year: 2026,
+        month: 3,
+        day: 15,
+        hour: 16,
+        minute: 51,
+        timezone: 'Asia/Shanghaix',
+      }),
+    /timezone/u,
+  );
+});
+
 test('liuyao should reject date-only input because time affects the chart', async () => {
   await assert.rejects(
     () =>
-      mcpCore.handleLiuyaoAnalyze({
+      mcpCore.calculateLiuyaoData({
         question: '这周项目顺利吗',
         yongShenTargets: ['官鬼'],
         method: 'auto',
@@ -61,7 +76,7 @@ test('liuyao should reject date-only input because time affects the chart', asyn
 test('liuyao number casting should reject non-positive integers with a user-facing error', async () => {
   await assert.rejects(
     () =>
-      mcpCore.handleLiuyaoAnalyze({
+      mcpCore.calculateLiuyaoData({
         question: '数字起卦测试',
         yongShenTargets: ['官鬼'],
         method: 'number',
@@ -74,7 +89,7 @@ test('liuyao number casting should reject non-positive integers with a user-faci
 
 test('almanac should reject impossible calendar dates instead of silently rolling over', async () => {
   await assert.rejects(
-    () => mcpCore.handleDailyFortune({ date: '2026-02-31' }),
+    () => mcpCore.calculateDailyFortune({ date: '2026-02-31' }),
     /日期无效|不存在/u,
   );
 });
@@ -82,7 +97,7 @@ test('almanac should reject impossible calendar dates instead of silently rollin
 test('daliuren should reject invalid timezones instead of silently falling back', () => {
   assert.throws(
     () =>
-      mcpCore.handleDaliurenCalculate({
+      mcpCore.calculateDaliurenData({
         date: '2024-01-01',
         hour: 10,
         minute: 0,
@@ -93,7 +108,7 @@ test('daliuren should reject invalid timezones instead of silently falling back'
 });
 
 test('ziwei_calculate should derive lifeMasterStar from the birth-year earthly branch', async () => {
-  const result = await mcpCore.handleZiweiCalculate({
+  const result = await mcpCore.calculateZiweiData({
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -109,7 +124,7 @@ test('ziwei should support longitude correction for lunar input by normalizing t
   const lunar = Lunar.fromYmdHms(2003, 8, 6, 0, 10, 0);
   const solar = lunar.getSolar();
 
-  const correctedLunar = await mcpCore.handleZiweiCalculate({
+  const correctedLunar = await mcpCore.calculateZiweiData({
     gender: 'male',
     birthYear: 2003,
     birthMonth: 8,
@@ -120,7 +135,7 @@ test('ziwei should support longitude correction for lunar input by normalizing t
     longitude: 73,
   });
 
-  const correctedSolar = await mcpCore.handleZiweiCalculate({
+  const correctedSolar = await mcpCore.calculateZiweiData({
     gender: 'male',
     birthYear: solar.getYear(),
     birthMonth: solar.getMonth(),
@@ -143,9 +158,9 @@ test('ziwei should reject invalid lunar leap months and out-of-range lunar days'
     nonLeapYear += 1;
   }
 
-  await assert.rejects(
+  assert.throws(
     () =>
-      mcpCore.handleZiweiCalculate({
+      mcpCore.calculateZiweiData({
         gender: 'female',
         birthYear: nonLeapYear,
         birthMonth: 1,
@@ -161,9 +176,9 @@ test('ziwei should reject invalid lunar leap months and out-of-range lunar days'
   const leapMonth = LunarYear.fromYear(2023).getLeapMonth();
   const leapMonthDayCount = LunarMonth.fromYm(2023, -Math.abs(leapMonth)).getDayCount();
 
-  await assert.rejects(
+  assert.throws(
     () =>
-      mcpCore.handleZiweiCalculate({
+      mcpCore.calculateZiweiData({
         gender: 'female',
         birthYear: 2023,
         birthMonth: Math.abs(leapMonth),
@@ -178,7 +193,7 @@ test('ziwei should reject invalid lunar leap months and out-of-range lunar days'
 });
 
 test('bazi_dayun should keep xiaoYun coverage aligned with the upstream startAge', async () => {
-  const result = await mcpCore.handleDayunCalculate({
+  const result = await mcpCore.calculateDayunData({
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,
@@ -195,7 +210,7 @@ test('bazi_dayun should keep xiaoYun coverage aligned with the upstream startAge
 });
 
 test('ziwei_calculate should expose structured four pillars for direct consumers', async () => {
-  const result = await mcpCore.handleZiweiCalculate({
+  const result = await mcpCore.calculateZiweiData({
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,

@@ -1,5 +1,12 @@
-/**
- * CanonicalJSON 输出类型定义
- * 与 text.ts 的 render*CanonicalText() 平行，提供结构化 JSON 输出。
- */
-export {};
+export * from './domains/bazi-dayun/json-types.js';
+export * from './domains/bazi-pillars-resolve/json-types.js';
+export * from './domains/bazi/json-types.js';
+export * from './domains/daliuren/json-types.js';
+export * from './domains/fortune/json-types.js';
+export * from './domains/liuyao/json-types.js';
+export * from './domains/qimen/json-types.js';
+export * from './domains/shared/json-types.js';
+export * from './domains/tarot/json-types.js';
+export * from './domains/ziwei-flying-star/json-types.js';
+export * from './domains/ziwei-horoscope/json-types.js';
+export * from './domains/ziwei/json-types.js';

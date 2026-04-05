@@ -2,7 +2,7 @@
  * 大六壬补充计算 — 库未覆盖的部分
  * 包括：课体细分、课名、十二长生、五行旺衰、桃花、游都
  */
-import { TIAN_GAN, DI_ZHI, GAN_WUXING, ZHI_WUXING } from '../constants/ganzhi.js';
+import { DI_ZHI, GAN_WUXING, TIAN_GAN, ZHI_WUXING } from '../constants/ganzhi.js';
 /** 地支序号 */
 declare function zhiIndex(zhi: string): number;
 /** 天干序号 */
@@ -66,5 +66,5 @@ export declare function calcBenMingXingNian(birthYear: number, currentYear: numb
     benMing: string;
     xingNian: string;
 };
-export { DI_ZHI, TIAN_GAN, ZHI_WUXING, GAN_WUXING, YUE_JIANG_NAMES, TIAN_JIANG_SHORT, zhiIndex, ganIndex, ganYinYang, };
+export { DI_ZHI, GAN_WUXING, ganIndex, ganYinYang, TIAN_GAN, TIAN_JIANG_SHORT, YUE_JIANG_NAMES, ZHI_WUXING, zhiIndex };
 //# sourceMappingURL=supplements.d.ts.map

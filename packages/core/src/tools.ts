@@ -7,7 +7,7 @@ import { toolRegistry } from './tool-registry.js';
 export type {
   ToolAnnotation,
   ToolDefinition,
-  ToolInput,
+  ToolInput
 } from './tool-schema.js';
 
 export const tools = toolRegistry.map((entry) => entry.definition);

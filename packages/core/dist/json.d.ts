@@ -1,34 +1,13 @@
-/**
- * CanonicalJSON 渲染层
- * 与 text.ts 的 render*CanonicalText() 平行，输出结构化 JSON 对象。
- */
-import type { BaziOutput, BaziPillarsResolveOutput, DetailLevel, DayunOutput, FortuneOutput, LiuyaoOutput, QimenOutput, TarotOutput, ZiweiFlyingStarOutput, ZiweiHoroscopeOutput, ZiweiOutput } from './types.js';
-import type { DaliurenOutput } from './daliuren/types.js';
-import type { BaziCanonicalJSON, BaziPillarsResolveCanonicalJSON, DaliurenCanonicalJSON, DayunCanonicalJSON, FortuneCanonicalJSON, LiuyaoAISafeJSON, LiuyaoCanonicalJSON, QimenCanonicalJSON, TarotCanonicalJSON, ZiweiCanonicalJSON, ZiweiFlyingStarCanonicalJSON, ZiweiHoroscopeCanonicalJSON } from './json-types.js';
-import type { BaziCanonicalTextOptions, DaliurenCanonicalTextOptions, FortuneCanonicalTextOptions, QimenCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions, ZiweiHoroscopeCanonicalTextOptions } from './text.js';
 export type * from './json-types.js';
-export declare function renderBaziCanonicalJSON(chart: BaziOutput, options?: BaziCanonicalTextOptions): BaziCanonicalJSON;
-export declare function renderLiuyaoCanonicalJSON(result: LiuyaoOutput): LiuyaoCanonicalJSON;
-export declare function renderLiuyaoAISafeJSON(result: LiuyaoOutput, options?: {
-    detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
-}): LiuyaoAISafeJSON;
-export declare function renderTarotCanonicalJSON(result: TarotOutput, options?: TarotCanonicalTextOptions): TarotCanonicalJSON;
-export declare function renderZiweiCanonicalJSON(result: ZiweiOutput, options?: ZiweiCanonicalTextOptions): ZiweiCanonicalJSON;
-export declare function renderQimenCanonicalJSON(result: QimenOutput, options?: {
-    detailLevel?: QimenCanonicalTextOptions['detailLevel'];
-}): QimenCanonicalJSON;
-export declare function renderDaliurenCanonicalJSON(result: DaliurenOutput, options?: {
-    detailLevel?: DaliurenCanonicalTextOptions['detailLevel'];
-}): DaliurenCanonicalJSON;
-export declare function renderFortuneCanonicalJSON(result: FortuneOutput, options?: {
-    detailLevel?: FortuneCanonicalTextOptions['detailLevel'];
-}): FortuneCanonicalJSON;
-export declare function renderDayunCanonicalJSON(result: DayunOutput, options?: {
-    detailLevel?: BaziCanonicalTextOptions['detailLevel'];
-}): DayunCanonicalJSON;
-export declare function renderBaziPillarsResolveCanonicalJSON(result: BaziPillarsResolveOutput): BaziPillarsResolveCanonicalJSON;
-export declare function renderZiweiHoroscopeCanonicalJSON(result: ZiweiHoroscopeOutput, options?: {
-    detailLevel?: ZiweiHoroscopeCanonicalTextOptions['detailLevel'];
-}): ZiweiHoroscopeCanonicalJSON;
-export declare function renderZiweiFlyingStarCanonicalJSON(result: ZiweiFlyingStarOutput): ZiweiFlyingStarCanonicalJSON;
+export { renderDayunCanonicalJSON } from './domains/bazi-dayun/json.js';
+export { renderBaziPillarsResolveCanonicalJSON } from './domains/bazi-pillars-resolve/json.js';
+export { renderBaziCanonicalJSON } from './domains/bazi/json.js';
+export { renderDaliurenCanonicalJSON } from './domains/daliuren/json.js';
+export { renderFortuneCanonicalJSON } from './domains/fortune/json.js';
+export { renderLiuyaoAISafeJSON, renderLiuyaoCanonicalJSON } from './domains/liuyao/json.js';
+export { renderQimenCanonicalJSON } from './domains/qimen/json.js';
+export { renderTarotCanonicalJSON } from './domains/tarot/json.js';
+export { renderZiweiFlyingStarCanonicalJSON } from './domains/ziwei-flying-star/json.js';
+export { renderZiweiHoroscopeCanonicalJSON } from './domains/ziwei-horoscope/json.js';
+export { renderZiweiCanonicalJSON } from './domains/ziwei/json.js';
 //# sourceMappingURL=json.d.ts.map

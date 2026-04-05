@@ -9,8 +9,9 @@ import {
     calculateZiweiDecadalListWithAstrolabe,
     calculateZiweiHoroscopeDataWithAstrolabe,
     createAstrolabeWithTrueSolar,
-} from '@mingai/core/ziwei';
-import type { ZiweiOutput as CoreZiweiOutput, ZiweiHoroscopeOutput as CoreZiweiHoroscopeOutput } from '@mingai/core';
+    type ZiweiHoroscopeOutput as CoreZiweiHoroscopeOutput,
+    type ZiweiOutput as CoreZiweiOutput,
+} from '@mingai/core/ziwei-core';
 import { renderZiweiCanonicalJSON, renderZiweiHoroscopeCanonicalJSON } from '@mingai/core/json';
 import { renderZiweiCanonicalText } from '@mingai/core/text';
 import type { Gender, CalendarType, TrueSolarTimeInfo } from '@/types';

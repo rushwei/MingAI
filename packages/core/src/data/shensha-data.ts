@@ -1,6 +1,6 @@
 /**
  * 神煞静态数据表
- * 从 shensha.ts 和 handlers/bazi.ts 抽离的公共数据
+ * 从 shensha.ts 与八字核心引擎抽离的公共数据
  */
 
 // ===== 共享神煞规则（按日干/日支/年支/月支查找）=====
@@ -259,7 +259,7 @@ export const YUE_DE_HE: Record<string, string> = {
 export const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
 export const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
 
-export const HIDDEN_STEM_DETAILS: Record<string, Array<{ stem: string; qiType: '本气' | '中气' | '余气' }>> = {
+export const HIDDEN_STEM_DETAILS: Record<string, Array<{ stem: string; qiType: '本气' | '中气' | '余气'; }>> = {
   '子': [{ stem: '癸', qiType: '本气' }],
   '丑': [{ stem: '己', qiType: '本气' }, { stem: '癸', qiType: '中气' }, { stem: '辛', qiType: '余气' }],
   '寅': [{ stem: '甲', qiType: '本气' }, { stem: '丙', qiType: '中气' }, { stem: '戊', qiType: '余气' }],
@@ -331,7 +331,7 @@ export const LIU_HE_HUA: Record<string, string> = {
   '午': '土', '未': '土',
 };
 
-export const SAN_HE: Array<{ branches: string[]; element: string }> = [
+export const SAN_HE: Array<{ branches: string[]; element: string; }> = [
   { branches: ['申', '子', '辰'], element: '水局' },
   { branches: ['巳', '酉', '丑'], element: '金局' },
   { branches: ['寅', '午', '戌'], element: '火局' },
@@ -356,7 +356,7 @@ export const XIANG_HAI: Record<string, string> = {
   '酉': '戌', '戌': '酉',
 };
 
-export const XIANG_XING: Array<{ combination: string[]; name: string }> = [
+export const XIANG_XING: Array<{ combination: string[]; name: string; }> = [
   { combination: ['寅', '巳', '申'], name: '无恩之刑' },
   { combination: ['丑', '戌', '未'], name: '恃势之刑' },
   { combination: ['子', '卯'], name: '无礼之刑' },

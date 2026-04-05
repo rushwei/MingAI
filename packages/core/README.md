@@ -59,9 +59,9 @@ const result = await handleToolCall('qimen_calculate', {
 ### 2. 按子路径导入具体能力
 
 ```ts
-import { handleDaliurenCalculate } from '@mingai/core/daliuren';
+import { calculateDaliurenData } from '@mingai/core/daliuren-core';
 
-const chart = handleDaliurenCalculate({
+const chart = calculateDaliurenData({
   date: '2026-03-19',
   hour: 9,
   minute: 30,
@@ -97,16 +97,20 @@ const rendered = renderToolResult('bazi_calculate', result, 'json');
 | 导出入口 | 用途 |
 |---------|------|
 | `@mingai/core` | `tools`、`toolRegistry`、`handleToolCall`、`renderToolResult` |
-| `@mingai/core/bazi` | 八字工具 handler |
-| `@mingai/core/dayun` | 大运工具 handler |
-| `@mingai/core/ziwei` | 紫微排盘与共享 helper |
-| `@mingai/core/qimen` | 奇门遁甲 handler |
-| `@mingai/core/daliuren` | 大六壬 handler |
-| `@mingai/core/tarot` | 塔罗抽牌能力 |
+| `@mingai/core/bazi-core` | 八字核心算法 |
+| `@mingai/core/bazi-pillars-resolve-core` | 四柱反推候选时间 |
+| `@mingai/core/dayun-core` | 大运核心算法 |
+| `@mingai/core/fortune-core` | 黄历/每日运势核心算法 |
+| `@mingai/core/liuyao-core` | 六爻共享核心 |
+| `@mingai/core/ziwei-core` | 紫微排盘与共享 helper |
+| `@mingai/core/ziwei-horoscope-core` | 紫微运限核心算法 |
+| `@mingai/core/ziwei-flying-star-core` | 紫微飞星分析核心算法 |
+| `@mingai/core/qimen-core` | 奇门遁甲核心算法 |
+| `@mingai/core/daliuren-core` | 大六壬核心算法 |
+| `@mingai/core/tarot-core` | 塔罗抽牌核心算法 |
 | `@mingai/core/utils` | 共享工具函数 |
 | `@mingai/core/timezone-utils` | 命理时间与时区辅助函数 |
 | `@mingai/core/transport` | `buildListToolsPayload` / `buildToolSuccessPayload` |
-| `@mingai/core/liuyao-core` | 六爻共享核心 |
 | `@mingai/core/text` | `render*CanonicalText()` 规范文本输出 |
 | `@mingai/core/json` | `render*CanonicalJSON()` Web 侧 canonical JSON 输出 |
 

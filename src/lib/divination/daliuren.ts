@@ -1,4 +1,4 @@
-import type { DaliurenOutput } from '@mingai/core/daliuren';
+import type { DaliurenOutput } from '@mingai/core/daliuren-core';
 import { renderDaliurenCanonicalText } from '@mingai/core/text';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 

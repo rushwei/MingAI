@@ -1,4 +1,5 @@
 import { getToolRegistryEntry } from './tool-registry.js';
+import type { RenderOptions } from './tool-contract.js';
 
 export type ToolContentItem = {
   type: 'text';
@@ -10,25 +11,12 @@ export type RenderedToolResult = {
   structuredContent?: unknown;
 };
 
-export type RenderToolOptions = {
-  detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug';
-};
+export type RenderToolOptions = RenderOptions;
 
 function stringifyResult(result: unknown): string {
   return typeof result === 'object' && result !== null
     ? JSON.stringify(result, null, 2)
     : String(result);
-}
-
-function attachStructuredRuntimeExtras(canonicalJSON: unknown, result: unknown): unknown {
-  if (typeof canonicalJSON !== 'object' || canonicalJSON === null) return canonicalJSON;
-  if (typeof result !== 'object' || result === null) return canonicalJSON;
-  if (!('placeResolutionInfo' in result)) return canonicalJSON;
-
-  return {
-    ...canonicalJSON,
-    placeResolutionInfo: (result as { placeResolutionInfo?: unknown }).placeResolutionInfo,
-  };
 }
 
 export function renderToolResult(
@@ -41,8 +29,12 @@ export function renderToolResult(
   const canonicalJSON = entry?.jsonFormatter
     ? entry.jsonFormatter(result, options)
     : undefined;
+
+  // 运行时扩展：通过 manifest 钩子合并（替代原先的 placeResolutionInfo 硬编码）
   let structuredContent = canonicalJSON !== undefined
-    ? attachStructuredRuntimeExtras(canonicalJSON, result)
+    ? (entry?.mergeRuntimeExtras
+      ? entry.mergeRuntimeExtras(canonicalJSON, result)
+      : canonicalJSON)
     : (typeof result === 'object' && result !== null && !!entry?.definition.outputSchema ? result : undefined);
 
   const textContent = entry?.markdownFormatter

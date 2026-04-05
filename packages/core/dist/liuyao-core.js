@@ -1,12 +1,13 @@
 import { Solar } from 'lunar-javascript';
-import { calculateBranchShenSha, calculateGlobalShenSha } from './shensha.js';
-import { GUA_CI, XIANG_CI, YAO_CI } from './hexagram-texts.js';
 import { HEXAGRAMS } from './data/hexagram-data.js';
+import { XUN_KONG_TABLE as RAW_XUN_KONG_TABLE } from './data/shensha-data.js';
+import { GUA_CI, XIANG_CI, YAO_CI } from './hexagram-texts.js';
+import { createSeededRng, resolveSeed } from './seeded-rng.js';
+import { calculateBranchShenSha, calculateGlobalShenSha } from './shensha.js';
+import { getKongWang as getKongWangByPillarSource } from './utils.js';
 // ── 卦象 Map 索引（O(1) 查找） ──
 const HEXAGRAM_BY_CODE = new Map(HEXAGRAMS.map(h => [h.code, h]));
 const HEXAGRAM_BY_NAME = new Map(HEXAGRAMS.map(h => [h.name, h]));
-import { XUN_KONG_TABLE as RAW_XUN_KONG_TABLE } from './data/shensha-data.js';
-import { getKongWang as getKongWangByPillarSource } from './utils.js';
 const TIANGAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 const DIZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const LIU_QIN_TARGETS = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
@@ -1675,5 +1676,308 @@ export function getHexagramContext(code) {
         palace: findPalace(code),
         guaCi: hexagram ? GUA_CI[hexagram.name] : undefined,
         xiangCi: hexagram ? XIANG_CI[hexagram.name] : undefined,
+    };
+}
+const NUMBER_TO_TRIGRAM = {
+    1: '乾', 2: '兑', 3: '离', 4: '震',
+    5: '巽', 6: '坎', 7: '艮', 8: '坤',
+};
+const TRIGRAM_LINES = {
+    乾: [1, 1, 1], 兑: [1, 1, 0], 离: [1, 0, 1], 震: [1, 0, 0],
+    巽: [0, 1, 1], 坎: [0, 1, 0], 艮: [0, 0, 1], 坤: [0, 0, 0],
+};
+function calculateChangedLines(mainCode, changedCode) {
+    const lines = [];
+    for (let index = 0; index < 6; index += 1) {
+        if (mainCode[index] !== changedCode[index]) {
+            lines.push(index + 1);
+        }
+    }
+    return lines;
+}
+function calculateChangedHexagram(code, changedLines) {
+    const chars = code.split('');
+    for (const line of changedLines) {
+        const index = line - 1;
+        chars[index] = chars[index] === '1' ? '0' : '1';
+    }
+    return chars.join('');
+}
+function divine(rng) {
+    const yaos = [];
+    const changedLines = [];
+    for (let index = 0; index < 6; index += 1) {
+        const coins = [
+            rng() > 0.5 ? 3 : 2,
+            rng() > 0.5 ? 3 : 2,
+            rng() > 0.5 ? 3 : 2,
+        ];
+        const sum = coins.reduce((left, right) => left + right, 0);
+        let type;
+        let change = 'stable';
+        if (sum === 6) {
+            type = 0;
+            change = 'changing';
+        }
+        else if (sum === 7) {
+            type = 1;
+        }
+        else if (sum === 8) {
+            type = 0;
+        }
+        else {
+            type = 1;
+            change = 'changing';
+        }
+        if (change === 'changing') {
+            changedLines.push(index + 1);
+        }
+        yaos.push({
+            type,
+            change,
+            position: index + 1,
+        });
+    }
+    return {
+        yaos,
+        hexagramCode: yaos.map((item) => item.type).join(''),
+        changedLines,
+    };
+}
+function divineByTime(date) {
+    const solar = Solar.fromDate(date);
+    const lunar = solar.getLunar();
+    const yearBranch = lunar.getYearShengXiao();
+    const zodiacToBranch = {
+        鼠: 1, 牛: 2, 虎: 3, 兔: 4, 龙: 5, 蛇: 6,
+        马: 7, 羊: 8, 猴: 9, 鸡: 10, 狗: 11, 猪: 12,
+    };
+    const yearBranchNum = zodiacToBranch[yearBranch] || 1;
+    const lunarMonth = Math.abs(lunar.getMonth());
+    const lunarDay = lunar.getDay();
+    const hour = date.getHours();
+    const hourBranchIndex = Math.floor((hour + 1) / 2) % 12;
+    const hourBranchNum = hourBranchIndex + 1;
+    let upperNum = (yearBranchNum + lunarMonth + lunarDay) % 8;
+    if (upperNum === 0)
+        upperNum = 8;
+    let lowerNum = (yearBranchNum + lunarMonth + lunarDay + hourBranchNum) % 8;
+    if (lowerNum === 0)
+        lowerNum = 8;
+    let movingLine = (yearBranchNum + lunarMonth + lunarDay + hourBranchNum) % 6;
+    if (movingLine === 0)
+        movingLine = 6;
+    const upperTrigram = NUMBER_TO_TRIGRAM[upperNum];
+    const lowerTrigram = NUMBER_TO_TRIGRAM[lowerNum];
+    const lowerLines = TRIGRAM_LINES[lowerTrigram];
+    const upperLines = TRIGRAM_LINES[upperTrigram];
+    const lines = [...lowerLines, ...upperLines];
+    const hexagramCode = lines.join('');
+    const changedLines = [movingLine];
+    const yaos = lines.map((line, index) => ({
+        type: line,
+        change: (index + 1) === movingLine ? 'changing' : 'stable',
+        position: index + 1,
+    }));
+    return { yaos, hexagramCode, changedLines };
+}
+function divineByNumber(numbers) {
+    if (numbers.length < 2 || numbers.length > 3) {
+        throw new Error('数字起卦需要提供2或3个数字');
+    }
+    if (!numbers.every((value) => Number.isInteger(value) && value > 0)) {
+        throw new Error('数字起卦的 numbers 必须是正整数');
+    }
+    let upperNum;
+    let lowerNum;
+    let movingLine;
+    if (numbers.length === 2) {
+        upperNum = numbers[0] % 8;
+        if (upperNum === 0)
+            upperNum = 8;
+        lowerNum = numbers[1] % 8;
+        if (lowerNum === 0)
+            lowerNum = 8;
+        movingLine = (numbers[0] + numbers[1]) % 6;
+        if (movingLine === 0)
+            movingLine = 6;
+    }
+    else {
+        upperNum = numbers[0] % 8;
+        if (upperNum === 0)
+            upperNum = 8;
+        lowerNum = numbers[1] % 8;
+        if (lowerNum === 0)
+            lowerNum = 8;
+        movingLine = numbers[2] % 6;
+        if (movingLine === 0)
+            movingLine = 6;
+    }
+    const upperTrigram = NUMBER_TO_TRIGRAM[upperNum];
+    const lowerTrigram = NUMBER_TO_TRIGRAM[lowerNum];
+    const lowerLines = TRIGRAM_LINES[lowerTrigram];
+    const upperLines = TRIGRAM_LINES[upperTrigram];
+    const lines = [...lowerLines, ...upperLines];
+    const hexagramCode = lines.join('');
+    const changedLines = [movingLine];
+    const yaos = lines.map((line, index) => ({
+        type: line,
+        change: (index + 1) === movingLine ? 'changing' : 'stable',
+        position: index + 1,
+    }));
+    return { yaos, hexagramCode, changedLines };
+}
+function toLiuyaoOutput(params) {
+    const { question, hexagramCode, changedCode, analysisDate, yaos } = params;
+    const baseHexagram = findHexagram(hexagramCode);
+    const changedHexagram = changedCode ? findHexagram(changedCode) : undefined;
+    const basePalace = getPalaceInfo(hexagramCode);
+    const changedPalace = changedCode ? getPalaceInfo(changedCode) : undefined;
+    if (!baseHexagram) {
+        throw new Error(`未找到卦象：${hexagramCode}`);
+    }
+    const analysis = performFullAnalysis(yaos, hexagramCode, changedCode, question, analysisDate, { yongShenTargets: params.selectedTargets });
+    const fullYaos = analysis.fullYaos.map((item) => {
+        const { change: omittedChange, ...yao } = item;
+        void omittedChange;
+        return {
+            ...yao,
+            yaoCi: YAO_CI[baseHexagram.name]?.[yao.position - 1],
+        };
+    });
+    const { nuclearHexagram, oppositeHexagram, reversedHexagram } = calculateDerivedHexagrams(hexagramCode);
+    const guaShen = calculateGuaShen(hexagramCode);
+    return {
+        question,
+        hexagramName: baseHexagram.name,
+        hexagramGong: basePalace?.name || '',
+        hexagramElement: baseHexagram.element,
+        hexagramBrief: baseHexagram.nature,
+        guaCi: GUA_CI[baseHexagram.name],
+        xiangCi: XIANG_CI[baseHexagram.name],
+        changedHexagramName: changedHexagram?.name,
+        changedHexagramGong: changedPalace?.name,
+        changedHexagramElement: changedHexagram?.element,
+        changedGuaCi: changedHexagram ? GUA_CI[changedHexagram.name] : undefined,
+        changedXiangCi: changedHexagram ? XIANG_CI[changedHexagram.name] : undefined,
+        ganZhiTime: analysis.ganZhiTime,
+        kongWang: analysis.kongWang,
+        kongWangByPillar: analysis.kongWangByPillar,
+        fullYaos,
+        yongShen: analysis.yongShen,
+        fuShen: analysis.fuShen,
+        shenSystemByYongShen: analysis.shenSystemByYongShen,
+        globalShenSha: analysis.globalShenSha,
+        liuChongGuaInfo: analysis.liuChongGuaInfo,
+        liuHeGuaInfo: analysis.liuHeGuaInfo,
+        chongHeTransition: analysis.chongHeTransition,
+        guaFanFuYin: analysis.guaFanFuYin,
+        sanHeAnalysis: analysis.sanHeAnalysis,
+        warnings: analysis.warnings,
+        timeRecommendations: analysis.timeRecommendations,
+        nuclearHexagram,
+        oppositeHexagram,
+        reversedHexagram,
+        guaShen,
+    };
+}
+export async function calculateLiuyaoData(input) {
+    const question = typeof input.question === 'string' ? input.question.trim() : '';
+    if (!question) {
+        throw new Error('请先明确问题后再解卦');
+    }
+    if (hasInvalidYongShenTargets(input.yongShenTargets)) {
+        throw new Error('yongShenTargets 含非法值');
+    }
+    const selectedTargets = normalizeYongShenTargets(input.yongShenTargets);
+    if (selectedTargets.length === 0) {
+        throw new Error('请至少选择一个分析目标');
+    }
+    const { method = 'auto', hexagramName, changedHexagramName, date, } = input;
+    if (!date) {
+        throw new Error('date 为必填项，请提供占卜日期时间（格式：YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS）');
+    }
+    const trimmedDate = date.trim();
+    const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d{1,3})?([zZ]|[+-]\d{2}:\d{2})?$/;
+    if (!DATE_TIME_RE.test(trimmedDate)) {
+        throw new Error('date 格式无效，必须包含时间，请使用 YYYY-MM-DDTHH:MM[:SS] 或带时区偏移的 ISO 时间');
+    }
+    const normalizedDateInput = trimmedDate.replace(' ', 'T');
+    const analysisDate = new Date(normalizedDateInput);
+    if (Number.isNaN(analysisDate.getTime())) {
+        throw new Error('date 日期无效，请检查年月日时分是否合理');
+    }
+    const dateKey = `${analysisDate.getFullYear()}-${String(analysisDate.getMonth() + 1).padStart(2, '0')}-${String(analysisDate.getDate()).padStart(2, '0')}T${String(analysisDate.getHours()).padStart(2, '0')}`;
+    const seed = resolveSeed(input.seed, `${dateKey}|${question}|${method}|${hexagramName || ''}|${changedHexagramName || ''}`, input.seedScope);
+    const rng = createSeededRng(seed);
+    let yaos;
+    let hexagramCode;
+    let changedCode;
+    let changedLines = [];
+    if (method === 'select') {
+        if (!hexagramName) {
+            throw new Error('select 模式必须提供 hexagramName');
+        }
+        const baseHexagram = findHexagram(hexagramName);
+        if (!baseHexagram) {
+            throw new Error(`未找到卦象：${hexagramName}`);
+        }
+        hexagramCode = baseHexagram.code;
+        if (changedHexagramName) {
+            const changedHexagram = findHexagram(changedHexagramName);
+            if (!changedHexagram) {
+                throw new Error(`未找到变卦：${changedHexagramName}`);
+            }
+            changedCode = changedHexagram.code;
+            changedLines = calculateChangedLines(hexagramCode, changedCode);
+        }
+        yaos = hexagramCode.split('').map((char, index) => ({
+            type: Number.parseInt(char, 10),
+            change: changedLines.includes(index + 1) ? 'changing' : 'stable',
+            position: index + 1,
+        }));
+    }
+    else if (method === 'time') {
+        const result = divineByTime(analysisDate);
+        yaos = result.yaos;
+        hexagramCode = result.hexagramCode;
+        changedLines = result.changedLines;
+        if (changedLines.length > 0) {
+            changedCode = calculateChangedHexagram(hexagramCode, changedLines);
+        }
+    }
+    else if (method === 'number') {
+        if (!input.numbers || input.numbers.length < 2) {
+            throw new Error('数字起卦需要提供 numbers 数组（2或3个数字）');
+        }
+        const result = divineByNumber(input.numbers);
+        yaos = result.yaos;
+        hexagramCode = result.hexagramCode;
+        changedLines = result.changedLines;
+        if (changedLines.length > 0) {
+            changedCode = calculateChangedHexagram(hexagramCode, changedLines);
+        }
+    }
+    else {
+        const result = divine(rng);
+        yaos = result.yaos;
+        hexagramCode = result.hexagramCode;
+        changedLines = result.changedLines;
+        if (changedLines.length > 0) {
+            changedCode = calculateChangedHexagram(hexagramCode, changedLines);
+        }
+    }
+    const output = toLiuyaoOutput({
+        question,
+        hexagramCode,
+        changedCode,
+        analysisDate,
+        yaos,
+        changedLines,
+        selectedTargets,
+    });
+    return {
+        ...output,
+        seed: method === 'auto' || input.seed || input.seedScope ? seed : undefined,
     };
 }

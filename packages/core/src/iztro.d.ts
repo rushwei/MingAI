@@ -63,9 +63,9 @@ declare module 'iztro' {
     lunarDate: string;
     solarDate: string;
     decadal: HoroscopeItem;
-    age: HoroscopeItem & { nominalAge: number };
+    age: HoroscopeItem & { nominalAge: number; };
     yearly: HoroscopeItem & {
-      yearlyDecStar: { jiangqian12: string[]; suiqian12: string[] };
+      yearlyDecStar: { jiangqian12: string[]; suiqian12: string[]; };
     };
     monthly: HoroscopeItem;
     daily: HoroscopeItem;
@@ -88,8 +88,8 @@ declare module 'iztro' {
     time?: string;
     timeRange?: string;
     rawDates?: {
-      lunarDate: { lunarYear: number; lunarMonth: number; lunarDay: number; isLeap: boolean };
-      chineseDate: { yearly: [string, string]; monthly: [string, string]; daily: [string, string]; hourly: [string, string] };
+      lunarDate: { lunarYear: number; lunarMonth: number; lunarDay: number; isLeap: boolean; };
+      chineseDate: { yearly: [string, string]; monthly: [string, string]; daily: [string, string]; hourly: [string, string]; };
     };
     horoscope(date?: string | Date, timeIndex?: number): Horoscope;
     palace(indexOrName: number | string): FunctionalPalace | undefined;

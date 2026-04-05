@@ -7,7 +7,7 @@ import { createMockUIMessageResult } from './helpers/ui-message-result';
 ensureRouteTestEnv();
 
 test('daliuren route persists analysis after streaming completes', async (t) => {
-    const { handleDaliurenCalculate } = require('@mingai/core/daliuren') as typeof import('@mingai/core/daliuren');
+    const { calculateDaliurenData } = require('@mingai/core/daliuren-core') as typeof import('@mingai/core/daliuren-core');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -21,7 +21,7 @@ test('daliuren route persists analysis after streaming completes', async (t) => 
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
-    const resultData = handleDaliurenCalculate({
+    const resultData = calculateDaliurenData({
         date: '2025-01-15',
         hour: 10,
         minute: 30,
@@ -116,7 +116,7 @@ test('daliuren route persists analysis after streaming completes', async (t) => 
 });
 
 test('daliuren route surfaces SSE error when stream persistence fails after content generation', async (t) => {
-    const { handleDaliurenCalculate } = require('@mingai/core/daliuren') as typeof import('@mingai/core/daliuren');
+    const { calculateDaliurenData } = require('@mingai/core/daliuren-core') as typeof import('@mingai/core/daliuren-core');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -128,7 +128,7 @@ test('daliuren route surfaces SSE error when stream persistence fails after cont
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalConsoleError = console.error;
 
-    const resultData = handleDaliurenCalculate({
+    const resultData = calculateDaliurenData({
         date: '2025-01-15',
         hour: 10,
         minute: 30,

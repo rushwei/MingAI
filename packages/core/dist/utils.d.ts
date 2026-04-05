@@ -1,10 +1,10 @@
 /**
  * 共享工具函数和常量
  *
- * 基础干支常量已迁移至 ./constants/ganzhi.ts，此处 re-export 保持向后兼容。
+ * 干支基础常量统一从 ./constants/ganzhi.ts 汇总导出。
  */
-export { TIAN_GAN, DI_ZHI, GAN_WUXING, STEM_ELEMENTS, ZHI_WUXING, YI_MA_MAP, getStemYinYang, } from './constants/ganzhi.js';
-export type { TianGan, DiZhi } from './constants/ganzhi.js';
+export { DI_ZHI, GAN_WUXING, getStemYinYang, STEM_ELEMENTS, TIAN_GAN, YI_MA_MAP, ZHI_WUXING } from './constants/ganzhi.js';
+export type { DiZhi, TianGan } from './constants/ganzhi.js';
 export declare const WU_XING_ORDER: string[];
 export declare function getElementRelation(from: string, to: string): string;
 export declare function calculateTenGod(dayStem: string, targetStem: string): string;

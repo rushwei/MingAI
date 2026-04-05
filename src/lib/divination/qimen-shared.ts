@@ -1,4 +1,4 @@
-import type { QimenOutput as CoreQimenOutput } from '@mingai/core';
+import type { QimenOutput as CoreQimenOutput } from '@mingai/core/qimen-core';
 import { renderQimenCanonicalText } from '@mingai/core/text';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 

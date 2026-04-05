@@ -20,7 +20,7 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import type { DaliurenOutput } from '@mingai/core/daliuren';
+import type { DaliurenOutput } from '@mingai/core/daliuren-core';
 import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';

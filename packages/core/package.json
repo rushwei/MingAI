@@ -22,9 +22,49 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./bazi-core": {
+      "types": "./dist/bazi-core.d.ts",
+      "default": "./dist/bazi-core.js"
+    },
+    "./bazi-pillars-resolve-core": {
+      "types": "./dist/bazi-pillars-resolve-core.d.ts",
+      "default": "./dist/bazi-pillars-resolve-core.js"
+    },
+    "./dayun-core": {
+      "types": "./dist/dayun-core.d.ts",
+      "default": "./dist/dayun-core.js"
+    },
+    "./fortune-core": {
+      "types": "./dist/fortune-core.d.ts",
+      "default": "./dist/fortune-core.js"
+    },
     "./liuyao-core": {
       "types": "./dist/liuyao-core.d.ts",
       "default": "./dist/liuyao-core.js"
+    },
+    "./qimen-core": {
+      "types": "./dist/qimen-core.d.ts",
+      "default": "./dist/qimen-core.js"
+    },
+    "./tarot-core": {
+      "types": "./dist/tarot-core.d.ts",
+      "default": "./dist/tarot-core.js"
+    },
+    "./ziwei-core": {
+      "types": "./dist/ziwei-core.d.ts",
+      "default": "./dist/ziwei-core.js"
+    },
+    "./ziwei-horoscope-core": {
+      "types": "./dist/ziwei-horoscope-core.d.ts",
+      "default": "./dist/ziwei-horoscope-core.js"
+    },
+    "./ziwei-flying-star-core": {
+      "types": "./dist/ziwei-flying-star-core.d.ts",
+      "default": "./dist/ziwei-flying-star-core.js"
+    },
+    "./daliuren-core": {
+      "types": "./dist/daliuren-core.d.ts",
+      "default": "./dist/daliuren-core.js"
     },
     "./data/hexagram-data": {
       "types": "./dist/data/hexagram-data.d.ts",
@@ -37,30 +77,6 @@
     "./utils": {
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
-    },
-    "./dayun": {
-      "types": "./dist/handlers/liunian.d.ts",
-      "default": "./dist/handlers/liunian.js"
-    },
-    "./bazi": {
-      "types": "./dist/handlers/bazi.d.ts",
-      "default": "./dist/handlers/bazi.js"
-    },
-    "./ziwei": {
-      "types": "./dist/handlers/ziwei.d.ts",
-      "default": "./dist/handlers/ziwei.js"
-    },
-    "./qimen": {
-      "types": "./dist/handlers/qimen.d.ts",
-      "default": "./dist/handlers/qimen.js"
-    },
-    "./daliuren": {
-      "types": "./dist/daliuren/index.d.ts",
-      "default": "./dist/daliuren/index.js"
-    },
-    "./tarot": {
-      "types": "./dist/tarot.d.ts",
-      "default": "./dist/tarot.js"
     },
     "./transport": {
       "types": "./dist/transport.d.ts",
@@ -94,6 +110,7 @@
     "divination"
   ],
   "scripts": {
+    "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsc",
     "dev": "tsc --watch"
   },

@@ -7,7 +7,7 @@ import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
-import { handleDaliurenCalculate, type DaliurenOutput } from '@mingai/core/daliuren';
+import { calculateDaliurenData, type DaliurenOutput } from '@mingai/core/daliuren-core';
 import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
                 if (!date || hour == null) {
                     return jsonError('请提供日期和时辰', 400, { success: false });
                 }
-                const result = handleDaliurenCalculate({
+                const result = calculateDaliurenData({
                     date, hour, minute, timezone, question, birthYear, gender,
                 });
                 return jsonOk({ success: true, data: result });

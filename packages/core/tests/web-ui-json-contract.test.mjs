@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  handleDailyFortune,
-  handleBaziPillarsResolve,
+  calculateDailyFortune,
+  calculateBaziPillarsResolve,
   renderBaziCanonicalJSON,
-  handleDaliurenCalculate,
-  handleQimenCalculate,
-  handleTarotDraw,
-  handleZiweiFlyingStar,
-  handleZiweiHoroscope,
-  handleZiweiCalculate,
+  calculateDaliurenData,
+  calculateQimenData,
+  calculateTarotData,
+  calculateZiweiFlyingStar,
+  calculateZiweiHoroscopeData,
+  calculateZiweiData,
   renderDaliurenCanonicalJSON,
   renderBaziPillarsResolveCanonicalJSON,
   renderFortuneCanonicalJSON,
@@ -80,7 +80,7 @@ function createBaziResult(overrides = {}) {
 }
 
 test('qimen canonical json should preserve machine-readable fields needed by web ui', async () => {
-  const result = await handleQimenCalculate({
+  const result = await calculateQimenData({
     year: 2026,
     month: 3,
     day: 22,
@@ -107,7 +107,7 @@ test('qimen canonical json should preserve machine-readable fields needed by web
 });
 
 test('daliuren canonical json should not expose fields omitted by canonical text spec', async () => {
-  const result = await handleDaliurenCalculate({
+  const result = await calculateDaliurenData({
     date: '2026-03-22',
     hour: 10,
     minute: 0,
@@ -131,7 +131,7 @@ test('daliuren canonical json should not expose fields omitted by canonical text
 });
 
 test('almanac canonical json should expose Chinese grouped keys and keep full-only calendrical extensions opt-in', async () => {
-  const result = await handleDailyFortune({
+  const result = await calculateDailyFortune({
     date: '2026-04-01',
     dayMaster: '戊',
   });
@@ -163,7 +163,7 @@ test('bazi canonical json should de-duplicate branch relation summaries without 
 });
 
 test('bazi_pillars_resolve canonical json should expose Chinese keys and next-call guidance', async () => {
-  const result = await handleBaziPillarsResolve({
+  const result = await calculateBaziPillarsResolve({
     yearPillar: '癸未',
     monthPillar: '庚申',
     dayPillar: '戊寅',
@@ -188,7 +188,7 @@ test('bazi_pillars_resolve canonical json should expose Chinese keys and next-ca
 });
 
 test('daliuren canonical json keeps full tianjiang names for palace grid color mapping', async () => {
-  const result = await handleDaliurenCalculate({
+  const result = await calculateDaliurenData({
     date: '2026-03-22',
     hour: 10,
     minute: 0,
@@ -205,7 +205,7 @@ test('daliuren canonical json keeps full tianjiang names for palace grid color m
 });
 
 test('ziwei canonical json should expose compact default output while keeping full detail opt-in', async () => {
-  const result = await handleZiweiCalculate({
+  const result = await calculateZiweiData({
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,
@@ -242,7 +242,7 @@ test('ziwei canonical json should expose compact default output while keeping fu
 });
 
 test('ziwei_horoscope canonical json should expose Chinese keys for horoscope periods', async () => {
-  const result = await handleZiweiHoroscope({
+  const result = await calculateZiweiHoroscopeData({
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -273,7 +273,7 @@ test('ziwei_horoscope canonical json should expose Chinese keys for horoscope pe
 });
 
 test('ziwei_flying_star canonical json should expose Chinese keys and readable query labels', async () => {
-  const result = await handleZiweiFlyingStar({
+  const result = await calculateZiweiFlyingStar({
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -305,7 +305,7 @@ test('ziwei_flying_star canonical json should expose Chinese keys and readable q
 });
 
 test('tarot canonical json should expose slim default output and full numerology detail on demand', async () => {
-  const result = await handleTarotDraw({
+  const result = await calculateTarotData({
     spreadType: 'three-card',
     question: '接下来会怎样',
     birthYear: 2003,

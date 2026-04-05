@@ -6,8 +6,8 @@ test('tarot should be deterministic with identical seed', async () => {
   const seed = 'seed-tarot-1';
   const input = { spreadType: 'three-card', question: '感情', allowReversed: true, seed };
 
-  const a = await mcpCore.handleTarotDraw(input);
-  const b = await mcpCore.handleTarotDraw(input);
+  const a = await mcpCore.calculateTarotData(input);
+  const b = await mcpCore.calculateTarotData(input);
 
   assert.equal(a.seed, seed);
   assert.equal(b.seed, seed);
@@ -17,8 +17,8 @@ test('tarot should be deterministic with identical seed', async () => {
 test('almanac should return consistent results for same date', async () => {
   const input = { dayMaster: '甲', date: '2026-02-11' };
 
-  const a = await mcpCore.handleDailyFortune(input);
-  const b = await mcpCore.handleDailyFortune(input);
+  const a = await mcpCore.calculateDailyFortune(input);
+  const b = await mcpCore.calculateDailyFortune(input);
 
   assert.equal(a.date, b.date);
   assert.equal(a.dayInfo.ganZhi, b.dayInfo.ganZhi);
@@ -39,8 +39,8 @@ test('liuyao(auto) should be deterministic with identical seed', async () => {
     seed,
   };
 
-  const a = await mcpCore.handleLiuyaoAnalyze(input);
-  const b = await mcpCore.handleLiuyaoAnalyze(input);
+  const a = await mcpCore.calculateLiuyaoData(input);
+  const b = await mcpCore.calculateLiuyaoData(input);
 
   assert.equal(a.seed, seed);
   assert.equal(b.seed, seed);
@@ -56,9 +56,9 @@ test('same seed should be stable within scope and different across scopes', asyn
     seed: 'seed-shared-1',
   };
 
-  const userA1 = await mcpCore.handleTarotDraw({ ...base, seedScope: 'user-a' });
-  const userA2 = await mcpCore.handleTarotDraw({ ...base, seedScope: 'user-a' });
-  const userB = await mcpCore.handleTarotDraw({ ...base, seedScope: 'user-b' });
+  const userA1 = await mcpCore.calculateTarotData({ ...base, seedScope: 'user-a' });
+  const userA2 = await mcpCore.calculateTarotData({ ...base, seedScope: 'user-a' });
+  const userB = await mcpCore.calculateTarotData({ ...base, seedScope: 'user-b' });
 
   assert.equal(userA1.seed, userA2.seed);
   assert.deepEqual(userA1.cards, userA2.cards);

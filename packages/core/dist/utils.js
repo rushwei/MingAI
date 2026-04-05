@@ -1,10 +1,10 @@
 /**
  * 共享工具函数和常量
  *
- * 基础干支常量已迁移至 ./constants/ganzhi.ts，此处 re-export 保持向后兼容。
+ * 干支基础常量统一从 ./constants/ganzhi.ts 汇总导出。
  */
-import { TIAN_GAN, DI_ZHI, GAN_WUXING, getStemYinYang, } from './constants/ganzhi.js';
-export { TIAN_GAN, DI_ZHI, GAN_WUXING, STEM_ELEMENTS, ZHI_WUXING, YI_MA_MAP, getStemYinYang, } from './constants/ganzhi.js';
+import { DI_ZHI, GAN_WUXING, getStemYinYang, TIAN_GAN, } from './constants/ganzhi.js';
+export { DI_ZHI, GAN_WUXING, getStemYinYang, STEM_ELEMENTS, TIAN_GAN, YI_MA_MAP, ZHI_WUXING } from './constants/ganzhi.js';
 // 五行顺序
 export const WU_XING_ORDER = ['木', '火', '土', '金', '水'];
 // 获取五行生克关系

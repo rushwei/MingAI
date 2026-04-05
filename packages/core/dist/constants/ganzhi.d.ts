@@ -4,7 +4,7 @@
  * 所有模块应从此文件导入干支、五行映射等基础常量，
  * 避免在各处重复定义。
  */
-import type { TianGan as TianGanType, DiZhi as DiZhiType } from '../types.js';
+import type { DiZhi as DiZhiType, TianGan as TianGanType } from '../types.js';
 export declare const TIAN_GAN: readonly ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
 export type TianGan = TianGanType;
 export declare const DI_ZHI: readonly ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];

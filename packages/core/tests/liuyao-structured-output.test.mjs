@@ -55,7 +55,7 @@ test('liuyao schema removes deprecated top-level fields and exposes refactored s
 });
 
 test('liuyao output uses refactored yao/yongshen/time structures', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '考试结果和排名怎么样',
     method: 'select',
     hexagramName: '天火同人',
@@ -140,7 +140,7 @@ test('liuyao can identify hidden_moving and day_break in sampled cases', async (
 
   for (const date of dates) {
     for (const hexagramName of hexagrams) {
-      const result = await mcpCore.handleLiuyaoAnalyze({
+      const result = await mcpCore.calculateLiuyaoData({
         question: '近期计划是否顺利',
         yongShenTargets: ['兄弟'],
         method: 'select',
@@ -169,7 +169,7 @@ test('liuyao can identify hidden_moving and day_break in sampled cases', async (
 });
 
 test('liuyao relation uses 伏吟 when changed branch stays the same', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试伏吟关系',
     yongShenTargets: ['兄弟'],
     method: 'select',
@@ -185,7 +185,7 @@ test('liuyao relation uses 伏吟 when changed branch stays the same', async () 
 });
 
 test('liuyao uses 伏神 fallback when target liuqin is absent in main hexagram', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试官鬼不上卦时伏神回退',
     yongShenTargets: ['官鬼'],
     method: 'select',
@@ -208,7 +208,7 @@ test('liuyao uses 伏神 fallback when target liuqin is absent in main hexagram'
 });
 
 test('liuyao exposes ambiguous selection when top candidates differ only by fallback position ordering', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试同类并见',
     yongShenTargets: ['兄弟'],
     method: 'select',
@@ -223,7 +223,7 @@ test('liuyao exposes ambiguous selection when top candidates differ only by fall
 });
 
 test('liuyao MCP output preserves changedNaJia and huaType for selected/candidate yongshen items', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试化变取用',
     yongShenTargets: ['子孙'],
     method: 'select',
@@ -239,7 +239,7 @@ test('liuyao MCP output preserves changedNaJia and huaType for selected/candidat
 });
 
 test('liuyao time recommendations prioritize出伏提示 over generic favorable timing when fallback is still unresolved', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试官鬼不上卦时伏神回退',
     yongShenTargets: ['官鬼'],
     method: 'select',
@@ -263,7 +263,7 @@ test('liuyao time recommendations prioritize出伏提示 over generic favorable 
 });
 
 test('liuyao should use temporal yongshen before fuShen when month/day can stand in', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '问财运',
     yongShenTargets: ['妻财'],
     method: 'select',
@@ -279,7 +279,7 @@ test('liuyao should use temporal yongshen before fuShen when month/day can stand
 });
 
 test('liuyao should use changed yongshen before fuShen when a moving line transforms into target liuqin', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '问财运',
     yongShenTargets: ['妻财'],
     method: 'select',
@@ -297,7 +297,7 @@ test('liuyao should use changed yongshen before fuShen when a moving line transf
 });
 
 test('liuyao should surface kong_yue_jian when a changing empty line is rescued by month-jian', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '问财运',
     yongShenTargets: ['妻财'],
     method: 'select',
@@ -310,7 +310,7 @@ test('liuyao should surface kong_yue_jian when a changing empty line is rescued 
 });
 
 test('liuyao should not emit generic favorable timing for unresolved fuShen fallback', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试官鬼不上卦时伏神回退',
     yongShenTargets: ['官鬼'],
     method: 'select',
@@ -328,7 +328,7 @@ test('liuyao should not emit generic favorable timing for unresolved fuShen fall
 });
 
 test('liuyao should preserve multiple full sanhe groups when the same board contains more than one hit', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
+  const result = await mcpCore.calculateLiuyaoData({
     question: '测试三合并存',
     yongShenTargets: ['子孙'],
     method: 'select',

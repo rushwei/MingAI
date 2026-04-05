@@ -14,9 +14,9 @@ import {
     calculateBaziLiuRiData,
     calculateBaziLiuYueData,
     calculateBaziShenShaData,
-} from '@mingai/core/bazi';
-import type { BaziOutput as CoreBaziOutput } from '@mingai/core';
-import { calculateDayunData } from '@mingai/core/dayun';
+    type BaziOutput as CoreBaziOutput,
+} from '@mingai/core/bazi-core';
+import { calculateDayunData } from '@mingai/core/dayun-core';
 import { renderBaziCanonicalJSON } from '@mingai/core/json';
 import { renderBaziCanonicalText } from '@mingai/core/text';
 import {

@@ -5,7 +5,7 @@
  * 避免在各处重复定义。
  */
 
-import type { TianGan as TianGanType, DiZhi as DiZhiType } from '../types.js';
+import type { DiZhi as DiZhiType, TianGan as TianGanType } from '../types.js';
 
 // 天干列表
 export const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;

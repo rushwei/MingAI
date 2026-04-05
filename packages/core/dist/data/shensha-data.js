@@ -1,6 +1,6 @@
 /**
  * 神煞静态数据表
- * 从 shensha.ts 和 handlers/bazi.ts 抽离的公共数据
+ * 从 shensha.ts 与八字核心引擎抽离的公共数据
  */
 // ===== 共享神煞规则（按日干/日支/年支/月支查找）=====
 export const TIAN_YI_GUI_REN = {

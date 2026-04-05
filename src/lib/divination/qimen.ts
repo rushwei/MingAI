@@ -6,10 +6,10 @@
  */
 
 import {
-    handleQimenCalculate as coreCalculate,
+    calculateQimenData as coreCalculate,
     type QimenOutput as CoreOutput,
     type QimenInput as CoreInput,
-} from '@mingai/core/qimen';
+} from '@mingai/core/qimen-core';
 import type { QimenOutput, QimenPalaceInfo } from './qimen-shared';
 
 // ── 前端类型定义 ──
@@ -65,7 +65,7 @@ function computeMonthPhase(monthPillar: string): Record<string, string> {
 
 // ── 核心排盘 + 转换 ──
 
-export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutput> {
+export async function calculateQimenData(input: QimenInput): Promise<QimenOutput> {
     const coreInput: CoreInput = {
         year: input.year,
         month: input.month,

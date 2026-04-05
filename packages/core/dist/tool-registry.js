@@ -1,45 +1,26 @@
-import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, } from './handlers/index.js';
-import { renderBaziCanonicalJSON, renderBaziPillarsResolveCanonicalJSON, renderDaliurenCanonicalJSON, renderDayunCanonicalJSON, renderFortuneCanonicalJSON, renderLiuyaoAISafeJSON, renderLiuyaoCanonicalJSON, renderQimenCanonicalJSON, renderTarotCanonicalJSON, renderZiweiCanonicalJSON, renderZiweiFlyingStarCanonicalJSON, renderZiweiHoroscopeCanonicalJSON, } from './json.js';
-import { renderBaziCanonicalText, renderBaziPillarsResolveCanonicalText, renderDaliurenCanonicalText, renderDayunCanonicalText, renderFortuneCanonicalText, renderLiuyaoCanonicalText, renderLiuyaoLevelText, renderQimenCanonicalText, renderTarotCanonicalText, renderZiweiCanonicalText, renderZiweiFlyingStarCanonicalText, renderZiweiHoroscopeCanonicalText, } from './text.js';
-import { canonicalOutputSchemas } from './canonical-output-schema.js';
-import { toolDefinitions } from './tool-schema.js';
-const definitionByName = new Map(toolDefinitions.map((definition) => [definition.name, definition]));
-function requireDefinition(name) {
-    const definition = definitionByName.get(name);
-    if (!definition) {
-        throw new Error(`缺少工具定义: ${name}`);
-    }
-    return definition;
-}
-function createRegistryEntry(definition, handler, markdownFormatter, jsonFormatter, debugMarkdownFormatter, debugJsonFormatter) {
-    const canonicalOutputSchema = canonicalOutputSchemas[definition.name];
+/**
+ * 工具注册表
+ *
+ * 基于 tool contract 模式：每个术数的装配信息由 tool-catalog.ts 集中管理，
+ * 本文件只负责将 contract 转换为 ToolRegistryEntry。
+ */
+import { toolCatalog } from './tool-catalog.js';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toolContractToRegistryEntry(contract) {
+    const definition = contract.canonicalOutputSchema
+        ? { ...contract.definition, outputSchema: contract.canonicalOutputSchema }
+        : contract.definition;
     return {
-        definition: canonicalOutputSchema
-            ? { ...definition, outputSchema: canonicalOutputSchema }
-            : definition,
-        handler,
-        markdownFormatter,
-        jsonFormatter,
-        debugMarkdownFormatter,
-        debugJsonFormatter,
+        definition,
+        execute: contract.execute,
+        markdownFormatter: contract.renderText,
+        jsonFormatter: contract.renderJSON,
+        debugMarkdownFormatter: contract.debugRenderText,
+        debugJsonFormatter: contract.debugRenderJSON,
+        mergeRuntimeExtras: contract.mergeRuntimeExtras,
     };
 }
-function adaptToolHandler(handler) {
-    return (args) => handler(args);
-}
-export const toolRegistry = [
-    createRegistryEntry(requireDefinition('bazi_calculate'), adaptToolHandler(handleBaziCalculate), (result, options) => renderBaziCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderBaziCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('bazi_pillars_resolve'), adaptToolHandler(handleBaziPillarsResolve), (result) => renderBaziPillarsResolveCanonicalText(result), (result) => renderBaziPillarsResolveCanonicalJSON(result)),
-    createRegistryEntry(requireDefinition('ziwei_calculate'), adaptToolHandler(handleZiweiCalculate), (result, options) => renderZiweiCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderZiweiCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('ziwei_horoscope'), adaptToolHandler(handleZiweiHoroscope), (result, options) => renderZiweiHoroscopeCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderZiweiHoroscopeCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('ziwei_flying_star'), adaptToolHandler(handleZiweiFlyingStar), (result) => renderZiweiFlyingStarCanonicalText(result), (result) => renderZiweiFlyingStarCanonicalJSON(result)),
-    createRegistryEntry(requireDefinition('liuyao'), adaptToolHandler(handleLiuyaoAnalyze), (result, options) => renderLiuyaoLevelText(result, options), (result, options) => renderLiuyaoAISafeJSON(result, options), (result) => renderLiuyaoCanonicalText(result), (result) => renderLiuyaoCanonicalJSON(result)),
-    createRegistryEntry(requireDefinition('tarot'), adaptToolHandler(handleTarotDraw), (result, options) => renderTarotCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderTarotCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('almanac'), adaptToolHandler(handleDailyFortune), (result, options) => renderFortuneCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderFortuneCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('bazi_dayun'), adaptToolHandler(handleDayunCalculate), (result, options) => renderDayunCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderDayunCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result, options) => renderQimenCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderQimenCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result, options) => renderDaliurenCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderDaliurenCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-];
+export const toolRegistry = toolCatalog.map(toolContractToRegistryEntry);
 export const toolRegistryMap = new Map(toolRegistry.map((entry) => [entry.definition.name, entry]));
 export function getToolRegistryEntry(name) {
     return toolRegistryMap.get(name);

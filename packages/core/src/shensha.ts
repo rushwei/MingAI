@@ -9,7 +9,7 @@ export interface ShenShaContext {
   dayBranch: string;
   hourStem: string;
   hourBranch: string;
-  kongWang?: { xun: string; kongZhi: [string, string] };
+  kongWang?: { xun: string; kongZhi: [string, string]; };
   yearNaYinElement?: string; // 年柱纳音五行（金/木/水/火/土），用于学堂查表
 }
 
@@ -22,46 +22,46 @@ export interface PillarShenShaByPosition {
 
 // 从数据模块导入
 import {
-  TIAN_YI_GUI_REN,
-  TAI_JI_GUI_REN,
-  YANG_REN,
-  WEN_CHANG,
-  YI_MA,
-  TAO_HUA,
-  HUA_GAI,
-  LU_SHEN,
-  JIE_SHA,
-  WANG_SHEN,
-  GU_CHEN,
-  GUA_SU,
-  JIANG_XING,
-  TIAN_CHU,
-  GUO_YIN,
-  XUE_TANG,
+  BA_ZHUAN,
+  BAI_HU,
   CI_GUAN,
+  DIAO_KE,
+  FEI_REN,
+  FU_XING,
+  GOU_SHA,
+  GU_CHEN,
+  GU_LUAN,
+  GUA_SU,
+  GUO_YIN,
   HONG_LUAN,
+  HONG_YAN,
+  HUA_GAI,
+  JIANG_XING,
+  JIAO_SHA,
+  JIE_SHA,
+  JIN_SHEN,
+  KUI_GANG,
+  LIU_XIA,
+  LU_SHEN,
+  PI_TOU,
+  SAN_QI,
+  SANG_MEN,
+  SHI_E_DA_BAI,
+  SI_FEI_RI,
+  TAI_JI_GUI_REN,
+  TAO_HUA,
+  TIAN_CHU,
   TIAN_XI,
   TIAN_YI,
-  DIAO_KE,
-  SANG_MEN,
+  TIAN_YI_GUI_REN,
+  WANG_SHEN,
+  WEN_CHANG,
   XUE_REN,
-  PI_TOU,
-  FU_XING,
-  ZAI_SHA,
-  LIU_XIA,
-  HONG_YAN,
-  GOU_SHA,
-  JIAO_SHA,
-  BAI_HU,
-  FEI_REN,
-  KUI_GANG,
+  XUE_TANG,
+  YANG_REN,
+  YI_MA,
   YIN_CHA_YANG_CUO,
-  SHI_E_DA_BAI,
-  BA_ZHUAN,
-  JIN_SHEN,
-  GU_LUAN,
-  SI_FEI_RI,
-  SAN_QI,
+  ZAI_SHA,
 } from './data/shensha-data.js';
 
 function addUnique(target: string[], value: string): void {
@@ -75,7 +75,7 @@ function checkDayPillarShenSha(
   dayBranch: string,
   monthBranch: string,
   names: string[],
-  options?: { includeFull?: boolean },
+  options?: { includeFull?: boolean; },
 ): void {
   const dayPillar = `${dayStem}${dayBranch}`;
   if (KUI_GANG.includes(dayPillar)) addUnique(names, '魁罡');
@@ -105,7 +105,7 @@ function matchMapValue(map: Record<string, string>, key: string, targetBranch: s
 export function calculateBranchShenSha(
   context: ShenShaContext,
   targetBranch: string,
-  options?: { positionHint?: ShenShaPillarPosition }
+  options?: { positionHint?: ShenShaPillarPosition; }
 ): string[] {
   const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, hourBranch, kongWang } = context;
   const positionHint = options?.positionHint;

@@ -7,7 +7,7 @@
  */
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { handleQimenCalculate } from '@/lib/divination/qimen';
+import { calculateQimenData } from '@/lib/divination/qimen';
 import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
                 if ('error' in authResult) {
                     return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
-                const result = await handleQimenCalculate({
+                const result = await calculateQimenData({
                     year, month, day, hour, minute, timezone, question,
                     panType: panType || 'zhuan',
                     juMethod: juMethod || 'chaibu',

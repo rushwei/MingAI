@@ -1,6 +1,6 @@
 /**
  * 神煞静态数据表
- * 从 shensha.ts 和 handlers/bazi.ts 抽离的公共数据
+ * 从 shensha.ts 与八字核心引擎抽离的公共数据
  */
 export declare const TIAN_YI_GUI_REN: Record<string, string[]>;
 export declare const TAI_JI_GUI_REN: Record<string, string[]>;

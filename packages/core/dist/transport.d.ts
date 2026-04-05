@@ -1,3 +1,4 @@
+import type { RenderOptions } from './tool-contract.js';
 export type ToolResponseFormat = 'json' | 'markdown';
 export declare function buildListToolsPayload(): {
     tools: {
@@ -8,6 +9,9 @@ export declare function buildListToolsPayload(): {
             properties: Record<string, unknown>;
             required: string[];
             examples?: unknown[];
+            allOf?: unknown[];
+            anyOf?: unknown[];
+            oneOf?: unknown[];
         };
         outputSchema: {
             type: "object";
@@ -16,7 +20,5 @@ export declare function buildListToolsPayload(): {
         annotations: import("./tool-schema.js").ToolAnnotation | undefined;
     }[];
 };
-export declare function buildToolSuccessPayload(toolName: string, result: unknown, responseFormat?: ToolResponseFormat, options?: {
-    detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug';
-}): import("./tool-output.js").RenderedToolResult;
+export declare function buildToolSuccessPayload(toolName: string, result: unknown, responseFormat?: ToolResponseFormat, options?: RenderOptions): import("./tool-output.js").RenderedToolResult;
 //# sourceMappingURL=transport.d.ts.map
