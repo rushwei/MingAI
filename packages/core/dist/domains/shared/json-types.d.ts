@@ -106,6 +106,7 @@ export type { BaziCanonicalJSON, BaziPillarJSON } from '../bazi/json-types.js';
 export type { DaliurenCanonicalJSON } from '../daliuren/json-types.js';
 export type { FortuneCanonicalJSON } from '../fortune/json-types.js';
 export type { LiuyaoAISafeJSON, LiuyaoAISafeLineJSON, LiuyaoCanonicalJSON, LiuyaoYaoJSON, LiuyaoYongShenJSON } from '../liuyao/json-types.js';
+export type { MeihuaCanonicalJSON } from '../meihua/json-types.js';
 export type { QimenCanonicalJSON, QimenPalaceJSON } from '../qimen/json-types.js';
 export type { TarotCanonicalJSON, TarotCardJSON, TarotNumerologyCardJSON } from '../tarot/json-types.js';
 export type { ZiweiFlyingStarCanonicalJSON } from '../ziwei-flying-star/json-types.js';

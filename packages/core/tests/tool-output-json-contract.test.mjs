@@ -106,6 +106,31 @@ test('almanac default/full should keep default compact and full append complete 
   assert.ok(Array.isArray(fullPayload.structuredContent.时辰吉凶));
 });
 
+test('meihua detailLevel full should reach transport renderers and expose full-only seasonal fields', async () => {
+  const rawResult = await mcpCore.handleToolCall('meihua', {
+    question: '这次合作能否谈成？',
+    method: 'time',
+    date: '2026-04-04T10:30:00',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.doesNotMatch(defaultPayload.content[0].text, /体互旺衰/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /用互旺衰/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /变卦旺衰/u);
+  assert.match(fullPayload.content[0].text, /体互旺衰/u);
+  assert.match(fullPayload.content[0].text, /用互旺衰/u);
+  assert.match(fullPayload.content[0].text, /变卦旺衰/u);
+
+  assert.equal(defaultPayload.structuredContent.体用分析.月令旺衰.体互, undefined);
+  assert.equal(defaultPayload.structuredContent.体用分析.月令旺衰.用互, undefined);
+  assert.equal(defaultPayload.structuredContent.体用分析.月令旺衰.变卦, undefined);
+  assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.体互, 'string');
+  assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.用互, 'string');
+  assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.变卦, 'string');
+});
+
 test('bazi_calculate tool output should keep chart-only boundaries without implicit dayun summary', async () => {
   const rawResult = await mcpCore.handleToolCall('bazi_calculate', {
     gender: 'male',

@@ -432,6 +432,7 @@ export type { BaziPillarsResolveCandidate, BaziPillarsResolveInput, BaziPillarsR
 export type { BaziFiveElementsStats, BaziInput, BaziLiuRiInfo, BaziLiuYueInfo, BaziOutput, BaziShenShaOutput, PillarInfo } from '../bazi/types.js';
 export type { FortuneInput, FortuneOutput } from '../fortune/types.js';
 export type { LiuyaoInput, LiuyaoOutput } from '../liuyao/types.js';
+export type { MeihuaBodyUseRelation, MeihuaCastInputSnapshot, MeihuaCastMeta, MeihuaCastNumbers, MeihuaCountCategory, MeihuaCueCategory, MeihuaHexagramInfo, MeihuaInput, MeihuaInteractionReading, MeihuaJudgement, MeihuaMeasureKind, MeihuaMethod, MeihuaMethodFamily, MeihuaMultiSentenceStrategy, MeihuaOutcome, MeihuaOutput, MeihuaSeasonState, MeihuaSeasonalState, MeihuaTextSplitMode, MeihuaTimingHint, MeihuaTrigramInfo } from '../meihua/types.js';
 export type { QimenInput, QimenOutput, QimenPalaceInfo } from '../qimen/types.js';
 export type { TarotCardResult, TarotInput, TarotNumerology, TarotNumerologyCard, TarotOutput } from '../tarot/types.js';
 export type { FlyingStarResult, ZiweiFlyingStarInput, ZiweiFlyingStarOutput } from '../ziwei-flying-star/types.js';

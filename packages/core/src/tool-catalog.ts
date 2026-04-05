@@ -4,6 +4,7 @@ import { baziManifest } from './domains/bazi/manifest.js';
 import { daliurenManifest } from './domains/daliuren/manifest.js';
 import { almanacManifest } from './domains/fortune/manifest.js';
 import { liuyaoManifest } from './domains/liuyao/manifest.js';
+import { meihuaManifest } from './domains/meihua/manifest.js';
 import { qimenManifest } from './domains/qimen/manifest.js';
 import { tarotManifest } from './domains/tarot/manifest.js';
 import { ziweiFlyingStarManifest } from './domains/ziwei-flying-star/manifest.js';
@@ -19,6 +20,7 @@ export const toolCatalog: ToolContract<any, any>[] = [
   ziweiHoroscopeManifest,
   ziweiFlyingStarManifest,
   liuyaoManifest,
+  meihuaManifest,
   tarotManifest,
   almanacManifest,
   baziDayunManifest,

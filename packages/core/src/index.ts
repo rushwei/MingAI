@@ -19,6 +19,7 @@ export type {
   LiuyaoCanonicalJSON,
   LiuyaoYaoJSON,
   LiuyaoYongShenJSON,
+  MeihuaCanonicalJSON,
   QimenCanonicalJSON,
   QimenPalaceJSON,
   TarotCanonicalJSON,
@@ -40,6 +41,7 @@ export {
   renderFortuneCanonicalJSON,
   renderLiuyaoAISafeJSON,
   renderLiuyaoCanonicalJSON,
+  renderMeihuaCanonicalJSON,
   renderQimenCanonicalJSON,
   renderTarotCanonicalJSON,
   renderZiweiCanonicalJSON, renderZiweiFlyingStarCanonicalJSON, renderZiweiHoroscopeCanonicalJSON
@@ -50,6 +52,7 @@ export { calculateDailyFortune } from './fortune-core.js';
 export { calculateDaliurenData } from './daliuren-core.js';
 export { calculateDayunData } from './dayun-core.js';
 export { calculateLiuyaoData } from './liuyao-core.js';
+export { calculateMeihua } from './meihua-core.js';
 export { calculateQimenData } from './qimen-core.js';
 export { calculateTarotData } from './tarot-core.js';
 export {
@@ -57,10 +60,10 @@ export {
   renderBaziPillarsResolveCanonicalText, renderDaliurenCanonicalText, renderDayunCanonicalText,
   renderFortuneCanonicalText,
   renderLiuyaoAISafeText, renderLiuyaoCanonicalText, renderLiuyaoLevelText,
-  renderQimenCanonicalText,
+  renderMeihuaCanonicalText, renderQimenCanonicalText,
   renderTarotCanonicalText, renderZiweiCanonicalText, renderZiweiFlyingStarCanonicalText, renderZiweiHoroscopeCanonicalText
 } from './text.js';
-export type { ZiweiCanonicalTextOptions } from './text.js';
+export type { MeihuaCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
 export {
   calculateZiweiData,
   calculateZiweiDataWithAstrolabe,

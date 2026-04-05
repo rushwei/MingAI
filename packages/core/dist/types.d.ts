@@ -4,6 +4,7 @@ export * from './domains/bazi/types.js';
 export * from './domains/daliuren/types.js';
 export * from './domains/fortune/types.js';
 export * from './domains/liuyao/types.js';
+export * from './domains/meihua/types.js';
 export * from './domains/qimen/types.js';
 export * from './domains/shared/types.js';
 export * from './domains/tarot/types.js';

@@ -4,6 +4,7 @@ export { renderBaziCanonicalJSON } from './domains/bazi/json.js';
 export { renderDaliurenCanonicalJSON } from './domains/daliuren/json.js';
 export { renderFortuneCanonicalJSON } from './domains/fortune/json.js';
 export { renderLiuyaoAISafeJSON, renderLiuyaoCanonicalJSON } from './domains/liuyao/json.js';
+export { renderMeihuaCanonicalJSON } from './domains/meihua/json.js';
 export { renderQimenCanonicalJSON } from './domains/qimen/json.js';
 export { renderTarotCanonicalJSON } from './domains/tarot/json.js';
 export { renderZiweiFlyingStarCanonicalJSON } from './domains/ziwei-flying-star/json.js';

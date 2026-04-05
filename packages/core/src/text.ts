@@ -1,5 +1,6 @@
 export type {
   BaziCanonicalTextOptions, DaliurenCanonicalTextOptions, DayunCanonicalTextOptions, FortuneCanonicalTextOptions,
+  MeihuaCanonicalTextOptions,
   QimenCanonicalTextOptions,
   TarotCanonicalTextOptions,
   ZiweiCanonicalTextOptions,
@@ -16,6 +17,7 @@ export {
   renderLiuyaoCanonicalText,
   renderLiuyaoLevelText
 } from './domains/liuyao/text.js';
+export { renderMeihuaCanonicalText } from './domains/meihua/text.js';
 export { renderQimenCanonicalText } from './domains/qimen/text.js';
 export { renderTarotCanonicalText } from './domains/tarot/text.js';
 export { renderZiweiFlyingStarCanonicalText } from './domains/ziwei-flying-star/text.js';

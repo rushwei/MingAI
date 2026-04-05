@@ -9,6 +9,7 @@ import type {
   DayunInput,
   FortuneInput,
   LiuyaoInput,
+  MeihuaInput,
   QimenInput,
   TarotInput,
   ZiweiFlyingStarInput,
@@ -43,4 +44,4 @@ export interface ToolDefinition {
   annotations?: ToolAnnotation;
 }
 
-export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput | QimenInput | DaliurenInput;
+export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | MeihuaInput | TarotInput | FortuneInput | DayunInput | QimenInput | DaliurenInput;

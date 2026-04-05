@@ -10,6 +10,7 @@ import { baziCalculateDefinition } from './domains/bazi/schema.js';
 import { daliurenDefinition } from './domains/daliuren/schema.js';
 import { almanacDefinition } from './domains/fortune/schema.js';
 import { liuyaoDefinition } from './domains/liuyao/schema.js';
+import { meihuaDefinition } from './domains/meihua/schema.js';
 import { qimenCalculateDefinition } from './domains/qimen/schema.js';
 import { tarotDefinition } from './domains/tarot/schema.js';
 import { ziweiFlyingStarDefinition } from './domains/ziwei-flying-star/schema.js';
@@ -23,6 +24,7 @@ export const toolDefinitions = [
   ziweiHoroscopeDefinition,
   ziweiFlyingStarDefinition,
   liuyaoDefinition,
+  meihuaDefinition,
   tarotDefinition,
   almanacDefinition,
   baziDayunDefinition,

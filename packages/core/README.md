@@ -102,6 +102,7 @@ const rendered = renderToolResult('bazi_calculate', result, 'json');
 | `@mingai/core/dayun-core` | 大运核心算法 |
 | `@mingai/core/fortune-core` | 黄历/每日运势核心算法 |
 | `@mingai/core/liuyao-core` | 六爻共享核心 |
+| `@mingai/core/meihua-core` | 梅花易数核心算法 |
 | `@mingai/core/ziwei-core` | 紫微排盘与共享 helper |
 | `@mingai/core/ziwei-horoscope-core` | 紫微运限核心算法 |
 | `@mingai/core/ziwei-flying-star-core` | 紫微飞星分析核心算法 |
