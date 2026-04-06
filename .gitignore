@@ -13,6 +13,7 @@
 
 # production
 /build
+packages/*/dist/
 
 # misc
 .DS_Store
@@ -58,7 +59,8 @@ next-env.d.ts
 supabase/migrations
 
 # docs
-docs/
+docs/*
+!docs/plan/
 
 # AI
 .claude
