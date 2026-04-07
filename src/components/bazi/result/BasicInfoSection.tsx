@@ -4,8 +4,8 @@
  * 对齐 Notion 风格：极简卡片、移除渐变、标准化边框与按钮
  */
 import { User, Save, Sparkles, Info } from 'lucide-react';
-import type { BaziCanonicalJSON } from '@mingai/core/json';
-import { getElementColor } from '@/lib/divination/bazi';
+import type { BaziCanonicalJSON } from '@mingai/core/bazi';
+import { getElementColor } from '@/lib/divination/display-helpers';
 import { TenGodKnowledge } from '@/components/bazi/TenGodKnowledge';
 import { AIWuxingAnalysis } from '@/components/bazi/result/AIWuxingAnalysis';
 import { AIPersonalityAnalysis } from '@/components/bazi/result/AIPersonalityAnalysis';
@@ -32,6 +32,8 @@ interface BasicInfoSectionProps {
     savedPersonalityReasoning?: string | null;
     /** 已保存的人格模型 */
     savedPersonalityModelId?: string | null;
+    /** 是否具备有效出生时辰 */
+    hasKnownBirthTime?: boolean;
     /** 保存五行分析回调 */
     onSaveWuxingAnalysis?: (analysis: string) => void;
     /** 保存人格分析回调 */
@@ -52,6 +54,7 @@ export function BasicInfoSection({
     savedPersonalityAnalysis,
     savedPersonalityReasoning,
     savedPersonalityModelId,
+    hasKnownBirthTime = true,
     onSaveWuxingAnalysis,
     onSavePersonalityAnalysis,
     onLoginRequired,
@@ -66,7 +69,6 @@ export function BasicInfoSection({
 
     // 是否已保存命盘
     const isSaved = Boolean(chartId);
-
     return (
         <div className="space-y-8 animate-fade-in">
             {/* 1. 日主特征 - 极简卡片 */}
@@ -98,7 +100,25 @@ export function BasicInfoSection({
             {/* 2. AI 专业分析区域 */}
             <div className="space-y-8">
                 {/* 五行分析 */}
-                {!isSaved ? (
+                {!hasKnownBirthTime ? (
+                    <section className="bg-background-secondary/30 border border-border rounded-md p-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded bg-background border border-border/60 shrink-0">
+                                <Info className="w-5 h-5 text-[#dfab01]" />
+                            </div>
+                            <div className="space-y-4 flex-1">
+                                <div>
+                                    <h4 className="text-sm font-bold text-foreground/80">AI 专业五行分析</h4>
+                                    <p className="text-xs text-foreground/40 mt-1">未知时辰仅支持前端查看，不支持保存与 AI 深度分析</p>
+                                </div>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-[#dfab01]/5 border border-[#dfab01]/10 rounded text-xs text-[#dfab01] font-medium">
+                                    <Info className="w-3.5 h-3.5" />
+                                    请先补全出生时辰并保存命盘，再使用 AI 深度解读
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                ) : !isSaved ? (
                     <section className="bg-background-secondary/30 border border-border rounded-md p-6">
                         <div className="flex items-start gap-4">
                             <div className="p-2 rounded bg-background border border-border/60 shrink-0">
@@ -148,7 +168,25 @@ export function BasicInfoSection({
                 )}
 
                 {/* 性格分析 */}
-                {!isSaved ? (
+                {!hasKnownBirthTime ? (
+                    <section className="bg-background-secondary/30 border border-border rounded-md p-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded bg-background border border-border/60 shrink-0">
+                                <Info className="w-5 h-5 text-[#dfab01]" />
+                            </div>
+                            <div className="space-y-4 flex-1">
+                                <div>
+                                    <h4 className="text-sm font-bold text-foreground/80">AI 性格特征分析</h4>
+                                    <p className="text-xs text-foreground/40 mt-1">未知时辰仅支持前端查看，不支持保存与 AI 深度分析</p>
+                                </div>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-[#dfab01]/5 border border-[#dfab01]/10 rounded text-xs text-[#dfab01] font-medium">
+                                    <Info className="w-3.5 h-3.5" />
+                                    请先补全出生时辰并保存命盘，再使用 AI 性格分析
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                ) : !isSaved ? (
                     <section className="bg-background-secondary/30 border border-border rounded-md p-6">
                         <div className="flex items-start gap-4">
                             <div className="p-2 rounded bg-background border border-border/60 shrink-0">

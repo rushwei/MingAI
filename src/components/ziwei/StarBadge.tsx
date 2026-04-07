@@ -1,8 +1,12 @@
-import type { StarInfo } from '@/lib/divination/ziwei';
-import { getBrightnessColor, getMutagenColor } from '@/lib/divination/ziwei';
+import type { ZiweiStarJSON } from '@mingai/core/ziwei';
+import { getBrightnessColor, getMutagenColor } from '@/lib/divination/display-helpers';
+
+type StarBadgeStar = ZiweiStarJSON & {
+    type: 'major' | 'minor' | 'auxiliary';
+};
 
 interface StarBadgeProps {
-    star: StarInfo;
+    star: StarBadgeStar;
     size?: 'sm' | 'md';
 }
 
@@ -12,7 +16,7 @@ export function StarBadge({ star, size = 'sm' }: StarBadgeProps) {
     const isMajor = star.type === 'major';
     const isMinor = star.type === 'minor';
     const isAuxiliary = star.type === 'auxiliary';
-    const isMinorMalefic = isMinor && MINOR_MALEFIC_STARS.has(star.name);
+    const isMinorMalefic = isMinor && MINOR_MALEFIC_STARS.has(star.星名);
     const textSize = size === 'sm' ? 'text-[10px]' : 'text-xs';
     const statusSize = size === 'sm' ? 'text-[9px]' : 'text-[10px]';
 
@@ -28,19 +32,19 @@ export function StarBadge({ star, size = 'sm' }: StarBadgeProps) {
                     : 'text-foreground-secondary';
 
     // 亮度颜色标记
-    const brightnessStyle = star.brightness
-        ? { color: getBrightnessColor(star.brightness) }
+    const brightnessStyle = star.亮度
+        ? { color: getBrightnessColor(star.亮度) }
         : undefined;
 
     // 四化颜色标记
-    const mutagenColor = getMutagenColor(star.mutagen);
-    const hasMutagen = star.mutagen && mutagenColor !== 'transparent';
+    const mutagenColor = getMutagenColor(star.四化);
+    const hasMutagen = star.四化 && mutagenColor !== 'transparent';
     const mutagenMarkers = [
-        star.selfMutagen ? { label: `↓${star.selfMutagen}`, color: getMutagenColor(star.selfMutagen) } : null,
-        star.oppositeMutagen ? { label: `↑${star.oppositeMutagen}`, color: getMutagenColor(star.oppositeMutagen) } : null,
+        star.离心自化 ? { label: `↓${star.离心自化}`, color: getMutagenColor(star.离心自化) } : null,
+        star.向心自化 ? { label: `↑${star.向心自化}`, color: getMutagenColor(star.向心自化) } : null,
     ].filter(Boolean) as Array<{ label: string; color: string }>;
 
-    const nameChars = Array.from(star.name);
+    const nameChars = Array.from(star.星名);
 
     return (
         <span className={`inline-flex flex-col items-center ${textSize} leading-tight`}>
@@ -49,14 +53,14 @@ export function StarBadge({ star, size = 'sm' }: StarBadgeProps) {
                     <span key={idx}>{char}</span>
                 ))}
             </span>
-            {star.brightness && (
+            {star.亮度 && (
                 <span className={statusSize} style={brightnessStyle}>
-                    {star.brightness}
+                    {star.亮度}
                 </span>
             )}
             {hasMutagen && (
                 <span className={statusSize} style={{ color: mutagenColor }}>
-                    {star.mutagen}
+                    {star.四化}
                 </span>
             )}
             {mutagenMarkers.map((marker, idx) => (

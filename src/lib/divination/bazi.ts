@@ -9,21 +9,18 @@
  */
 
 import {
-    calculateBaziData,
-    calculateBaziFiveElementsStats,
+    calculateBazi,
     calculateBaziLiuRiData,
     calculateBaziLiuYueData,
     calculateBaziShenShaData,
+    toBaziJson,
+    toBaziText,
+    type BaziCanonicalJSON,
     type BaziOutput as CoreBaziOutput,
-} from '@mingai/core/bazi-core';
-import { calculateDayunData } from '@mingai/core/dayun-core';
-import { renderBaziCanonicalJSON } from '@mingai/core/json';
-import { renderBaziCanonicalText } from '@mingai/core/text';
+} from '@mingai/core/bazi';
+import { calculateBaziDayun } from '@mingai/core/bazi-dayun';
 import {
-    TIAN_GAN as CORE_TIAN_GAN,
     DI_ZHI as CORE_DI_ZHI,
-    STEM_ELEMENTS as CORE_STEM_ELEMENTS,
-    ZHI_WUXING as CORE_BRANCH_ELEMENTS,
     calculateTenGod as calculateTenGodCore,
 } from '@mingai/core/utils';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
@@ -36,41 +33,66 @@ import {
 } from '@mingai/core/data/shensha-data';
 import type {
     BaziFormData,
-    BaziChart,
-    FourPillars,
-    FiveElementsStats,
+    CalendarType,
+    Gender,
     HiddenStemDetail,
     HeavenlyStem,
     EarthlyBranch,
     FiveElement,
     TenGod
 } from '@/types';
-// ===== 常量定义 =====
 
-/** 天干列表 */
-export const TIAN_GAN: readonly HeavenlyStem[] = CORE_TIAN_GAN as readonly HeavenlyStem[];
+const DI_ZHI = CORE_DI_ZHI as readonly EarthlyBranch[];
 
-/** 地支列表 */
-export const DI_ZHI: readonly EarthlyBranch[] = CORE_DI_ZHI as readonly EarthlyBranch[];
-
-/** 天干五行对应表 */
-export const STEM_ELEMENTS: Record<HeavenlyStem, FiveElement> = CORE_STEM_ELEMENTS as Record<HeavenlyStem, FiveElement>;
-
-/** 地支五行对应表 */
-export const BRANCH_ELEMENTS: Record<EarthlyBranch, FiveElement> = CORE_BRANCH_ELEMENTS as Record<EarthlyBranch, FiveElement>;
-
-/**
- * 获取天干的五行
- */
-export function getStemElement(stem: string): FiveElement | null {
-    return STEM_ELEMENTS[stem as HeavenlyStem] || null;
+export interface BaziMeta {
+    name: string;
+    birthDate: string;
+    birthTime: string;
+    birthPlace?: string;
+    gender: Gender;
+    calendarType: CalendarType;
+    isLeapMonth?: boolean;
+    isUnknownTime?: boolean;
 }
 
-/**
- * 获取地支的五行
- */
-export function getBranchElement(branch: string): FiveElement | null {
-    return BRANCH_ELEMENTS[branch as EarthlyBranch] || null;
+function toCoreBaziInput(formData: BaziFormData) {
+    return {
+        gender: formData.gender,
+        birthYear: formData.birthYear,
+        birthMonth: formData.birthMonth,
+        birthDay: formData.birthDay,
+        birthHour: formData.birthHour,
+        birthMinute: formData.birthMinute,
+        calendarType: formData.calendarType === 'lunar' ? 'lunar' as const : 'solar' as const,
+        isLeapMonth: formData.isLeapMonth,
+        birthPlace: formData.birthPlace,
+        longitude: formData.longitude,
+    };
+}
+
+function buildBaziMeta(formData: BaziFormData): BaziMeta {
+    return {
+        name: formData.name,
+        birthDate: `${formData.birthYear}-${String(formData.birthMonth).padStart(2, '0')}-${String(formData.birthDay).padStart(2, '0')}`,
+        birthTime: `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`,
+        birthPlace: formData.birthPlace,
+        gender: formData.gender,
+        calendarType: formData.calendarType,
+        isLeapMonth: formData.isLeapMonth,
+        isUnknownTime: formData.isUnknownTime,
+    };
+}
+
+export function calculateBaziChartBundle(formData: BaziFormData): {
+    output: CoreBaziOutput;
+    meta: BaziMeta;
+} {
+    const meta = buildBaziMeta(formData);
+    const output = calculateBazi(toCoreBaziInput(formData));
+    return {
+        output,
+        meta,
+    };
 }
 
 /** 地支藏干表 */
@@ -93,166 +115,6 @@ export function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem)
 }
 
 // ===== 主要导出函数 =====
-
-/**
- * 根据出生信息计算八字命盘
- * 
- * @param formData 表单数据
- * @returns 八字命盘对象
- */
-export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> {
-    const longitude = formData.longitude;
-    const coreBazi = calculateBaziData({
-        gender: formData.gender,
-        birthYear: formData.birthYear,
-        birthMonth: formData.birthMonth,
-        birthDay: formData.birthDay,
-        birthHour: formData.birthHour,
-        birthMinute: formData.birthMinute,
-        calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
-        isLeapMonth: formData.isLeapMonth,
-        birthPlace: formData.birthPlace,
-        longitude,
-    });
-
-    const fourPillars: FourPillars = {
-        year: {
-            stem: coreBazi.fourPillars.year.stem as HeavenlyStem,
-            branch: coreBazi.fourPillars.year.branch as EarthlyBranch,
-            stemElement: STEM_ELEMENTS[coreBazi.fourPillars.year.stem as HeavenlyStem],
-            branchElement: BRANCH_ELEMENTS[coreBazi.fourPillars.year.branch as EarthlyBranch],
-            hiddenStems: coreBazi.fourPillars.year.hiddenStems.map((item) => item.stem as HeavenlyStem),
-            hiddenStemDetails: coreBazi.fourPillars.year.hiddenStems.map((item) => ({
-                stem: item.stem as HeavenlyStem,
-                tenGod: item.tenGod,
-                qiType: item.qiType,
-            })) as HiddenStemDetail[],
-            tenGod: coreBazi.fourPillars.year.tenGod as TenGod | undefined,
-            naYin: coreBazi.fourPillars.year.naYin,
-            diShi: coreBazi.fourPillars.year.diShi,
-            shenSha: coreBazi.fourPillars.year.shenSha,
-            kongWang: coreBazi.fourPillars.year.kongWang,
-        },
-        month: {
-            stem: coreBazi.fourPillars.month.stem as HeavenlyStem,
-            branch: coreBazi.fourPillars.month.branch as EarthlyBranch,
-            stemElement: STEM_ELEMENTS[coreBazi.fourPillars.month.stem as HeavenlyStem],
-            branchElement: BRANCH_ELEMENTS[coreBazi.fourPillars.month.branch as EarthlyBranch],
-            hiddenStems: coreBazi.fourPillars.month.hiddenStems.map((item) => item.stem as HeavenlyStem),
-            hiddenStemDetails: coreBazi.fourPillars.month.hiddenStems.map((item) => ({
-                stem: item.stem as HeavenlyStem,
-                tenGod: item.tenGod,
-                qiType: item.qiType,
-            })) as HiddenStemDetail[],
-            tenGod: coreBazi.fourPillars.month.tenGod as TenGod | undefined,
-            naYin: coreBazi.fourPillars.month.naYin,
-            diShi: coreBazi.fourPillars.month.diShi,
-            shenSha: coreBazi.fourPillars.month.shenSha,
-            kongWang: coreBazi.fourPillars.month.kongWang,
-        },
-        day: {
-            stem: coreBazi.fourPillars.day.stem as HeavenlyStem,
-            branch: coreBazi.fourPillars.day.branch as EarthlyBranch,
-            stemElement: STEM_ELEMENTS[coreBazi.fourPillars.day.stem as HeavenlyStem],
-            branchElement: BRANCH_ELEMENTS[coreBazi.fourPillars.day.branch as EarthlyBranch],
-            hiddenStems: coreBazi.fourPillars.day.hiddenStems.map((item) => item.stem as HeavenlyStem),
-            hiddenStemDetails: coreBazi.fourPillars.day.hiddenStems.map((item) => ({
-                stem: item.stem as HeavenlyStem,
-                tenGod: item.tenGod,
-                qiType: item.qiType,
-            })) as HiddenStemDetail[],
-            naYin: coreBazi.fourPillars.day.naYin,
-            diShi: coreBazi.fourPillars.day.diShi,
-            shenSha: coreBazi.fourPillars.day.shenSha,
-            kongWang: coreBazi.fourPillars.day.kongWang,
-        },
-        hour: {
-            stem: coreBazi.fourPillars.hour.stem as HeavenlyStem,
-            branch: coreBazi.fourPillars.hour.branch as EarthlyBranch,
-            stemElement: STEM_ELEMENTS[coreBazi.fourPillars.hour.stem as HeavenlyStem],
-            branchElement: BRANCH_ELEMENTS[coreBazi.fourPillars.hour.branch as EarthlyBranch],
-            hiddenStems: coreBazi.fourPillars.hour.hiddenStems.map((item) => item.stem as HeavenlyStem),
-            hiddenStemDetails: coreBazi.fourPillars.hour.hiddenStems.map((item) => ({
-                stem: item.stem as HeavenlyStem,
-                tenGod: item.tenGod,
-                qiType: item.qiType,
-            })) as HiddenStemDetail[],
-            tenGod: coreBazi.fourPillars.hour.tenGod as TenGod | undefined,
-            naYin: coreBazi.fourPillars.hour.naYin,
-            diShi: coreBazi.fourPillars.hour.diShi,
-            shenSha: coreBazi.fourPillars.hour.shenSha,
-            kongWang: coreBazi.fourPillars.hour.kongWang,
-        },
-    };
-
-    // 计算五行统计
-    const fiveElements = calculateBaziFiveElementsStats(coreBazi.fourPillars) as FiveElementsStats;
-
-    // 构造返回结果
-    const birthDate = `${formData.birthYear}-${String(formData.birthMonth).padStart(2, '0')}-${String(formData.birthDay).padStart(2, '0')}`;
-    const birthTime = `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`;
-
-    return {
-        name: formData.name,
-        gender: formData.gender,
-        birthDate,
-        birthTime,
-        birthPlace: formData.birthPlace,
-        timezone: 8, // 默认东八区
-        calendarType: formData.calendarType,
-        isLeapMonth: formData.isLeapMonth,
-        fourPillars,
-        dayMaster: coreBazi.dayMaster as HeavenlyStem,
-        fiveElements,
-        kongWang: {
-            xun: coreBazi.kongWang.xun,
-            kongBranches: coreBazi.kongWang.kongZhi as EarthlyBranch[],
-        },
-        taiYuan: coreBazi.taiYuan,
-        mingGong: coreBazi.mingGong,
-        trueSolarTimeInfo: coreBazi.trueSolarTimeInfo,
-        relations: coreBazi.relations,
-        tianGanWuHe: coreBazi.tianGanWuHe,
-        tianGanChongKe: coreBazi.tianGanChongKe,
-        diZhiBanHe: coreBazi.diZhiBanHe.map((item) => ({
-            ...item,
-            branches: item.branches as [EarthlyBranch, EarthlyBranch],
-        })),
-        diZhiSanHui: coreBazi.diZhiSanHui.map((item) => ({
-            ...item,
-            branches: item.branches as [EarthlyBranch, EarthlyBranch, EarthlyBranch],
-        })),
-        isUnlocked: false,
-    };
-}
-
-/**
- * 获取五行对应的颜色（用于可视化）
- */
-export function getElementColor(element: FiveElement): string {
-    const colors: Record<FiveElement, string> = {
-        '金': '#FFD700', // 金色
-        '木': '#228B22', // 森林绿
-        '水': '#1E90FF', // 道奇蓝
-        '火': '#FF4500', // 橙红
-        '土': '#8B4513', // 马鞍棕
-    };
-    return colors[element];
-}
-
-/**
- * 获取五行的浅色版本（用于背景）
- */
-export function getElementLightColor(element: FiveElement): string {
-    const colors: Record<FiveElement, string> = {
-        '金': '#FFF8DC', // 玉米丝色
-        '木': '#90EE90', // 浅绿
-        '水': '#ADD8E6', // 浅蓝
-        '火': '#FFA07A', // 浅鲑鱼色
-        '土': '#DEB887', // 实木色
-    };
-    return colors[element];
-}
 
 /**
  * 获取十神的解释
@@ -490,7 +352,7 @@ export function calculateProfessionalData(
     currentYear: number = new Date().getFullYear()
 ): ProfessionalBaziData {
     const longitude = formData.longitude;
-    const coreBazi = calculateBaziData({
+    const coreBazi = calculateBazi({
         gender: formData.gender,
         birthYear: formData.birthYear,
         birthMonth: formData.birthMonth,
@@ -534,7 +396,7 @@ export function calculateProfessionalData(
         hour: coreBazi.fourPillars.hour.hiddenStems.map((item) => item.tenGod),
     };
 
-    const coreDayun = calculateDayunData({
+    const coreDayun = calculateBaziDayun({
         gender: formData.gender,
         birthYear: formData.birthYear,
         birthMonth: formData.birthMonth,
@@ -610,7 +472,7 @@ export function calculateLiuYue(year: number, formData?: BaziFormData): LiuYueIn
     }
 
     const longitude = formData.longitude;
-    const coreBazi = calculateBaziData({
+    const coreBazi = calculateBazi({
         gender: formData.gender,
         birthYear: formData.birthYear,
         birthMonth: formData.birthMonth,
@@ -652,7 +514,7 @@ export function calculateLiuRi(startDate: string, endDate: string, formData?: Ba
     }
 
     const longitude = formData.longitude;
-    const coreBazi = calculateBaziData({
+    const coreBazi = calculateBazi({
         gender: formData.gender,
         birthYear: formData.birthYear,
         birthMonth: formData.birthMonth,
@@ -686,139 +548,51 @@ export function calculateLiuRi(startDate: string, endDate: string, formData?: Ba
     }));
 }
 
-function normalizeQiType(qiType?: string): '本气' | '中气' | '余气' {
-    if (qiType === '中气' || qiType === '余气') return qiType;
-    return '本气';
-}
-
-function toCoreBaziOutput(chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>): CoreBaziOutput {
-    return {
-        gender: chart.gender,
-        birthPlace: chart.birthPlace,
-        dayMaster: chart.dayMaster,
-        kongWang: {
-            xun: chart.kongWang?.xun || '',
-            kongZhi: (chart.kongWang?.kongBranches || []) as [string, string],
-        },
-        fourPillars: {
-            year: {
-                stem: chart.fourPillars.year.stem,
-                branch: chart.fourPillars.year.branch,
-                tenGod: chart.fourPillars.year.tenGod,
-                hiddenStems: (chart.fourPillars.year.hiddenStemDetails || chart.fourPillars.year.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
-                    stem: item.stem,
-                    qiType: normalizeQiType(item.qiType),
-                    tenGod: item.tenGod || '',
-                })),
-                naYin: chart.fourPillars.year.naYin,
-                diShi: chart.fourPillars.year.diShi,
-                shenSha: chart.fourPillars.year.shenSha || [],
-                kongWang: chart.fourPillars.year.kongWang || { isKong: false },
-            },
-            month: {
-                stem: chart.fourPillars.month.stem,
-                branch: chart.fourPillars.month.branch,
-                tenGod: chart.fourPillars.month.tenGod,
-                hiddenStems: (chart.fourPillars.month.hiddenStemDetails || chart.fourPillars.month.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
-                    stem: item.stem,
-                    qiType: normalizeQiType(item.qiType),
-                    tenGod: item.tenGod || '',
-                })),
-                naYin: chart.fourPillars.month.naYin,
-                diShi: chart.fourPillars.month.diShi,
-                shenSha: chart.fourPillars.month.shenSha || [],
-                kongWang: chart.fourPillars.month.kongWang || { isKong: false },
-            },
-            day: {
-                stem: chart.fourPillars.day.stem,
-                branch: chart.fourPillars.day.branch,
-                hiddenStems: (chart.fourPillars.day.hiddenStemDetails || chart.fourPillars.day.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
-                    stem: item.stem,
-                    qiType: normalizeQiType(item.qiType),
-                    tenGod: item.tenGod || '',
-                })),
-                naYin: chart.fourPillars.day.naYin,
-                diShi: chart.fourPillars.day.diShi,
-                shenSha: chart.fourPillars.day.shenSha || [],
-                kongWang: chart.fourPillars.day.kongWang || { isKong: false },
-            },
-            hour: {
-                stem: chart.fourPillars.hour.stem,
-                branch: chart.fourPillars.hour.branch,
-                tenGod: chart.fourPillars.hour.tenGod,
-                hiddenStems: (chart.fourPillars.hour.hiddenStemDetails || chart.fourPillars.hour.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
-                    stem: item.stem,
-                    qiType: normalizeQiType(item.qiType),
-                    tenGod: item.tenGod || '',
-                })),
-                naYin: chart.fourPillars.hour.naYin,
-                diShi: chart.fourPillars.hour.diShi,
-                shenSha: chart.fourPillars.hour.shenSha || [],
-                kongWang: chart.fourPillars.hour.kongWang || { isKong: false },
-            },
-        },
-        relations: chart.relations || [],
-        tianGanWuHe: (chart.tianGanWuHe || []).map((item) => ({
-            ...item,
-            positions: [
-                item.positions[0] ?? '年支',
-                item.positions[1] ?? item.positions[0] ?? '年支',
-            ] as ['年支' | '月支' | '日支' | '时支', '年支' | '月支' | '日支' | '时支'],
-        })),
-        tianGanChongKe: (chart.tianGanChongKe || []).map((item) => ({
-            ...item,
-            positions: [
-                item.positions[0] ?? '年支',
-                item.positions[1] ?? item.positions[0] ?? '年支',
-            ] as ['年支' | '月支' | '日支' | '时支', '年支' | '月支' | '日支' | '时支'],
-        })),
-        diZhiBanHe: chart.diZhiBanHe || [],
-        diZhiSanHui: chart.diZhiSanHui || [],
-        taiYuan: chart.taiYuan,
-        mingGong: chart.mingGong,
-        trueSolarTimeInfo: chart.trueSolarTimeInfo,
-    };
-}
+type BaziDayunMeta = Pick<BaziMeta, 'birthDate' | 'birthTime' | 'gender' | 'calendarType' | 'isLeapMonth'>;
 
 export function buildBaziCanonicalJSON(
-    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
+    output: CoreBaziOutput,
 ) {
-    return renderBaziCanonicalJSON(toCoreBaziOutput(chart), { detailLevel: 'full' });
+    return toBaziJson(output, { detailLevel: 'full' }) as BaziCanonicalJSON;
 }
 
-function buildCanonicalDayun(
-    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
-) {
+function buildCanonicalDayunFromMeta(meta: BaziDayunMeta) {
     try {
-        const [year, month, day] = chart.birthDate.split('-').map(Number);
-        const [hour, minute] = chart.birthTime.split(':').map(Number);
-        return calculateDayunData({
-            gender: chart.gender,
+        const [year, month, day] = meta.birthDate.split('-').map(Number);
+        const [hour, minute] = meta.birthTime.split(':').map(Number);
+        return calculateBaziDayun({
+            gender: meta.gender,
             birthYear: year,
             birthMonth: month,
             birthDay: day,
             birthHour: hour,
             birthMinute: minute || 0,
-            calendarType: chart.calendarType === 'lunar' ? 'lunar' : 'solar',
-            isLeapMonth: chart.isLeapMonth,
+            calendarType: meta.calendarType === 'lunar' ? 'lunar' : 'solar',
+            isLeapMonth: meta.isLeapMonth,
         });
     } catch {
         return undefined;
     }
 }
 
+type GenerateBaziChartTextOptions = {
+    detailLevel?: ChartTextDetailLevel;
+    name?: string;
+    meta?: BaziDayunMeta;
+};
+
 /**
  * 生成八字命盘文字版本（用于AI分析和复制）
  * @param chart 八字命盘数据（自动计算大运）
  */
 export function generateBaziChartText(
-    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>,
-    options: { detailLevel?: ChartTextDetailLevel } = {},
+    output: CoreBaziOutput,
+    options: GenerateBaziChartTextOptions = {},
 ): string {
-    const coreChart = toCoreBaziOutput(chart);
-    return renderBaziCanonicalText(coreChart, {
-        name: chart.name,
-        dayun: buildCanonicalDayun(chart),
+    const dayun = options.meta ? buildCanonicalDayunFromMeta(options.meta) : undefined;
+    return toBaziText(output, {
+        name: options.name,
+        dayun,
         detailLevel: resolveChartTextDetailLevel('bazi', options.detailLevel),
     });
 }

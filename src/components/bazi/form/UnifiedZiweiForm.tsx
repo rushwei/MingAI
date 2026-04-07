@@ -22,19 +22,17 @@ type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[
 interface UnifiedZiweiFormProps {
     formData: BaziFormData;
     onUpdate: UpdateField;
-    unknownTime: boolean;
-    onToggleUnknownTime: () => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     isSubmitting: boolean;
+    onBirthTimeConfirm?: () => void;
 }
 
 export function UnifiedZiweiForm({
     formData,
     onUpdate,
-    unknownTime,
-    onToggleUnknownTime,
     onSubmit,
     isSubmitting,
+    onBirthTimeConfirm,
 }: UnifiedZiweiFormProps) {
     const [timeModalOpen, setTimeModalOpen] = useState(false);
     const [placeModalOpen, setPlaceModalOpen] = useState(false);
@@ -206,10 +204,7 @@ export function UnifiedZiweiForm({
                         <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#2383e2]" />
                         <span className="text-xs sm:text-sm font-medium text-foreground">出生时间</span>
                         <span className="text-xs text-foreground/60">
-                            {unknownTime
-                                ? '不知时辰'
-                                : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`
-                            }
+                            {`${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`}
                         </span>
                     </div>
                     <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-foreground/30" />
@@ -262,9 +257,11 @@ export function UnifiedZiweiForm({
                 isOpen={timeModalOpen}
                 onClose={() => setTimeModalOpen(false)}
                 formData={formData}
-                unknownTime={unknownTime}
-                onToggleUnknownTime={onToggleUnknownTime}
+                unknownTime={false}
+                onToggleUnknownTime={() => {}}
                 onUpdate={onUpdate}
+                allowUnknownTime={false}
+                onConfirm={onBirthTimeConfirm}
             />
 
             {/* 地点输入模态框 */}

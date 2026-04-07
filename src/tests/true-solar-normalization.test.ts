@@ -1,22 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Lunar } from 'lunar-javascript';
-import { calculateBaziData } from '../../packages/core/src/bazi-core';
-import { calculateZiweiData } from '../../packages/core/src/ziwei-core';
-import { calculateTrueSolarTime } from '../../packages/core/src/ziwei-shared';
+import { calculateBazi } from '@mingai/core/bazi';
+import { calculateZiwei } from '@mingai/core/ziwei';
 
-test('calculateTrueSolarTime should normalize rounded minutes instead of returning impossible :60 values', () => {
-  const info = calculateTrueSolarTime(
-    { birthYear: 2024, birthMonth: 1, birthDay: 1, birthHour: 0, birthMinute: 0 },
-    -179.1,
-  );
+test('true solar correction should normalize rounded minutes instead of returning impossible :60 values', () => {
+  const result = calculateZiwei({
+    gender: 'male',
+    birthYear: 2024,
+    birthMonth: 1,
+    birthDay: 1,
+    birthHour: 0,
+    birthMinute: 0,
+    calendarType: 'solar',
+    longitude: -179.1,
+  });
+  const info = result.trueSolarTimeInfo;
 
+  assert.ok(info);
   assert.equal(info.trueSolarTime, '04:00');
   assert.equal(info.dayOffset, -1);
 });
 
-test('calculateBaziData should normalize true-solar dates across month boundaries', async () => {
-  const corrected = await calculateBaziData({
+test('calculateBazi should normalize true-solar dates across month boundaries', async () => {
+  const corrected = await calculateBazi({
     gender: 'male',
     birthYear: 2024,
     birthMonth: 3,
@@ -27,7 +34,7 @@ test('calculateBaziData should normalize true-solar dates across month boundarie
     longitude: -180,
   });
 
-  const normalized = await calculateBaziData({
+  const normalized = await calculateBazi({
     gender: 'male',
     birthYear: 2024,
     birthMonth: 2,
@@ -41,8 +48,8 @@ test('calculateBaziData should normalize true-solar dates across month boundarie
   assert.equal(corrected.dayMaster, normalized.dayMaster);
 });
 
-test('calculateZiweiData should apply true-solar day offsets before building the chart date', async () => {
-  const corrected = await calculateZiweiData({
+test('calculateZiwei should apply true-solar day offsets before building the chart date', async () => {
+  const corrected = await calculateZiwei({
     gender: 'male',
     birthYear: 2024,
     birthMonth: 3,
@@ -53,7 +60,7 @@ test('calculateZiweiData should apply true-solar day offsets before building the
     longitude: -180,
   });
 
-  const normalized = await calculateZiweiData({
+  const normalized = await calculateZiwei({
     gender: 'male',
     birthYear: 2024,
     birthMonth: 2,
@@ -69,8 +76,8 @@ test('calculateZiweiData should apply true-solar day offsets before building the
   assert.equal(corrected.timeRange, normalized.timeRange);
 });
 
-test('calculateZiweiData should accept valid solar birthdays on the 31st', async () => {
-  const result = await calculateZiweiData({
+test('calculateZiwei should accept valid solar birthdays on the 31st', async () => {
+  const result = await calculateZiwei({
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,
@@ -83,11 +90,11 @@ test('calculateZiweiData should accept valid solar birthdays on the 31st', async
   assert.equal(result.solarDate, '1990-1-31');
 });
 
-test('calculateBaziData should apply true solar correction for lunar input through the equivalent solar instant', async () => {
+test('calculateBazi should apply true solar correction for lunar input through the equivalent solar instant', async () => {
   const lunar = Lunar.fromYmdHms(2023, 8, 15, 23, 40, 0);
   const solar = lunar.getSolar();
 
-  const correctedLunar = await calculateBaziData({
+  const correctedLunar = await calculateBazi({
     gender: 'female',
     birthYear: 2023,
     birthMonth: 8,
@@ -98,7 +105,7 @@ test('calculateBaziData should apply true solar correction for lunar input throu
     longitude: 73,
   });
 
-  const correctedSolar = await calculateBaziData({
+  const correctedSolar = await calculateBazi({
     gender: 'female',
     birthYear: solar.getYear(),
     birthMonth: solar.getMonth(),
@@ -114,11 +121,11 @@ test('calculateBaziData should apply true solar correction for lunar input throu
   assert.deepEqual(correctedLunar.trueSolarTimeInfo, correctedSolar.trueSolarTimeInfo);
 });
 
-test('calculateZiweiData should apply true solar correction for lunar input through the equivalent solar instant', async () => {
+test('calculateZiwei should apply true solar correction for lunar input through the equivalent solar instant', async () => {
   const lunar = Lunar.fromYmdHms(2023, 8, 15, 23, 40, 0);
   const solar = lunar.getSolar();
 
-  const correctedLunar = await calculateZiweiData({
+  const correctedLunar = await calculateZiwei({
     gender: 'female',
     birthYear: 2023,
     birthMonth: 8,
@@ -129,7 +136,7 @@ test('calculateZiweiData should apply true solar correction for lunar input thro
     longitude: 73,
   });
 
-  const correctedSolar = await calculateZiweiData({
+  const correctedSolar = await calculateZiwei({
     gender: 'female',
     birthYear: solar.getYear(),
     birthMonth: solar.getMonth(),

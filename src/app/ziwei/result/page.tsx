@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { Share2, Edit3, Save, Check, Copy, MapPinned, Clock, Plus, Minus } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { buildZiweiCanonicalJSON, calculateZiwei, generateZiweiChartText, type ZiweiFormData } from '@/lib/divination/ziwei';
+import { buildZiweiCanonicalJSON, calculateZiweiChartBundle, generateZiweiChartText, type ZiweiFormData } from '@/lib/divination/ziwei';
 import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
 import { ZiweiHoroscopePanel, type HoroscopeInfo, type HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
@@ -21,7 +21,8 @@ import { useToast } from '@/components/ui/Toast';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { getDayCount } from '@/lib/date-utils';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
-import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
+import { parseBirthTimeString } from '@/lib/divination/birth-time';
+import { parseLongitude } from '@/lib/divination/place-resolution';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
@@ -34,6 +35,7 @@ function ZiweiResultContent() {
     const [saved, setSaved] = useState(false);
     const [loading, setLoading] = useState(false);
     const [notFound, setNotFound] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [chartFromDb, setChartFromDb] = useState<ZiweiFormData | null>(null);
     const [horoscopeHighlight, setHoroscopeHighlight] = useState<HoroscopeHighlight>({});
     const [horoscopeInfo, setHoroscopeInfo] = useState<HoroscopeInfo | undefined>(undefined);
@@ -48,11 +50,11 @@ function ZiweiResultContent() {
         name: string;
         gender: Gender;
         birth_date: string;
-        birth_time: string | null;
+        birth_time: string;
         birth_place: string | null;
+        longitude?: number | null;
         calendar_type: CalendarType | null;
         is_leap_month: boolean | null;
-        chart_data?: Record<string, unknown> | null;
     };
 
     const chartId = searchParams.get('chart');
@@ -66,6 +68,7 @@ function ZiweiResultContent() {
         if (hasFormParams) {
             setChartFromDb(null);
             setSaved(false);
+            setLoadError(null);
         }
     }, [hasFormParams]);
 
@@ -75,28 +78,32 @@ function ZiweiResultContent() {
 
         setLoading(true);
         setNotFound(false);
+        setLoadError(null);
         loadSavedChart('ziwei', chartId)
             .then((row) => {
                 const data = row as SavedZiweiChartRow | null;
                 if (data) {
                     const birthDate = data.birth_date as string;
-                    const birthTime = data.birth_time as string | null;
+                    const birthTime = data.birth_time as string;
+                    const parsedBirthTime = parseBirthTimeString(birthTime);
+                    if (!parsedBirthTime) {
+                        setLoadError('该紫微命盘缺少有效出生时辰，无法加载');
+                        setLoading(false);
+                        return;
+                    }
                     const [year, month, day] = birthDate.split('-').map(Number);
-                    const hasTime = Boolean(birthTime);
-                    const [hour, minute] = (birthTime || '12:00').split(':').map(Number);
                     setChartFromDb({
                         name: data.name as string,
                         gender: (data.gender as Gender) || 'male',
                         birthYear: year,
                         birthMonth: month,
                         birthDay: day,
-                        birthHour: hour || 12,
-                        birthMinute: minute || 0,
+                        birthHour: parsedBirthTime.hour,
+                        birthMinute: parsedBirthTime.minute,
                         calendarType: (data.calendar_type as CalendarType) || 'solar',
                         isLeapMonth: (data.is_leap_month as boolean | undefined) ?? false,
                         birthPlace: (data.birth_place as string) || '',
-                        longitude: extractLongitudeFromChartData(data.chart_data),
-                        isUnknownTime: !hasTime,
+                        longitude: parseLongitude(data.longitude),
                     });
                     setSaved(true);
                 } else {
@@ -107,29 +114,45 @@ function ZiweiResultContent() {
     }, [chartId, hasFormParams]);
 
     // 从 URL 参数获取表单数据
-    const formData: ZiweiFormData = useMemo(() => {
+    const formData: ZiweiFormData | null = useMemo(() => {
         const hourParam = searchParams.get('hour');
-        const isUnknownTime = hourParam === '-1';
+        const minuteParam = searchParams.get('minute') || '0';
+        if (!hourParam || hourParam === '-1') {
+            return null;
+        }
+
+        const birthHour = Number(hourParam);
+        const birthMinute = Number(minuteParam);
+        if (
+            !Number.isInteger(birthHour)
+            || birthHour < 0
+            || birthHour > 23
+            || !Number.isInteger(birthMinute)
+            || birthMinute < 0
+            || birthMinute > 59
+        ) {
+            return null;
+        }
+
         return {
             name: searchParams.get('name') || '命主',
             gender: (searchParams.get('gender') as Gender) || 'male',
             birthYear: Number(searchParams.get('year')) || 1990,
             birthMonth: Number(searchParams.get('month')) || 1,
             birthDay: Number(searchParams.get('day')) || 1,
-            birthHour: isUnknownTime ? 12 : (Number(hourParam) || 12),
-            birthMinute: isUnknownTime ? 0 : (Number(searchParams.get('minute')) || 0),
+            birthHour,
+            birthMinute,
             calendarType: (searchParams.get('calendar') as CalendarType) || 'solar',
             isLeapMonth: searchParams.get('leap') === '1',
             birthPlace: searchParams.get('place') || '',
             longitude: parseLongitude(searchParams.get('longitude')),
-            isUnknownTime,
         };
     }, [searchParams]);
     const resolvedFormData = chartFromDb || formData;
 
     // 应用时辰偏移
     const adjustedFormData = useMemo(() => {
-        if (hourOffset === 0 || resolvedFormData.isUnknownTime) return resolvedFormData;
+        if (!resolvedFormData || hourOffset === 0) return resolvedFormData;
 
         let adjustedHour = resolvedFormData.birthHour + hourOffset;
         let adjustedDay = resolvedFormData.birthDay;
@@ -155,31 +178,36 @@ function ZiweiResultContent() {
         return { ...resolvedFormData, birthYear: adjustedYear, birthMonth: adjustedMonth, birthDay: adjustedDay, birthHour: adjustedHour };
     }, [resolvedFormData, hourOffset]);
 
-    const isUnknownTime = adjustedFormData.isUnknownTime ?? false;
-    const timeText = isUnknownTime
-        ? '时辰未知'
-        : `${String(adjustedFormData.birthHour).padStart(2, '0')}:${String(adjustedFormData.birthMinute || 0).padStart(2, '0')}`;
+    const timeText = adjustedFormData
+        ? `${String(adjustedFormData.birthHour).padStart(2, '0')}:${String(adjustedFormData.birthMinute || 0).padStart(2, '0')}`
+        : '';
 
     // 计算紫微命盘
-    const chart = useMemo(() => {
-        try { return calculateZiwei(adjustedFormData); } catch (error) { console.error('紫微排盘错误:', error); return null; }
+    const bundle = useMemo(() => {
+        if (!adjustedFormData) {
+            return null;
+        }
+        try { return calculateZiweiChartBundle(adjustedFormData); } catch (error) { console.error('紫微排盘错误:', error); return null; }
     }, [adjustedFormData]);
+    const output = bundle?.output ?? null;
+    const astrolabe = bundle?.astrolabe ?? null;
     const canonicalChart = useMemo(() => {
-        if (!chart) return null;
-        return buildZiweiCanonicalJSON(chart);
-    }, [chart]);
+        if (!output) return null;
+        return buildZiweiCanonicalJSON(output);
+    }, [output]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalChart);
     const trueSolarTimeText = canonicalChart?.基本信息.真太阳时?.真太阳时 ?? null;
 
     // 修改命盘
     const handleEdit = useCallback(() => {
+        if (!resolvedFormData) return;
         const params = new URLSearchParams({
             name: resolvedFormData.name,
             gender: resolvedFormData.gender,
             year: String(resolvedFormData.birthYear),
             month: String(resolvedFormData.birthMonth),
             day: String(resolvedFormData.birthDay),
-            hour: resolvedFormData.isUnknownTime ? '-1' : String(resolvedFormData.birthHour),
+            hour: String(resolvedFormData.birthHour),
             minute: String(resolvedFormData.birthMinute || 0),
             calendar: resolvedFormData.calendarType,
         });
@@ -191,22 +219,20 @@ function ZiweiResultContent() {
     }, [resolvedFormData, chartId, router]);
 
     const handleSave = useCallback(async () => {
-        if (saving || !chart) return;
+        if (saving || !output || !resolvedFormData) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) { showToast('warning', '请先登录后再保存命盘'); setShowAuthModal(true); return; }
         setSaving(true);
         try {
-            const chartPayload = { ...chart };
-            delete (chartPayload as { rawAstrolabe?: unknown }).rawAstrolabe;
             const payload = {
                 name: resolvedFormData.name,
                 gender: resolvedFormData.gender,
                 birth_date: `${resolvedFormData.birthYear}-${String(resolvedFormData.birthMonth).padStart(2, '0')}-${String(resolvedFormData.birthDay).padStart(2, '0')}`,
-                birth_time: resolvedFormData.isUnknownTime ? null : `${String(resolvedFormData.birthHour).padStart(2, '0')}:${String(resolvedFormData.birthMinute || 0).padStart(2, '0')}`,
+                birth_time: `${String(resolvedFormData.birthHour).padStart(2, '0')}:${String(resolvedFormData.birthMinute || 0).padStart(2, '0')}`,
                 calendar_type: resolvedFormData.calendarType,
                 is_leap_month: resolvedFormData.isLeapMonth ?? false,
                 birth_place: resolvedFormData.birthPlace || null,
-                chart_data: chartPayload,
+                longitude: resolvedFormData.longitude ?? null,
             };
             if (chartId) {
                 const response = await fetch('/api/ziwei/charts/update', {
@@ -222,30 +248,33 @@ function ZiweiResultContent() {
             setSaved(true);
             setChartFromDb(resolvedFormData);
         } catch (error) { console.error('保存失败:', error); showToast('error', '保存失败，请重试'); } finally { setSaving(false); }
-    }, [saving, chart, resolvedFormData, chartId, router, showToast]);
+    }, [saving, output, resolvedFormData, chartId, router, showToast]);
 
     // 分享
     const handleShare = useCallback(async () => {
+        if (!resolvedFormData) {
+            return;
+        }
         const url = window.location.href;
         if (navigator.share) {
             try { await navigator.share({ title: `${resolvedFormData.name}的紫微命盘 - MingAI`, text: `查看${resolvedFormData.name}的紫微斗数命盘`, url }); } catch { }
         } else {
             try { await navigator.clipboard.writeText(url); showToast('success', '链接已复制到剪贴板'); } catch { showToast('error', '复制链接失败'); }
         }
-    }, [resolvedFormData.name, showToast]);
+    }, [resolvedFormData, showToast]);
 
     const handleConfirmCopy = useCallback(async (level: ChartTextDetailLevel) => {
-        if (!chart) return;
+        if (!output) return;
         try {
             setCopyDetailLevel(level);
-            await navigator.clipboard.writeText(generateZiweiChartText(chart, { detailLevel: level }));
+            await navigator.clipboard.writeText(generateZiweiChartText(output, { detailLevel: level }));
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             setShowCopyModal(false);
         } catch {
             showToast('error', '复制失败，请手动复制');
         }
-    }, [chart, showToast]);
+    }, [output, showToast]);
 
     // Header 菜单项
     useEffect(() => {
@@ -268,10 +297,10 @@ function ZiweiResultContent() {
             </div>
         );
     }
-    if (!chart || !canonicalChart) {
+    if (!resolvedFormData || loadError || !output || !astrolabe || !canonicalChart) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
-                <p className="text-sm text-foreground/40 mb-6">命盘计算出错，请返回重新输入</p>
+                <p className="text-sm text-foreground/40 mb-6">{loadError || '紫微斗数必须提供出生时辰，请返回重新输入'}</p>
                 <Link href="/ziwei" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">返回重新输入</Link>
             </div>
         );
@@ -315,13 +344,11 @@ function ZiweiResultContent() {
                                         ({hourOffset > 0 ? '+' : ''}{hourOffset}h)
                                     </span>
                                 )}
-                                {!isUnknownTime && (
-                                    <div className="flex items-center bg-background-secondary rounded p-0.5 shrink-0">
-                                        <button onClick={() => setHourOffset(prev => prev - 1)} className="p-0.5 hover:bg-background rounded transition-colors"><Minus className="w-3 h-3" /></button>
-                                        <button onClick={() => setHourOffset(prev => prev + 1)} className="p-0.5 hover:bg-background rounded transition-colors"><Plus className="w-3 h-3" /></button>
-                                        {hourOffset !== 0 && <button onClick={() => setHourOffset(0)} className="px-1 text-[10px] font-bold text-foreground/40 hover:text-foreground">RESET</button>}
-                                    </div>
-                                )}
+                                <div className="flex items-center bg-background-secondary rounded p-0.5 shrink-0">
+                                    <button onClick={() => setHourOffset(prev => prev - 1)} className="p-0.5 hover:bg-background rounded transition-colors"><Minus className="w-3 h-3" /></button>
+                                    <button onClick={() => setHourOffset(prev => prev + 1)} className="p-0.5 hover:bg-background rounded transition-colors"><Plus className="w-3 h-3" /></button>
+                                    {hourOffset !== 0 && <button onClick={() => setHourOffset(0)} className="px-1 text-[10px] font-bold text-foreground/40 hover:text-foreground">RESET</button>}
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-1.5 min-w-0">
@@ -367,7 +394,8 @@ function ZiweiResultContent() {
                 </section>
 
                 <ZiweiHoroscopePanel
-                    chart={chart}
+                    output={output}
+                    astrolabe={astrolabe}
                     canonicalChart={canonicalChart}
                     onPalaceHighlight={setHoroscopeHighlight}
                     onHoroscopeChange={setHoroscopeInfo}

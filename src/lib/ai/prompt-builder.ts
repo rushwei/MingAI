@@ -1,5 +1,5 @@
 import type { Mention } from '@/types/mentions';
-import type { AIPersonality, BaziChart, DifyContext, PromptLayerPriority, PromptLayerDiagnostic } from '@/types';
+import type { AIPersonality, DifyContext, PromptLayerPriority, PromptLayerDiagnostic } from '@/types';
 import { AI_PERSONALITIES } from './ai';
 import type { KnowledgeHit } from '@/lib/knowledge-base/types';
 import type { InjectedSource } from '@/lib/source-tracker';
@@ -7,7 +7,7 @@ import { createSourceTracker } from '@/lib/source-tracker';
 import { countTokens, truncateToTokens } from '@/lib/token-utils';
 import { getModelConfigAsync } from '@/lib/server/ai-config';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
-import { formatBaziPromptText } from '@/lib/bazi-prompt';
+import { formatBaziPromptText, resolveBaziPromptData, type BaziPromptInput } from '@/lib/bazi-prompt';
 import { formatZiweiPromptText, type ZiweiPromptInput } from '@/lib/ziwei-chart-prompt';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/divination/mangpai';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
@@ -28,13 +28,7 @@ export interface PromptBuildResult {
     budgetTotal: number;
 }
 
-type BaziChartInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'gender'>> & {
-    id?: string;
-    name?: string;
-    gender?: BaziChart['gender'] | string;
-    birthDate?: string;
-    birthTime?: string;
-    chartData?: Record<string, unknown>;
+type BaziChartInput = BaziPromptInput & {
     caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
@@ -326,8 +320,12 @@ function formatDifyContextAsUserPrefix(difyContext?: DifyContext): string {
 
 function resolveDayPillar(chart?: BaziChartInput): string | null {
     if (!chart) return null;
-    const data = (chart.chartData as Record<string, unknown> | undefined) ?? chart;
-    return extractDayPillar(data as { fourPillars?: { day?: { stem?: string; branch?: string } } });
+    const resolved = resolveBaziPromptData(chart);
+    if (resolved) {
+        const { stem, branch } = resolved.output.fourPillars.day;
+        return `${stem}${branch}`;
+    }
+    return extractDayPillar(chart as { fourPillars?: { day?: { stem?: string; branch?: string } } });
 }
 
 // 完整构建：返回 systemPrompt + sources + 诊断信息，供 chat 路由使用

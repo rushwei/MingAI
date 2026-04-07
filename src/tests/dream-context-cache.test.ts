@@ -77,17 +77,16 @@ test('buildDreamContextPayload should reuse cached payload within TTL', async (t
                       maybeSingle: async () => {
                         baziChartReads += 1;
                         return {
-                          data: {
-                            id: 'chart-1',
-                            name: '测试命盘',
-                            gender: 'male',
-                            birth_date: '1990-01-01',
-                            birth_time: '08:00',
-                            birth_place: '上海',
-                            calendar_type: 'solar',
-                            is_leap_month: false,
-                            chart_data: {},
-                          },
+	                          data: {
+	                            id: 'chart-1',
+	                            name: '测试命盘',
+	                            gender: 'male',
+	                            birth_date: '1990-01-01',
+	                            birth_time: '08:00',
+	                            birth_place: '上海',
+	                            calendar_type: 'solar',
+	                            is_leap_month: false,
+	                          },
                           error: null,
                         };
                       },
@@ -240,17 +239,16 @@ test('buildDreamContextPayload should key latest-chart cache by resolved chart i
                       maybeSingle: async () => {
                         baziChartReads += 1;
                         return {
-                          data: latestChartId ? {
-                            id: latestChartId,
-                            name: latestChartId,
-                            gender: 'male',
-                            birth_date: '1990-01-01',
-                            birth_time: '08:00',
-                            birth_place: '上海',
-                            calendar_type: 'solar',
-                            is_leap_month: false,
-                            chart_data: {},
-                          } : null,
+	                          data: latestChartId ? {
+	                            id: latestChartId,
+	                            name: latestChartId,
+	                            gender: 'male',
+	                            birth_date: '1990-01-01',
+	                            birth_time: '08:00',
+	                            birth_place: '上海',
+	                            calendar_type: 'solar',
+	                            is_leap_month: false,
+	                          } : null,
                           error: null,
                         };
                       },

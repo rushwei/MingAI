@@ -5,8 +5,8 @@
  */
 
 import { getConflictTriggers } from '@/lib/communication-templates';
+import { DI_ZHI, STEM_ELEMENTS, TIAN_GAN, ZHI_WUXING } from '@mingai/core/utils';
 import { Solar } from 'lunar-javascript';
-import { TIAN_GAN, DI_ZHI, STEM_ELEMENTS, BRANCH_ELEMENTS } from '@/lib/divination/bazi';
 
 // 合盘类型
 export type HepanType = 'love' | 'business' | 'family';
@@ -86,11 +86,11 @@ export interface HepanResult {
     createdAt: Date;
 }
 
-// 天干五行（复用 bazi.ts 的 STEM_ELEMENTS）
+// 天干五行（直接复用 core utils）
 const GAN_WUXING = STEM_ELEMENTS as Record<string, WuXing>;
 
-// 地支五行（复用 bazi.ts 的 BRANCH_ELEMENTS）
-const ZHI_WUXING = BRANCH_ELEMENTS as Record<string, WuXing>;
+// 地支五行（直接复用 core utils）
+const ZHI_WUXING_MAP = ZHI_WUXING as Record<string, WuXing>;
 
 // 五行相生关系
 const WUXING_SHENG: Record<WuXing, WuXing> = {
@@ -165,7 +165,7 @@ export function calculateBaZi(birth: BirthInfo): BaZiInfo {
     ];
 
     for (const gz of allGanZhi) {
-        const wuxing = GAN_WUXING[gz] || ZHI_WUXING[gz];
+        const wuxing = GAN_WUXING[gz] || ZHI_WUXING_MAP[gz];
         if (wuxing) wuxingCount[wuxing]++;
     }
 

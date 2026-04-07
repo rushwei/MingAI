@@ -162,3 +162,54 @@ test('loadConversationAnalysisSnapshot reads lightweight snapshot payload', asyn
         reasoningEnabled: true,
     });
 });
+
+test('loadLatestConversationAnalysisSnapshot should include chartId filter when provided', async (t) => {
+    const originalFetch = global.fetch;
+    const analysisModulePath = require.resolve('../lib/chat/conversation-analysis');
+    const requests: string[] = [];
+
+    global.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === '/api/conversations?includeArchived=true&limit=1&sourceType=bazi_wuxing&chartId=chart-1') {
+            return new Response(JSON.stringify({
+                conversations: [{ id: 'conv-1' }],
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        if (url === '/api/conversations/conv-1?snapshot=analysis') {
+            return new Response(JSON.stringify({
+                snapshot: {
+                    analysis: 'saved analysis',
+                    reasoning: null,
+                    modelId: 'glm-4',
+                    reasoningEnabled: false,
+                },
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        return new Response('not found', { status: 404 });
+    }) as typeof global.fetch;
+
+    t.after(() => {
+        global.fetch = originalFetch;
+        delete require.cache[analysisModulePath];
+    });
+
+    delete require.cache[analysisModulePath];
+    const { loadLatestConversationAnalysisSnapshot } = require('../lib/chat/conversation-analysis') as typeof import('../lib/chat/conversation-analysis');
+    const snapshot = await loadLatestConversationAnalysisSnapshot({
+        sourceType: 'bazi_wuxing',
+        chartId: 'chart-1',
+    });
+
+    assert.equal(snapshot?.analysis, 'saved analysis');
+    assert.deepEqual(requests, [
+        '/api/conversations?includeArchived=true&limit=1&sourceType=bazi_wuxing&chartId=chart-1',
+        '/api/conversations/conv-1?snapshot=analysis',
+    ]);
+});

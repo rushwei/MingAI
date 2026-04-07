@@ -6,6 +6,8 @@ export function ResultHeader({
     chartId,
     saving,
     saved,
+    saveDisabled = false,
+    saveLabel = '保存',
     copied,
     jsonCopied,
     showJsonCopy = false,
@@ -18,6 +20,8 @@ export function ResultHeader({
     chartId: string | null;
     saving: boolean;
     saved: boolean;
+    saveDisabled?: boolean;
+    saveLabel?: string;
     copied: boolean;
     jsonCopied?: boolean;
     showJsonCopy?: boolean;
@@ -47,7 +51,7 @@ export function ResultHeader({
                 </button>
                 <button
                     onClick={onSave}
-                    disabled={saving || saved}
+                    disabled={saving || saved || saveDisabled}
                     className={`
                         inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
                         ${saved
@@ -61,7 +65,7 @@ export function ResultHeader({
                     ) : saving ? (
                         <><SoundWaveLoader variant="inline" />保存中</>
                     ) : (
-                        <><Save className="w-3.5 h-3.5" />保存</>
+                        <><Save className="w-3.5 h-3.5" />{saveLabel}</>
                     )}
                 </button>
                 <button

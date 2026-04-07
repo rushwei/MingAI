@@ -58,20 +58,3 @@ export function buildPlaceResolutionFallbackMessage(reason?: PlaceResolutionReas
             return '出生地点解析失败，本次不采用真太阳时。';
     }
 }
-
-export function extractLongitudeFromChartData(chartData: unknown): number | undefined {
-    if (!chartData || typeof chartData !== 'object') return undefined;
-
-    const record = chartData as Record<string, unknown>;
-    const directLongitude = parseLongitude(record.longitude as string | number | null | undefined);
-    if (directLongitude != null) {
-        return directLongitude;
-    }
-
-    const trueSolarTimeInfo = record.trueSolarTimeInfo;
-    if (!trueSolarTimeInfo || typeof trueSolarTimeInfo !== 'object') return undefined;
-
-    return parseLongitude(
-        (trueSolarTimeInfo as Record<string, unknown>).longitude as string | number | null | undefined,
-    );
-}

@@ -101,7 +101,7 @@ export async function buildDreamContextPayload(userId: string): Promise<DreamCon
         resolvedChartId
             ? supabase
                 .from('bazi_charts')
-                .select('id, user_id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at, updated_at')
+                .select('id, user_id, name, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month, created_at, updated_at')
                 .eq('user_id', userId)
                 .eq('id', resolvedChartId)
                 .maybeSingle()

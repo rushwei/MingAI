@@ -142,7 +142,7 @@ test('buildPromptWithSources appends structured bazi case profile context', asyn
 test('buildPromptWithSources should enrich minimal bazi chart data before rendering canonical text', async () => {
     const pb = require('../lib/ai/prompt-builder') as any;
     const baziModule = require('../lib/divination/bazi') as typeof import('../lib/divination/bazi');
-    const rebuiltChart = baziModule.calculateBazi({
+    const rebuiltBundle = baziModule.calculateBaziChartBundle({
         name: 'hhs',
         gender: 'male',
         birthYear: 2002,
@@ -154,7 +154,10 @@ test('buildPromptWithSources should enrich minimal bazi chart data before render
         calendarType: 'solar',
         isLeapMonth: false,
     });
-    const rebuiltText = baziModule.generateBaziChartText(rebuiltChart);
+    const rebuiltText = baziModule.generateBaziChartText(rebuiltBundle.output, {
+        name: 'hhs',
+        meta: rebuiltBundle.meta,
+    });
     const res = await pb.buildPromptWithSources({
         modelId: 'deepseek-chat',
         userMessage: '结合命盘分析',
@@ -327,6 +330,7 @@ test('buildPromptWithSources should enrich ziwei chart data from base birth info
         calendarType: 'solar',
         isLeapMonth: false,
         birthPlace: '北京',
+        longitude: 116.4074,
     });
     const rebuiltText = ziweiModule.generateZiweiChartText(rebuiltChart);
     const res = await pb.buildPromptWithSources({
@@ -342,11 +346,9 @@ test('buildPromptWithSources should enrich ziwei chart data from base birth info
                 birthDate: '1990-01-01',
                 birthTime: '08:00',
                 birthPlace: '北京',
+                longitude: 116.4074,
                 calendarType: 'solar',
                 isLeapMonth: false,
-                chartData: {
-                    palaces: [],
-                },
             },
         },
     });

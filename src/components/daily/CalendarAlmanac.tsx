@@ -22,7 +22,7 @@ import {
 import Link from 'next/link';
 import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/divination/calendar';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
 
 interface CalendarAlmanacProps {
     date: Date;

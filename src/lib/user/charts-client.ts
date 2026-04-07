@@ -1,5 +1,6 @@
 import { requestBrowserJson } from '@/lib/browser-api';
-import type { BaziChart } from '@/types';
+import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 type UserChartListResponse = {
   baziCharts?: Array<Record<string, unknown>>;
@@ -10,52 +11,39 @@ type UserChartListResponse = {
   };
 };
 
-export function toFortuneBaziChart(row: Record<string, unknown> | null | undefined): BaziChart | null {
+export type SavedBaziChart = {
+  id: string;
+  name: string;
+  output: CoreBaziOutput;
+};
+
+export function toSavedBaziChart(row: Record<string, unknown> | null | undefined): SavedBaziChart | null {
   if (!row || typeof row !== 'object') {
     return null;
   }
 
-  const chartData = (row.chart_data && typeof row.chart_data === 'object')
-    ? row.chart_data as Record<string, unknown>
-    : null;
+  const output = calculateBaziOutputFromStoredFields({
+    gender: row.gender as string | null | undefined,
+    birth_date: row.birth_date as string | null | undefined,
+    birth_time: row.birth_time as string | null | undefined,
+    birth_place: row.birth_place as string | null | undefined,
+    longitude: row.longitude as number | string | null | undefined,
+    calendar_type: row.calendar_type as string | null | undefined,
+    is_leap_month: row.is_leap_month as boolean | null | undefined,
+  });
 
   if (
     typeof row.id !== 'string'
     || typeof row.name !== 'string'
-    || typeof row.birth_date !== 'string'
-    || !chartData
-    || !chartData.fourPillars
-    || !chartData.dayMaster
-    || !chartData.fiveElements
+    || !output
   ) {
     return null;
   }
 
   return {
     id: row.id,
-    userId: typeof row.user_id === 'string' ? row.user_id : undefined,
     name: row.name,
-    gender: (row.gender as BaziChart['gender']) ?? 'male',
-    birthDate: row.birth_date,
-    birthTime: typeof row.birth_time === 'string' ? row.birth_time : '',
-    birthPlace: typeof row.birth_place === 'string' ? row.birth_place : undefined,
-    timezone: typeof chartData.timezone === 'number' ? chartData.timezone : 8,
-    calendarType: row.calendar_type === 'lunar' ? 'lunar' : 'solar',
-    isLeapMonth: row.is_leap_month === true,
-    fourPillars: chartData.fourPillars as BaziChart['fourPillars'],
-    dayMaster: chartData.dayMaster as BaziChart['dayMaster'],
-    fiveElements: chartData.fiveElements as BaziChart['fiveElements'],
-    kongWang: chartData.kongWang as BaziChart['kongWang'],
-    taiYuan: chartData.taiYuan as BaziChart['taiYuan'],
-    mingGong: chartData.mingGong as BaziChart['mingGong'],
-    trueSolarTimeInfo: chartData.trueSolarTimeInfo as BaziChart['trueSolarTimeInfo'],
-    relations: chartData.relations as BaziChart['relations'],
-    tianGanWuHe: chartData.tianGanWuHe as BaziChart['tianGanWuHe'],
-    tianGanChongKe: chartData.tianGanChongKe as BaziChart['tianGanChongKe'],
-    diZhiBanHe: chartData.diZhiBanHe as BaziChart['diZhiBanHe'],
-    diZhiSanHui: chartData.diZhiSanHui as BaziChart['diZhiSanHui'],
-    isUnlocked: row.is_unlocked !== false,
-    createdAt: typeof row.created_at === 'string' ? row.created_at : new Date().toISOString(),
+    output,
   };
 }
 
@@ -85,9 +73,9 @@ export async function loadSavedChart(type: 'bazi' | 'ziwei', id: string) {
   return result.data?.chart ?? null;
 }
 
-export async function loadFortuneBaziChart(id: string) {
+export async function loadSavedBaziChart(id: string) {
   const chart = await loadSavedChart('bazi', id);
-  return toFortuneBaziChart(chart);
+  return toSavedBaziChart(chart);
 }
 
 export async function createSavedChart(type: 'bazi' | 'ziwei', payload: Record<string, unknown>) {

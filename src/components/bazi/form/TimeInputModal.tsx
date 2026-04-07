@@ -19,6 +19,8 @@ interface TimeInputModalProps {
     unknownTime: boolean;
     onToggleUnknownTime: () => void;
     onUpdate: <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
+    allowUnknownTime?: boolean;
+    onConfirm?: () => void;
 }
 
 export function TimeInputModal({
@@ -28,6 +30,8 @@ export function TimeInputModal({
     unknownTime,
     onToggleUnknownTime,
     onUpdate,
+    allowUnknownTime = true,
+    onConfirm,
 }: TimeInputModalProps) {
     const [localHour, setLocalHour] = useState(formData.birthHour);
     const [localMinute, setLocalMinute] = useState(formData.birthMinute);
@@ -48,9 +52,10 @@ export function TimeInputModal({
     const handleConfirm = () => {
         onUpdate('birthHour', localHour);
         onUpdate('birthMinute', localMinute);
-        if (localUnknownTime !== unknownTime) {
+        if (allowUnknownTime && localUnknownTime !== unknownTime) {
             onToggleUnknownTime();
         }
+        onConfirm?.();
         onClose();
     };
 
@@ -72,7 +77,7 @@ export function TimeInputModal({
     if (!isOpen) return null;
 
     // knowTime 表示"知道时辰"，是 localUnknownTime（不知时辰）的反义
-    const knowTime = !localUnknownTime;
+    const knowTime = allowUnknownTime ? !localUnknownTime : true;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -102,26 +107,28 @@ export function TimeInputModal({
                 {/* 内容 */}
                 <div className="p-6 space-y-6">
                     {/* 不知时辰开关 */}
-                    <label className="flex items-center justify-between cursor-pointer group">
-                        <span className="text-sm font-bold uppercase tracking-wider text-foreground/60">
-                            {knowTime ? '已知时辰' : '不知时辰'}
-                        </span>
-                        <div
-                            onClick={() => setLocalUnknownTime(!localUnknownTime)}
-                            className={`
-                                relative w-10 h-5 rounded-full transition-all duration-150 ease-out flex items-center
-                                ${knowTime ? 'bg-[#2383e2]' : 'bg-background-secondary'}
-                            `}
-                        >
+                    {allowUnknownTime && (
+                        <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-sm font-bold uppercase tracking-wider text-foreground/60">
+                                {knowTime ? '已知时辰' : '不知时辰'}
+                            </span>
                             <div
+                                onClick={() => setLocalUnknownTime(!localUnknownTime)}
                                 className={`
-                                    absolute w-4 h-4 bg-background rounded-full shadow-sm
-                                    transition-all duration-150
-                                    ${knowTime ? 'translate-x-5.5' : 'translate-x-0.5'}
+                                    relative w-10 h-5 rounded-full transition-all duration-150 ease-out flex items-center
+                                    ${knowTime ? 'bg-[#2383e2]' : 'bg-background-secondary'}
                                 `}
-                            />
-                        </div>
-                    </label>
+                            >
+                                <div
+                                    className={`
+                                        absolute w-4 h-4 bg-background rounded-full shadow-sm
+                                        transition-all duration-150
+                                        ${knowTime ? 'translate-x-5.5' : 'translate-x-0.5'}
+                                    `}
+                                />
+                            </div>
+                        </label>
+                    )}
 
                     {/* 具体时间输入 - 仅当知道时辰时显示 */}
                     {knowTime && (

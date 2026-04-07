@@ -11,7 +11,7 @@ import {
     type ReminderType
 } from '@/lib/reminders';
 import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import type { BaziChart } from '@/types';
+import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 // GET - 获取提醒订阅设置
 export async function GET(request: NextRequest) {
@@ -82,18 +82,20 @@ export async function POST(request: NextRequest) {
                 const serviceClient = getSystemAdminClient();
                 const { data: chartData } = await serviceClient
                     .from('bazi_charts')
-                    .select('chart_data')
+                    .select('gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month')
                     .eq('user_id', user.id)
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle();
 
-                if (chartData?.chart_data) {
-                    const baziChart = chartData.chart_data as BaziChart;
-                    if (reminderType === 'fortune') {
-                        scheduled = await scheduleUpcomingFortuneReminders(user.id, baziChart);
-                    } else {
-                        scheduled = await scheduleKeyDateReminders(user.id, baziChart);
+                if (chartData) {
+                    const baziOutput = calculateBaziOutputFromStoredFields(chartData);
+                    if (baziOutput) {
+                        if (reminderType === 'fortune') {
+                            scheduled = await scheduleUpcomingFortuneReminders(user.id, baziOutput);
+                        } else {
+                            scheduled = await scheduleKeyDateReminders(user.id, baziOutput);
+                        }
                     }
                 }
             }

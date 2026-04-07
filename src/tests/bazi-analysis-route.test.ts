@@ -46,37 +46,20 @@ test('bazi analysis route builds prompt from server chart context instead of cli
                                 return {
                                     eq() {
                                         return {
-                                            single: async () => ({
-                                                data: {
-                                                    id: '11111111-1111-1111-1111-111111111111',
-                                                    user_id: 'user-1',
-                                                    name: '张三',
-                                                    gender: 'male',
-                                                    birth_date: '1990-01-01',
-                                                    birth_time: '08:00',
-                                                    birth_place: '北京',
-                                                    calendar_type: 'solar',
-                                                    is_leap_month: false,
-                                                    chart_data: {
-                                                        name: '张三',
-                                                        gender: 'male',
-                                                        birthDate: '1990-01-01',
-                                                        birthTime: '08:00',
-                                                        birthPlace: '北京',
-                                                        timezone: 8,
-                                                        calendarType: 'solar',
-                                                        fourPillars: {
-                                                            year: { stem: '甲', branch: '子', hiddenStems: ['癸'] },
-                                                            month: { stem: '乙', branch: '丑', hiddenStems: ['己'] },
-                                                            day: { stem: '丙', branch: '寅', hiddenStems: ['甲'] },
-                                                            hour: { stem: '丁', branch: '卯', hiddenStems: ['乙'] },
-                                                        },
-                                                        dayMaster: '丙',
-                                                        fiveElements: { 金: 0, 木: 3, 水: 1, 火: 2, 土: 1 },
-                                                    },
-                                                },
-                                                error: null,
-                                            }),
+	                                            single: async () => ({
+	                                                data: {
+	                                                    id: '11111111-1111-1111-1111-111111111111',
+	                                                    user_id: 'user-1',
+	                                                    name: '张三',
+	                                                    gender: 'male',
+	                                                    birth_date: '1990-01-01',
+	                                                    birth_time: '08:00',
+	                                                    birth_place: '北京',
+	                                                    calendar_type: 'solar',
+	                                                    is_leap_month: false,
+	                                                },
+	                                                error: null,
+	                                            }),
                                         };
                                     },
                                 };
@@ -303,37 +286,20 @@ test('bazi analysis route surfaces SSE error when stream persistence fails after
                                 return {
                                     eq() {
                                         return {
-                                            single: async () => ({
-                                                data: {
-                                                    id: '11111111-1111-1111-1111-111111111111',
-                                                    user_id: 'user-1',
-                                                    name: '张三',
-                                                    gender: 'male',
-                                                    birth_date: '1990-01-01',
-                                                    birth_time: '08:00',
-                                                    birth_place: '北京',
-                                                    calendar_type: 'solar',
-                                                    is_leap_month: false,
-                                                    chart_data: {
-                                                        name: '张三',
-                                                        gender: 'male',
-                                                        birthDate: '1990-01-01',
-                                                        birthTime: '08:00',
-                                                        birthPlace: '北京',
-                                                        timezone: 8,
-                                                        calendarType: 'solar',
-                                                        fourPillars: {
-                                                            year: { stem: '甲', branch: '子', hiddenStems: ['癸'] },
-                                                            month: { stem: '乙', branch: '丑', hiddenStems: ['己'] },
-                                                            day: { stem: '丙', branch: '寅', hiddenStems: ['甲'] },
-                                                            hour: { stem: '丁', branch: '卯', hiddenStems: ['乙'] },
-                                                        },
-                                                        dayMaster: '丙',
-                                                        fiveElements: { 金: 0, 木: 3, 水: 1, 火: 2, 土: 1 },
-                                                    },
-                                                },
-                                                error: null,
-                                            }),
+	                                            single: async () => ({
+	                                                data: {
+	                                                    id: '11111111-1111-1111-1111-111111111111',
+	                                                    user_id: 'user-1',
+	                                                    name: '张三',
+	                                                    gender: 'male',
+	                                                    birth_date: '1990-01-01',
+	                                                    birth_time: '08:00',
+	                                                    birth_place: '北京',
+	                                                    calendar_type: 'solar',
+	                                                    is_leap_month: false,
+	                                                },
+	                                                error: null,
+	                                            }),
                                         };
                                     },
                                 };

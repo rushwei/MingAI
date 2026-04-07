@@ -7,87 +7,32 @@
  */
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LunarYear, Lunar, Solar } from 'lunar-javascript';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import type { BaziFormData, Gender, CalendarType } from '@/types';
+import type { BaziFormData } from '@/types';
 import { UnifiedZiweiForm } from '@/components/bazi/form/UnifiedZiweiForm';
-import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { resolvePlaceWithAmap } from '@/lib/divination/amap-client';
-import { buildPlaceResolutionFallbackMessage, parseLongitude } from '@/lib/divination/place-resolution';
+import { buildPlaceResolutionFallbackMessage } from '@/lib/divination/place-resolution';
 import { useToast } from '@/components/ui/Toast';
 import { clampDay } from '@/lib/date-utils';
-
-const parseNumber = (value: string | null, fallback: number) => {
-    if (value === null || value.trim() === '') {
-        return fallback;
-    }
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? fallback : parsed;
-};
-
-const getInitialFormData = (searchParams: { get: (key: string) => string | null }): BaziFormData => {
-    const name = searchParams.get('name');
-    const gender = searchParams.get('gender') as Gender | null;
-    const year = searchParams.get('year');
-    const month = searchParams.get('month');
-    const day = searchParams.get('day');
-    const hour = searchParams.get('hour');
-    const minute = searchParams.get('minute');
-    const calendar = searchParams.get('calendar') as CalendarType | null;
-    const place = searchParams.get('place');
-    const leap = searchParams.get('leap');
-    const longitude = searchParams.get('longitude');
-
-    if (!name && !year) {
-        return { ...DEFAULT_BAZI_FORM_DATA };
-    }
-
-    const isUnknownTime = hour === '-1';
-    const birthYear = parseNumber(year, DEFAULT_BAZI_FORM_DATA.birthYear);
-    const birthMonth = parseNumber(month, DEFAULT_BAZI_FORM_DATA.birthMonth);
-    const isLeapRequested = calendar === 'lunar' && leap === '1';
-    const leapMonthOfYear = calendar === 'lunar'
-        ? LunarYear.fromYear(birthYear).getLeapMonth()
-        : 0;
-
-    return {
-        name: name || '',
-        gender: gender === 'female' ? 'female' : 'male',
-        birthYear,
-        birthMonth,
-        birthDay: parseNumber(day, DEFAULT_BAZI_FORM_DATA.birthDay),
-        birthHour: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthHour : parseNumber(hour, DEFAULT_BAZI_FORM_DATA.birthHour),
-        birthMinute: parseNumber(minute, DEFAULT_BAZI_FORM_DATA.birthMinute),
-        calendarType: calendar === 'lunar' ? 'lunar' : 'solar',
-        isLeapMonth: isLeapRequested && leapMonthOfYear === birthMonth,
-        birthPlace: place || '',
-        longitude: parseLongitude(longitude),
-    };
-};
+import { buildInitialZiweiFormState, ZIWEI_BIRTH_TIME_REQUIRED_MESSAGE } from '@/lib/divination/ziwei-form';
 
 function ZiweiPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { showToast } = useToast();
+    const initialState = buildInitialZiweiFormState(searchParams);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // Fix 12: 将 unknownTime 统一到 formData 中管理
-    const [formData, setFormData] = useState<BaziFormData & { isUnknownTime?: boolean }>(() => {
-        const initial = getInitialFormData(searchParams);
-        const hourParam = searchParams.get('hour');
-        return {
-            ...initial,
-            isUnknownTime: hourParam === null || hourParam === '-1',
-        };
-    });
-    const unknownTime = formData.isUnknownTime ?? false;
-    const setUnknownTime = (value: boolean | ((prev: boolean) => boolean)) => {
-        setFormData(prev => ({
-            ...prev,
-            isUnknownTime: typeof value === 'function' ? value(prev.isUnknownTime ?? false) : value,
-        }));
-    };
+    const [formData, setFormData] = useState<BaziFormData>(initialState.formData);
+    const [requiresBirthTimeConfirmation, setRequiresBirthTimeConfirmation] = useState(initialState.requiresBirthTimeConfirmation);
+
+    useEffect(() => {
+        if (requiresBirthTimeConfirmation) {
+            showToast('warning', ZIWEI_BIRTH_TIME_REQUIRED_MESSAGE);
+        }
+    }, [requiresBirthTimeConfirmation, showToast]);
 
     // 使用共享的 getDayCount 和 clampDay（Fix 13）
 
@@ -174,6 +119,10 @@ function ZiweiPageContent() {
     // 提交表单
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (requiresBirthTimeConfirmation) {
+            showToast('warning', ZIWEI_BIRTH_TIME_REQUIRED_MESSAGE);
+            return;
+        }
         setIsSubmitting(true);
 
         try {
@@ -195,8 +144,8 @@ function ZiweiPageContent() {
             params.set('year', String(formData.birthYear));
             params.set('month', String(formData.birthMonth));
             params.set('day', String(formData.birthDay));
-            params.set('hour', unknownTime ? '-1' : String(formData.birthHour));
-            params.set('minute', unknownTime ? '0' : String(formData.birthMinute || 0));
+            params.set('hour', String(formData.birthHour));
+            params.set('minute', String(formData.birthMinute || 0));
             params.set('calendar', formData.calendarType || 'solar');
             if (formData.calendarType === 'lunar') {
                 params.set('leap', formData.isLeapMonth ? '1' : '0');
@@ -234,15 +183,20 @@ function ZiweiPageContent() {
                     <UnifiedZiweiForm
                         formData={formData}
                         onUpdate={updateField}
-                        unknownTime={unknownTime}
-                        onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
                         onSubmit={handleSubmit}
                         isSubmitting={isSubmitting}
+                        onBirthTimeConfirm={() => setRequiresBirthTimeConfirmation(false)}
                     />
+
+                    {requiresBirthTimeConfirmation && (
+                        <div className="rounded-md border border-[#dfab01]/15 bg-[#dfab01]/5 px-4 py-3 text-sm text-[#dfab01]">
+                            检测到旧链接或非法参数未提供有效出生时辰。其他信息已恢复，请先明确选择出生时辰后再排盘。
+                        </div>
+                    )}
 
                     {/* 提示信息 */}
                     <p className="text-center text-xs text-foreground/50">
-                        紫微斗数对出生时辰要求精确，请尽量选择准确的时辰以获得更准确的命盘
+                        紫微斗数必须提供出生时辰，请尽量填写准确时间以获得可靠命盘
                     </p>
                 </div>
             </div>

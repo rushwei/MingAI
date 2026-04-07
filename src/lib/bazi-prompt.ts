@@ -1,34 +1,28 @@
-import type { BaziChart } from '@/types';
-import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
+import type { CalendarType, Gender } from '@/types';
+import { calculateBaziChartBundle, generateBaziChartText } from '@/lib/divination/bazi';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
-import { extractLongitudeFromChartData } from '@/lib/divination/place-resolution';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
-export type BaziPromptInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'gender'>> & {
+export type BaziPromptInput = {
     id?: string;
     name?: string;
-    gender?: BaziChart['gender'] | string;
+    gender?: Gender | string;
     birthDate?: string;
     birthTime?: string;
     birthPlace?: string;
-    calendarType?: BaziChart['calendarType'];
+    longitude?: number;
+    calendarType?: CalendarType;
     isLeapMonth?: boolean;
-    chartData?: Record<string, unknown>;
 };
 
-export function hasCompletePillarDetails(chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>): boolean {
-    return [chart.fourPillars.year, chart.fourPillars.month, chart.fourPillars.day, chart.fourPillars.hour].every((pillar) => {
-        if (!pillar.hiddenStemDetails?.length) return false;
-        if (pillar.hiddenStemDetails.length !== pillar.hiddenStems.length) return false;
-        if (!pillar.naYin || !pillar.diShi) return false;
-        return pillar.hiddenStemDetails.every((item) => typeof item.tenGod === 'string' && item.tenGod.trim().length > 0);
-    });
-}
+export type ResolvedBaziPromptData = ReturnType<typeof calculateBaziChartBundle>;
 
-function rebuildBaziChart(chart: BaziPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
+function rebuildBaziChart(chart: BaziPromptInput): ResolvedBaziPromptData | null {
     if (!chart.birthDate || !chart.birthTime) return null;
+
+    const birthTime = chart.birthTime;
     const [birthYear, birthMonth, birthDay] = chart.birthDate.split('-').map(Number);
-    const [birthHour, birthMinute] = chart.birthTime.split(':').map(Number);
+    const [birthHour, birthMinute] = birthTime.split(':').map(Number);
     if (
         !Number.isFinite(birthYear)
         || !Number.isFinite(birthMonth)
@@ -40,7 +34,7 @@ function rebuildBaziChart(chart: BaziPromptInput): Omit<BaziChart, 'id' | 'creat
     }
 
     try {
-        return calculateBazi({
+        return calculateBaziChartBundle({
             name: chart.name || '未命名',
             gender: chart.gender === 'female' ? 'female' : 'male',
             birthYear,
@@ -49,7 +43,7 @@ function rebuildBaziChart(chart: BaziPromptInput): Omit<BaziChart, 'id' | 'creat
             birthHour,
             birthMinute,
             birthPlace: chart.birthPlace,
-            longitude: extractLongitudeFromChartData(chart.chartData),
+            longitude: chart.longitude,
             calendarType: chart.calendarType === 'lunar' ? 'lunar' : 'solar',
             isLeapMonth: chart.isLeapMonth ?? false,
         });
@@ -58,32 +52,9 @@ function rebuildBaziChart(chart: BaziPromptInput): Omit<BaziChart, 'id' | 'creat
     }
 }
 
-function resolveBaziChartData(chart?: BaziPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
+export function resolveBaziPromptData(chart?: BaziPromptInput): ResolvedBaziPromptData | null {
     if (!chart) return null;
-    const chartData = chart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
-    const mergedInput: BaziPromptInput = {
-        ...(chartData as Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId'>>),
-        ...chart,
-        chartData: chart.chartData,
-        name: chart.name || chartData?.name,
-        gender: chart.gender || chartData?.gender,
-        birthDate: chart.birthDate || chartData?.birthDate,
-        birthTime: chart.birthTime || chartData?.birthTime,
-        birthPlace: chart.birthPlace || chartData?.birthPlace,
-        calendarType: chart.calendarType || chartData?.calendarType,
-        isLeapMonth: chart.isLeapMonth ?? chartData?.isLeapMonth,
-    };
-    const rebuilt = rebuildBaziChart(mergedInput);
-    if (rebuilt) {
-        return rebuilt;
-    }
-    if (chartData?.fourPillars) {
-        return chartData;
-    }
-    if ((chart as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>).fourPillars) {
-        return chart as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>;
-    }
-    return null;
+    return rebuildBaziChart(chart);
 }
 
 function formatBaziFallback(chart: BaziPromptInput): string {
@@ -101,9 +72,13 @@ export function formatBaziPromptText(
     detailLevel?: ChartTextDetailLevel,
 ): string {
     const resolvedLevel = resolveChartTextDetailLevel('bazi', detailLevel);
-    const resolvedChart = resolveBaziChartData(chart);
-    const chartText = resolvedChart
-        ? generateBaziChartText(resolvedChart, { detailLevel: resolvedLevel })
+    const resolvedSource = resolveBaziPromptData(chart);
+    const chartText = resolvedSource
+        ? generateBaziChartText(resolvedSource.output, {
+            name: resolvedSource.meta.name,
+            detailLevel: resolvedLevel,
+            meta: resolvedSource.meta,
+        })
         : formatBaziFallback(chart);
     const caseText = formatBaziCaseProfileForAI(profile);
     return caseText ? `${chartText}\n\n${caseText}` : chartText;

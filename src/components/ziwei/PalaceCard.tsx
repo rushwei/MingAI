@@ -1,4 +1,4 @@
-import type { ZiweiPalaceJSON } from '@mingai/core/json';
+import type { ZiweiPalaceJSON } from '@mingai/core/ziwei';
 import { StarBadge } from '@/components/ziwei/StarBadge';
 
 interface FlowInfo {
@@ -52,11 +52,7 @@ export function PalaceCard({
         star: ZiweiPalaceJSON['主星及四化'][number],
         type: 'major' | 'minor' | 'auxiliary',
     ) => ({
-        name: star.星名,
-        brightness: star.亮度,
-        mutagen: star.四化,
-        selfMutagen: star.离心自化,
-        oppositeMutagen: star.向心自化,
+        ...star,
         type,
     });
     // 获取边框样式（支持多色）

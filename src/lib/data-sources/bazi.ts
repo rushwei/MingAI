@@ -1,5 +1,4 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import type { BaziChart } from '@/types';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 import { type BaziCaseProfile } from '@/lib/bazi-case-profile';
 import { formatBaziPromptText } from '@/lib/bazi-prompt';
@@ -13,9 +12,9 @@ type BaziRow = {
     birth_date: string;
     birth_time: string | null;
     birth_place: string | null;
+    longitude: number | null;
     calendar_type: string | null;
     is_leap_month: boolean | null;
-    chart_data: Record<string, unknown> | null;
     created_at: string;
     caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
@@ -63,29 +62,16 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
     },
 
     formatForAI(chart: BaziRow, ctx?: DataSourceQueryContext): string {
-        const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
-        const birthDate = chart.birth_date;
-        const birthTime = chart.birth_time || '';
-        const payload = chartData as Partial<BaziChart> & Record<string, unknown>;
-        const gender = payload.gender ?? chart.gender;
-        const normalized: Omit<BaziChart, 'id' | 'createdAt' | 'userId'> = {
-            ...(payload as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>),
-            name: payload.name ?? name,
-            gender: (gender === 'male' || gender === 'female') ? gender : (chart.gender ?? 'male'),
-            birthDate: payload.birthDate ?? birthDate,
-            birthTime: payload.birthTime ?? birthTime,
-            birthPlace: payload.birthPlace ?? chart.birth_place ?? undefined,
-            calendarType: (payload.calendarType ?? chart.calendar_type ?? 'solar') as BaziChart['calendarType'],
-            isLeapMonth: payload.isLeapMonth ?? chart.is_leap_month ?? undefined,
-        };
-
         return formatBaziPromptText({
-            ...normalized,
             name,
-            birthDate,
-            birthTime,
-            chartData,
+            gender: chart.gender ?? 'male',
+            birthDate: chart.birth_date,
+            birthTime: chart.birth_time || undefined,
+            birthPlace: chart.birth_place || undefined,
+            longitude: chart.longitude ?? undefined,
+            calendarType: (chart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
+            isLeapMonth: chart.is_leap_month ?? undefined,
         }, chart.caseProfile || null, ctx?.chartPromptDetailLevel);
     },
 

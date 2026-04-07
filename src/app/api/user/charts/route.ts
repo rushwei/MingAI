@@ -10,9 +10,9 @@ type ChartRecord = {
     birth_date: string;
     birth_time: string | null;
     birth_place: string | null;
+    longitude?: number | null;
     calendar_type?: string | null;
     is_leap_month?: boolean | null;
-    chart_data?: Record<string, unknown> | null;
     created_at: string;
 };
 
@@ -31,12 +31,12 @@ export async function GET(request: NextRequest) {
     const [baziResult, ziweiResult, settingsResult] = await Promise.all([
         auth.supabase
             .from('bazi_charts')
-            .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at')
+            .select('id, name, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month, created_at')
             .eq('user_id', auth.user.id)
             .order('created_at', { ascending: false }),
         auth.supabase
             .from('ziwei_charts')
-            .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at')
+            .select('id, name, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month, created_at')
             .eq('user_id', auth.user.id)
             .order('created_at', { ascending: false }),
         auth.supabase
@@ -47,6 +47,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     if (baziResult.error || ziweiResult.error || settingsResult.error) {
+        console.error('[user/charts] failed to load chart bundle', {
+            userId: auth.user.id,
+            baziError: baziResult.error?.message || null,
+            ziweiError: ziweiResult.error?.message || null,
+            settingsError: settingsResult.error?.message || null,
+        });
         return jsonError('获取命盘列表失败', 500);
     }
 

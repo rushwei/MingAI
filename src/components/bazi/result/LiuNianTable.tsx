@@ -1,5 +1,5 @@
 import type { LiuNianInfo } from '@/lib/divination/bazi';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
 
 export function LiuNianTable({
     liuNian,

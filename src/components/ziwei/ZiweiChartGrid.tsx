@@ -8,9 +8,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { ZiweiCanonicalJSON } from '@mingai/core/json';
+import type { ZiweiCanonicalJSON } from '@mingai/core/ziwei';
 import { getBranchIndex, getTriangleSquare } from '@/lib/divination/ziwei';
-import { getBranchElement, getStemElement, getElementColor } from '@/lib/divination/bazi';
+import { getBranchElement, getStemElement, getElementColor } from '@/lib/divination/display-helpers';
 import { PalaceCard } from '@/components/ziwei/PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';
@@ -28,7 +28,7 @@ interface ZiweiChartProps {
     horoscopeInfo?: HoroscopeInfo;
 }
 
-// 五行颜色映射：天干对应五行（使用 bazi.ts 的 getStemElement + getElementColor）
+// 五行颜色映射：天干地支五行颜色统一走 display helpers
 function getStemElementStyle(stem: string | undefined): { color: string } | undefined {
     if (!stem) return undefined;
     const element = getStemElement(stem);

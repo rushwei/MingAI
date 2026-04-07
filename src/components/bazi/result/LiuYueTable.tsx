@@ -1,5 +1,5 @@
 import type { LiuYueInfo } from '@/lib/divination/bazi';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
 
 export function LiuYueTable({
     liuYue,

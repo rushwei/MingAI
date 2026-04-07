@@ -6,23 +6,16 @@
  */
 
 import { NextRequest } from 'next/server';
-import { callAIWithReasoning, callAIUIMessageResult } from '@/lib/ai/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
-import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
-import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
+import { getSystemAdminClient, jsonError } from '@/lib/api-utils';
+import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { formatBaziPromptText } from '@/lib/bazi-prompt';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
 import { USER_SETTINGS_SELECT, normalizeUserSettings } from '@/lib/user/settings';
-import {
-    buildVisualizationOutputContractPrompt,
-    buildVisualizationPreferencePrompts,
-} from '@/lib/visualization/prompt';
-import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
-import { createPersistentStreamResponse } from '@/lib/api/divination-pipeline';
+import { buildVisualizationPreferencePrompts } from '@/lib/visualization/prompt';
+import { SOURCE_CHART_TYPE_MAP, type ChartType } from '@/lib/visualization/chart-types';
+import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
+import { generateBaziAnalysisTitle } from '@/lib/ai/ai-analysis';
 
 const RATE_LIMIT_CONFIG = {
     maxRequests: 10,
@@ -70,150 +63,163 @@ const PERSONALITY_PROMPT = `你是一位专业的命理分析师，擅长通过�
 - 语言温暖亲切，富有洞察力
 - 总字数控制在500-800字`;
 
-export async function POST(request: NextRequest) {
-    let creditDeducted = false;
-    let userId: string | null = null;
-    try {
-        const { chartId, type, modelId, reasoning, stream } = await request.json();
+type BaziAnalysisType = 'wuxing' | 'personality';
 
-        if (!chartId || typeof chartId !== 'string') return jsonError('缺少命盘ID', 400);
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chartId)) return jsonError('命盘ID格式无效', 400);
-        if (!type || !['wuxing', 'personality'].includes(type)) return jsonError('分析类型无效', 400);
+interface BaziAnalysisRequest {
+    chartId?: string;
+    type?: BaziAnalysisType;
+    modelId?: string;
+    reasoning?: boolean;
+    stream?: boolean;
+}
 
-        const auth = await requireUserContext(request);
-        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { user } = auth;
-        userId = user.id;
+interface BaziAnalysisInput extends InterpretInput {
+    chartId: string;
+    type: BaziAnalysisType;
+}
 
+type LoadedBaziChart = {
+    id: string;
+    name: string | null;
+    user_id: string;
+    gender: 'male' | 'female' | null;
+    birth_date: string;
+    birth_time: string | null;
+    birth_place: string | null;
+    longitude: number | null;
+    calendar_type: string | null;
+    is_leap_month: boolean | null;
+};
+
+type BaziAnalysisContext = {
+    userId: string;
+    chartPromptDetailLevel: Awaited<ReturnType<typeof loadResolvedChartPromptDetailLevel>>;
+    chart: LoadedBaziChart;
+    chartSummary: string;
+    chartName: string;
+    caseProfileId: string | null;
+    caseProfileUpdatedAt: string | null;
+    visualizationPrompts: ReturnType<typeof buildVisualizationPreferencePrompts>;
+};
+
+function getAllowedChartTypes(type: BaziAnalysisType): ChartType[] {
+    return type === 'wuxing'
+        ? [...SOURCE_CHART_TYPE_MAP.bazi_chart, 'fortune_calendar']
+        : ['personality_petal', 'life_timeline', 'fortune_radar', 'fortune_calendar'];
+}
+
+const handleAnalyze = createInterpretHandler<BaziAnalysisInput, BaziAnalysisContext>({
+    sourceType: (input) => (input.type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality'),
+    tag: 'bazi/analysis',
+    personality: 'bazi',
+    authMethod: 'userContext',
+    parseInput: (body) => {
+        const request = body as BaziAnalysisRequest;
+        if (!request.chartId || typeof request.chartId !== 'string') {
+            return { error: '缺少命盘ID', status: 400 };
+        }
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(request.chartId)) {
+            return { error: '命盘ID格式无效', status: 400 };
+        }
+        if (!request.type || !['wuxing', 'personality'].includes(request.type)) {
+            return { error: '分析类型无效', status: 400 };
+        }
+        return {
+            chartId: request.chartId,
+            type: request.type,
+        };
+    },
+    precheck: async (request) => {
         const clientIP = getClientIP(request);
         const rateLimit = await checkRateLimit(clientIP, '/api/bazi/analysis', RATE_LIMIT_CONFIG);
-        if (!rateLimit.allowed) return jsonError('请求过于频繁，请稍后再试', 429);
-
+        return rateLimit.allowed ? null : { error: '请求过于频繁，请稍后再试', status: 429 };
+    },
+    resolvePromptContext: async (input, userId) => {
         const supabase = getSystemAdminClient();
         const { data: chart, error: chartError } = await supabase
             .from('bazi_charts')
-            .select('id, name, user_id, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data')
-            .eq('id', chartId)
-            .eq('user_id', user.id)
+            .select('id, name, user_id, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month')
+            .eq('id', input.chartId)
+            .eq('user_id', userId)
             .single();
-        if (chartError || !chart?.user_id) return jsonError('未找到命盘信息', 404);
-        const resolvedChart = chart as {
-            id: string;
-            name: string | null;
-            user_id: string;
-            gender: 'male' | 'female' | null;
-            birth_date: string;
-            birth_time: string | null;
-            birth_place: string | null;
-            calendar_type: string | null;
-            is_leap_month: boolean | null;
-            chart_data: Record<string, unknown> | null;
-        };
+        if (chartError || !chart?.user_id) {
+            return { error: '未找到命盘信息', status: 404 };
+        }
 
-        const caseProfile = await getBaziCaseProfileByChartId(supabase, chartId, user.id);
-        const promptDetailLevel = await loadResolvedChartPromptDetailLevel(user.id, 'bazi');
+        const resolvedChart = chart as LoadedBaziChart;
+        if (!resolvedChart.birth_time || !resolvedChart.birth_time.trim()) {
+            return { error: '该八字命盘缺少出生时辰，暂不支持 AI 分析', status: 400 };
+        }
+        const caseProfile = await getBaziCaseProfileByChartId(supabase, input.chartId, userId);
+        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'bazi');
         const chartSummary = formatBaziPromptText({
             id: resolvedChart.id,
             name: resolvedChart.name || '命盘',
             gender: resolvedChart.gender || 'male',
             birthDate: resolvedChart.birth_date,
-            birthTime: resolvedChart.birth_time || undefined,
+            birthTime: resolvedChart.birth_time,
             birthPlace: resolvedChart.birth_place || undefined,
+            longitude: resolvedChart.longitude ?? undefined,
             calendarType: (resolvedChart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
             isLeapMonth: resolvedChart.is_leap_month || false,
-            chartData: resolvedChart.chart_data || undefined,
-        }, caseProfile, promptDetailLevel);
+        }, caseProfile, chartPromptDetailLevel);
+
         const { data: userSettingsRow } = await supabase
             .from('user_settings')
             .select(USER_SETTINGS_SELECT)
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .maybeSingle();
         const userSettings = normalizeUserSettings((userSettingsRow ?? null) as Record<string, unknown> | null);
-        const visualizationPrompts = buildVisualizationPreferencePrompts(userSettings.visualizationSettings);
-        const allowedChartTypes = type === 'wuxing'
-            ? [...SOURCE_CHART_TYPE_MAP.bazi_chart, 'fortune_calendar'] as const
-            : ['personality_petal', 'life_timeline', 'fortune_radar', 'fortune_calendar'] as const;
+
+        return {
+            userId,
+            chartPromptDetailLevel,
+            chart: resolvedChart,
+            chartSummary,
+            chartName: resolvedChart.name || '命盘',
+            caseProfileId: caseProfile?.id || null,
+            caseProfileUpdatedAt: caseProfile?.updatedAt || null,
+            visualizationPrompts: buildVisualizationPreferencePrompts(userSettings.visualizationSettings),
+        };
+    },
+    buildPrompts: (input, context) => {
         const systemPrompt = [
-            type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT,
-            visualizationPrompts.dimensionsPrompt,
-            visualizationPrompts.dayunPrompt,
-            visualizationPrompts.chartStylePrompt,
-            buildVisualizationOutputContractPrompt([...allowedChartTypes]),
+            input.type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT,
+            context?.visualizationPrompts.dimensionsPrompt,
+            context?.visualizationPrompts.dayunPrompt,
+            context?.visualizationPrompts.chartStylePrompt,
         ].filter(Boolean).join('\n\n');
-        const userPrompt = `请分析以下八字：\n\n${chartSummary}`;
 
-        const authInfo = await getUserAuthInfo(user.id);
-        if (!authInfo) return jsonError('获取用户信息失败', 500);
-        const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, authInfo.effectiveMembership, reasoning);
-        if ('error' in access) return jsonError(access.error, access.status);
-        const { modelId: resolvedModelId, reasoningEnabled } = access;
-        if (!authInfo.hasCredits) return jsonError('积分不足，请充值后继续使用', 403);
+        return {
+            systemPrompt,
+            userPrompt: `请分析以下八字：\n\n${context?.chartSummary || ''}`,
+        };
+    },
+    allowedChartTypes: (input) => getAllowedChartTypes(input.type),
+    buildSourceData: (input, modelId, reasoningEnabled, context) => ({
+        chart_id: input.chartId,
+        chart_name: context?.chartName || null,
+        chart_summary: context?.chartSummary || null,
+        case_profile_id: context?.caseProfileId || null,
+        case_profile_updated_at: context?.caseProfileUpdatedAt || null,
+        case_prompt_snapshot: context?.chartSummary || null,
+        model_id: modelId,
+        reasoning: reasoningEnabled,
+    }),
+    generateTitle: (input, context) => generateBaziAnalysisTitle(context?.chartName || '命盘', input.type),
+    formatSuccessResponse: ({ content, reasoning, conversationId }) => ({
+        success: true,
+        content,
+        reasoning,
+        conversationId,
+    }),
+});
 
-        const remaining = await useCredit(user.id);
-        if (remaining === null) return jsonError('积分扣减失败，请重试', 500);
-        creditDeducted = true;
-
-        const sourceType = type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality';
-        const { generateBaziAnalysisTitle } = await import('@/lib/ai/ai-analysis');
-        const title = generateBaziAnalysisTitle(resolvedChart.name || '命盘', type);
-
-        async function persist(content: string, reasoningText: string | null) {
-            return createAIAnalysisConversation({
-                userId: resolvedChart.user_id,
-                sourceType,
-                sourceData: {
-                    chart_id: chartId,
-                    chart_name: resolvedChart.name,
-                    chart_summary: chartSummary,
-                    case_profile_id: caseProfile?.id || null,
-                    case_profile_updated_at: caseProfile?.updatedAt || null,
-                    case_prompt_snapshot: chartSummary,
-                    model_id: resolvedModelId,
-                    reasoning: reasoningEnabled,
-                    reasoning_text: reasoningText || null,
-                },
-                title,
-                aiResponse: content,
-            });
-        }
-
-        if (stream) {
-            const streamResult = await callAIUIMessageResult(
-                [{ role: 'user', content: userPrompt }], 'bazi',
-                `\n\n${systemPrompt}\n\n`, resolvedModelId,
-                { reasoning: reasoningEnabled, temperature: 0.7 },
-            );
-            return createPersistentStreamResponse({
-                streamResult,
-                onStreamComplete: async ({ content, reasoning }) => {
-                    try {
-                        if (!content?.trim()) {
-                            if (userId) await addCredits(userId, 1);
-                            return { error: 'AI 分析结果为空，请稍后重试' };
-                        }
-                        await persist(content, reasoning);
-                        return {};
-                    } catch (e) {
-                        console.error('[bazi/analysis] 保存流式结果失败:', e);
-                        return { error: '保存结果失败，请稍后重试' };
-                    }
-                },
-            });
-        }
-
-        const { content, reasoning: reasoningText } = await callAIWithReasoning(
-            [{ role: 'user', content: userPrompt }], 'bazi', resolvedModelId,
-            `\n\n${systemPrompt}\n\n`, { reasoning: reasoningEnabled, temperature: 0.7 },
-        );
-        if (!content) {
-            if (creditDeducted && userId) { await addCredits(userId, 1); creditDeducted = false; }
-            return jsonError('分析结果为空', 500);
-        }
-
-        const conversationId = await persist(content, reasoningText ?? null);
-        return jsonOk({ success: true, content, reasoning: reasoningText, conversationId });
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json() as Record<string, unknown>;
+        return await handleAnalyze(request, body);
     } catch (error) {
-        if (creditDeducted && userId) await addCredits(userId, 1);
         console.error('Analysis API error:', error);
         return jsonError('服务器错误', 500);
     }

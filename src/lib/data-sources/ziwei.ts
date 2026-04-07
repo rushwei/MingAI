@@ -1,5 +1,4 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { type ZiweiChart } from '@/lib/divination/ziwei';
 import { formatZiweiPromptText } from '@/lib/ziwei-chart-prompt';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -9,11 +8,11 @@ type ZiweiRow = {
     name: string;
     gender: string | null;
     birth_date: string;
-    birth_time: string | null;
+    birth_time: string;
     calendar_type: string | null;
     is_leap_month: boolean | null;
     birth_place: string | null;
-    chart_data: Record<string, unknown> | null;
+    longitude: number | null;
     created_at: string;
 };
 
@@ -54,19 +53,17 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
     },
 
     formatForAI(chart: ZiweiRow, ctx?: DataSourceQueryContext): string {
-        const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
-        const birth = `${chart.birth_date}${chart.birth_time ? ` ${chart.birth_time}` : ''}`;
+        const birth = `${chart.birth_date} ${chart.birth_time}`;
         const canonicalText = formatZiweiPromptText({
-            ...(chartData as Partial<ZiweiChart>),
             name,
             gender: (chart.gender === 'male' || chart.gender === 'female') ? chart.gender : undefined,
             birthDate: chart.birth_date,
-            birthTime: chart.birth_time || undefined,
+            birthTime: chart.birth_time,
             birthPlace: chart.birth_place || undefined,
+            longitude: chart.longitude ?? undefined,
             calendarType: (chart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
             isLeapMonth: chart.is_leap_month ?? false,
-            chartData,
         }, ctx?.chartPromptDetailLevel);
         if (canonicalText) return canonicalText;
         return `紫微命盘：${name}\n出生时间：${birth}\n命盘数据不完整，无法重建标准命盘文本。`;

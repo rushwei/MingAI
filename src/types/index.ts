@@ -8,6 +8,13 @@
 import type { Mention } from '@/types/mentions';
 import type { ConversationSourceType } from '@/lib/source-contracts';
 import type { InjectedSource } from '@/lib/source-tracker';
+import type {
+    DiZhi,
+    HiddenStemInfo,
+    TianGan,
+    TrueSolarTimeInfo as CoreTrueSolarTimeInfo,
+    WuXing,
+} from '@mingai/core';
 export type { ConversationSourceType } from '@/lib/source-contracts';
 
 // ===== 基础类型 =====
@@ -21,57 +28,18 @@ export type CalendarType = 'solar' | 'lunar' | 'pillars';
 // ===== 八字相关类型 =====
 
 /** 天干 */
-export type HeavenlyStem = '甲' | '乙' | '丙' | '丁' | '戊' | '己' | '庚' | '辛' | '壬' | '癸';
+export type HeavenlyStem = TianGan;
 
 /** 地支 */
-export type EarthlyBranch = '子' | '丑' | '寅' | '卯' | '辰' | '巳' | '午' | '未' | '申' | '酉' | '戌' | '亥';
+export type EarthlyBranch = DiZhi;
 
 /** 五行 */
-export type FiveElement = '金' | '木' | '水' | '火' | '土';
+export type FiveElement = WuXing;
 
 /** 十神 */
-export type TenGod = '比肩' | '劫财' | '食神' | '伤官' | '偏财' | '正财' | '七杀' | '正官' | '偏印' | '正印';
+export type TenGod = HiddenStemInfo['tenGod'];
 
-export interface BaziRelation {
-    type: '合' | '冲' | '刑' | '害';
-    pillars: ('年支' | '月支' | '日支' | '时支')[];
-    description: string;
-}
-
-export interface BaziTianGanWuHeItem {
-    stemA: string;
-    stemB: string;
-    resultElement: string;
-    positions: ('年支' | '月支' | '日支' | '时支')[];
-}
-
-export interface BaziTianGanChongKeItem {
-    stemA: string;
-    stemB: string;
-    positions: ('年支' | '月支' | '日支' | '时支')[];
-}
-
-export interface BaziDiZhiBanHeItem {
-    branches: [EarthlyBranch, EarthlyBranch];
-    resultElement: string;
-    missingBranch: string;
-    positions: ('年支' | '月支' | '日支' | '时支')[];
-}
-
-export interface BaziDiZhiSanHuiItem {
-    branches: [EarthlyBranch, EarthlyBranch, EarthlyBranch];
-    resultElement: string;
-    positions: ('年支' | '月支' | '日支' | '时支')[];
-}
-
-export interface TrueSolarTimeInfo {
-    clockTime: string;
-    trueSolarTime: string;
-    longitude: number;
-    correctionMinutes: number;
-    trueTimeIndex: number;
-    dayOffset: number;
-}
+export type TrueSolarTimeInfo = CoreTrueSolarTimeInfo;
 
 /** 简化的柱数据（用于四柱输入） */
 export interface PillarData {
@@ -79,77 +47,7 @@ export interface PillarData {
     branch: EarthlyBranch | '';   // 地支（空字符串表示未选择）
 }
 
-/** 柱（年、月、日、时） */
-export interface HiddenStemDetail {
-    stem: HeavenlyStem;
-    tenGod: string;
-    qiType?: string;
-}
-
-export interface Pillar {
-    stem: HeavenlyStem;      // 天干
-    branch: EarthlyBranch;   // 地支
-    stemElement: FiveElement; // 天干五行
-    branchElement: FiveElement; // 地支五行
-    hiddenStems: HeavenlyStem[]; // 地支藏干
-    hiddenStemDetails?: HiddenStemDetail[]; // 含十神的地支藏干
-    tenGod?: TenGod;         // 十神（相对于日主）
-    naYin?: string;
-    diShi?: string;
-    shenSha?: string[];
-    kongWang?: { isKong: boolean };
-}
-
-/** 四柱 */
-export interface FourPillars {
-    year: Pillar;   // 年柱
-    month: Pillar;  // 月柱
-    day: Pillar;    // 日柱
-    hour: Pillar;   // 时柱
-}
-
-/** 五行统计 */
-export interface FiveElementsStats {
-    金: number;
-    木: number;
-    水: number;
-    火: number;
-    土: number;
-}
-
-/** 八字命盘 */
-export interface BaziChart {
-    id: string;
-    userId?: string;
-
-    // 出生信息
-    name: string;
-    gender: Gender;
-    birthDate: string;    // ISO 日期字符串
-    birthTime: string;    // HH:mm 格式
-    birthPlace?: string;  // 出生地点
-    timezone: number;     // 时区偏移
-    calendarType: CalendarType; // 农历或公历
-    isLeapMonth?: boolean; // 农历闰月标记
-
-    // 排盘结果
-    fourPillars: FourPillars;
-    dayMaster: HeavenlyStem;  // 日主
-    fiveElements: FiveElementsStats; // 五行统计
-    kongWang?: { xun: string; kongBranches: EarthlyBranch[] };
-    taiYuan?: string;
-    mingGong?: string;
-    trueSolarTimeInfo?: TrueSolarTimeInfo;
-    relations?: BaziRelation[];
-    tianGanWuHe?: BaziTianGanWuHeItem[];
-    tianGanChongKe?: BaziTianGanChongKeItem[];
-    diZhiBanHe?: BaziDiZhiBanHeItem[];
-    diZhiSanHui?: BaziDiZhiSanHuiItem[];
-
-    // 状态
-    isUnlocked: boolean;  // 是否已付费解锁深度解读
-    createdAt: string;
-}
+export type HiddenStemDetail = HiddenStemInfo;
 
 /** 八字输入表单数据 */
 export interface BaziFormData {

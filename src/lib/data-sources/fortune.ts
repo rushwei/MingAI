@@ -1,8 +1,9 @@
 import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune, calculateGenericMonthlyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
-import type { BaziChart } from '@/types';
+import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
+import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 type FortuneData = { id: string; name: string; content: string; createdAt: string };
 
@@ -14,7 +15,7 @@ function formatYm(date: Date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryContext): Promise<BaziChart | null> {
+async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryContext): Promise<CoreBaziOutput | null> {
     const supabase = ctx?.client ?? getSystemAdminClient();
     const { data: settings } = await supabase
         .from('user_settings')
@@ -27,7 +28,7 @@ async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryC
 
     const baseQuery = supabase
         .from('bazi_charts')
-        .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, day_master, day_branch, created_at')
+        .select('id, name, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month, day_master, day_branch, created_at')
         .eq('user_id', userId);
 
     const { data } = defaultId
@@ -35,39 +36,16 @@ async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryC
         : await baseQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
 
     if (!data) return null;
-    const row = data as unknown as {
-        id: string;
-        name: string;
-        gender: BaziChart['gender'];
+    const row = data as {
+        gender: string | null;
         birth_date: string;
         birth_time: string | null;
         birth_place: string | null;
-        calendar_type: BaziChart['calendarType'];
+        longitude: number | null;
+        calendar_type: string | null;
         is_leap_month: boolean | null;
-        chart_data: Record<string, unknown> | null;
-        day_master: string | null;
-        day_branch: string | null;
-        created_at: string;
     };
-
-    const chartData = row.chart_data;
-    const dayMaster = row.day_master ?? (chartData ? (chartData['dayMaster'] as BaziChart['dayMaster'] | undefined) : undefined);
-    if (!dayMaster) return null;
-
-    return {
-        id: row.id,
-        name: row.name,
-        gender: row.gender,
-        birthDate: row.birth_date,
-        birthTime: row.birth_time ?? undefined,
-        birthPlace: row.birth_place ?? undefined,
-        calendarType: row.calendar_type,
-        isLeapMonth: row.is_leap_month ?? undefined,
-        fourPillars: chartData ? (chartData['fourPillars'] as BaziChart['fourPillars']) : undefined,
-        dayMaster,
-        fiveElements: chartData ? (chartData['fiveElements'] as BaziChart['fiveElements']) : undefined,
-        createdAt: row.created_at,
-    } as BaziChart;
+    return calculateBaziOutputFromStoredFields(row);
 }
 
 export const dailyFortuneProvider: DataSourceProvider<FortuneData> = {

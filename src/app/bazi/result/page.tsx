@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Edit3, Save, Share2, Copy, Check } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import {
-    calculateBazi,
+    calculateBaziChartBundle,
     calculateProfessionalData,
     calculateLiuYue,
     calculateLiuRi,
@@ -32,7 +32,8 @@ import { CaseNotesSection } from '@/components/bazi/result/CaseNotesSection';
 import { loadLatestConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
-import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
+import { parseBirthTimeString } from '@/lib/divination/birth-time';
+import { parseLongitude } from '@/lib/divination/place-resolution';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
@@ -67,9 +68,9 @@ function BaziResultContent() {
         birth_date: string;
         birth_time: string | null;
         birth_place: string | null;
+        longitude?: number | null;
         calendar_type: CalendarType | null;
         is_leap_month: boolean | null;
-        chart_data?: Record<string, unknown> | null;
     };
 
     const now = new Date();
@@ -112,16 +113,18 @@ function BaziResultContent() {
                 loadSavedChart('bazi', chartId),
                 loadLatestConversationAnalysisSnapshot({
                     sourceType: 'bazi_wuxing',
+                    chartId,
                 }),
                 loadLatestConversationAnalysisSnapshot({
                     sourceType: 'bazi_personality',
+                    chartId,
                 }),
             ]).then(([chartData, wuxingAnalysis, personalityAnalysis]) => {
                 const data = chartData as SavedBaziChartRow | null;
                 if (data) {
                     const [year, month, day] = data.birth_date.split('-').map(Number);
                     const hasTime = Boolean(data.birth_time);
-                    const [hour, minute] = (data.birth_time || '12:00').split(':').map(Number);
+                    const parsedBirthTime = hasTime ? parseBirthTimeString(data.birth_time as string) : null;
 
                     setChartFromDb({
                         name: data.name,
@@ -129,13 +132,13 @@ function BaziResultContent() {
                         birthYear: year,
                         birthMonth: month,
                         birthDay: day,
-                        birthHour: hour,
-                        birthMinute: minute || 0,
+                        birthHour: parsedBirthTime?.hour || 12,
+                        birthMinute: parsedBirthTime?.minute || 0,
                         isUnknownTime: !hasTime,
                         calendarType: (data.calendar_type as CalendarType) || 'solar',
                         isLeapMonth: data.is_leap_month || false,
                         birthPlace: data.birth_place || undefined,
-                        longitude: extractLongitudeFromChartData(data.chart_data),
+                        longitude: parseLongitude(data.longitude),
                     });
 
                     setSavedWuxingAnalysis(wuxingAnalysis?.analysis ?? null);
@@ -180,14 +183,16 @@ function BaziResultContent() {
     const isUnknownTime = formData.isUnknownTime ?? false;
 
     // 计算八字
-    const baziResult = useMemo(() => {
+    const baziBundle = useMemo(() => {
         try {
-            return calculateBazi(formData);
+            return calculateBaziChartBundle(formData);
         } catch (error) {
             console.error('八字计算错误:', error);
             return null;
         }
     }, [formData]);
+    const baziOutput = baziBundle?.output ?? null;
+    const baziMeta = baziBundle?.meta ?? null;
 
     // 计算专业数据
     const proData = useMemo(() => {
@@ -199,9 +204,9 @@ function BaziResultContent() {
         }
     }, [formData, currentYear]);
     const canonicalBazi = useMemo(() => {
-        if (!baziResult) return null;
-        return buildBaziCanonicalJSON(baziResult);
-    }, [baziResult]);
+        if (!baziOutput) return null;
+        return buildBaziCanonicalJSON(baziOutput);
+    }, [baziOutput]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalBazi);
 
     // 初始化选中的大运和流年
@@ -271,6 +276,14 @@ function BaziResultContent() {
     // 保存命盘
     const handleSave = async () => {
         if (saving) return;
+        if (!baziOutput) {
+            showToast('error', '命盘计算失败，无法保存');
+            return;
+        }
+        if (isUnknownTime) {
+            showToast('warning', '未知时辰的八字命盘仅支持查看，补全出生时辰后才能保存');
+            return;
+        }
 
         if (!session?.user) {
             showToast('warning', '请先登录后再保存命盘');
@@ -284,13 +297,11 @@ function BaziResultContent() {
                 name: formData.name,
                 gender: formData.gender,
                 birth_date: `${formData.birthYear}-${String(formData.birthMonth).padStart(2, '0')}-${String(formData.birthDay).padStart(2, '0')}`,
-                birth_time: formData.isUnknownTime
-                    ? null
-                    : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`,
+                birth_time: `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`,
                 birth_place: formData.birthPlace || null,
+                longitude: formData.longitude ?? null,
                 calendar_type: formData.calendarType,
                 is_leap_month: formData.isLeapMonth || false,
-                chart_data: baziResult,
             };
             let error = null;
             if (chartId) {
@@ -353,10 +364,14 @@ function BaziResultContent() {
     };
 
     const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
-        if (!baziResult) return;
+        if (!baziOutput || !baziMeta) return;
         try {
             setCopyDetailLevel(level);
-            await navigator.clipboard.writeText(generateBaziChartText(baziResult, { detailLevel: level }));
+            await navigator.clipboard.writeText(generateBaziChartText(baziOutput, {
+                name: formData.name,
+                detailLevel: level,
+                meta: baziMeta,
+            }));
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             showToast('success', '命盘已复制到剪贴板');
@@ -404,10 +419,10 @@ function BaziResultContent() {
             },
             {
                 id: 'save',
-                label: saved ? '已保存' : '保存',
+                label: saved ? '已保存' : (isUnknownTime ? '需时辰' : '保存'),
                 icon: <Save className="w-4 h-4" />,
                 onClick: handleSave,
-                disabled: saving || saved,
+                disabled: saving || saved || isUnknownTime,
             },
             {
                 id: 'copy',
@@ -431,7 +446,7 @@ function BaziResultContent() {
         setMenuItems(items);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [saving, saved, copied, isAdmin, canonicalBazi, jsonCopied, copyJson, setMenuItems, clearMenuItems]);
+    }, [saving, saved, copied, isAdmin, canonicalBazi, jsonCopied, copyJson, setMenuItems, clearMenuItems, isUnknownTime]);
 
     // 选择大运 - 同时更新流年到该大运第一年
     const handleSelectDaYun = (index: number) => {
@@ -488,7 +503,7 @@ function BaziResultContent() {
         return <SoundWaveLoader variant="block" text="" />;
     }
 
-    if (!baziResult || !proData || !canonicalBazi) {
+    if (!baziOutput || !baziMeta || !proData || !canonicalBazi) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
                 <p className="text-sm text-foreground/40 mb-6">八字计算出错，请返回重新输入</p>
@@ -508,6 +523,8 @@ function BaziResultContent() {
                     chartId={chartId}
                     saving={saving}
                     saved={saved}
+                    saveDisabled={isUnknownTime}
+                    saveLabel={isUnknownTime ? '需时辰' : '保存'}
                     copied={copied}
                     jsonCopied={jsonCopied}
                     showJsonCopy={isAdmin && !!canonicalBazi}
@@ -519,8 +536,7 @@ function BaziResultContent() {
                 />
 
                 <ProfileSummaryCard
-                    formData={formData}
-                    isUnknownTime={isUnknownTime}
+                    meta={baziMeta}
                     canonicalChart={canonicalBazi}
                 />
 
@@ -541,34 +557,9 @@ function BaziResultContent() {
                             savedPersonalityAnalysis={savedPersonalityAnalysis}
                             savedPersonalityReasoning={savedPersonalityReasoning}
                             savedPersonalityModelId={savedPersonalityModelId}
-                            onSaveWuxingAnalysis={async (analysis) => {
-                                setSavedWuxingAnalysis(analysis);
-                                if (chartId) {
-                                    await fetch('/api/bazi/charts/update', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        credentials: 'include',
-                                        body: JSON.stringify({
-                                            chartId,
-                                            payload: { ai_wuxing_analysis: analysis },
-                                        }),
-                                    });
-                                }
-                            }}
-                            onSavePersonalityAnalysis={async (analysis) => {
-                                setSavedPersonalityAnalysis(analysis);
-                                if (chartId) {
-                                    await fetch('/api/bazi/charts/update', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        credentials: 'include',
-                                        body: JSON.stringify({
-                                            chartId,
-                                            payload: { ai_personality_analysis: analysis },
-                                        }),
-                                    });
-                                }
-                            }}
+                            hasKnownBirthTime={!isUnknownTime}
+                            onSaveWuxingAnalysis={setSavedWuxingAnalysis}
+                            onSavePersonalityAnalysis={setSavedPersonalityAnalysis}
                             onLoginRequired={() => setShowAuthModal(true)}
                         />
                     </div>

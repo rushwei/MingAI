@@ -1,14 +1,16 @@
 import { NextRequest } from 'next/server';
 import { requireUserContext, getSystemAdminClient, jsonError, jsonOk } from '@/lib/api-utils';
+import { isValidBirthTimeString } from '@/lib/divination/birth-time';
+import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 import { isValidUUID } from '@/lib/validation';
 
 const ALLOWED_FIELDS = [
     'name',
-    'chart_data',
     'birth_date',
     'birth_time',
     'gender',
     'birth_place',
+    'longitude',
     'is_leap_month',
     'calendar_type',
 ] as const;
@@ -53,20 +55,36 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. 业务逻辑
-        // 当 chart_data 被更新时，同步提取 day_master 和 day_branch
-        if (sanitizedPayload.chart_data && typeof sanitizedPayload.chart_data === 'object') {
-            const cd = sanitizedPayload.chart_data as Record<string, unknown>;
-            if (cd.dayMaster) {
-                (sanitizedPayload as Record<string, unknown>).day_master = cd.dayMaster;
-            }
-            const fourPillars = cd.fourPillars as Record<string, unknown> | undefined;
-            const day = fourPillars?.day as Record<string, unknown> | undefined;
-            if (day?.branch) {
-                (sanitizedPayload as Record<string, unknown>).day_branch = day.branch;
-            }
+        const supabase = getSystemAdminClient();
+        const { data: existingChart, error: existingChartError } = await supabase
+            .from('bazi_charts')
+            .select('id, user_id, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month')
+            .eq('id', chartId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (existingChartError) {
+            return jsonError(existingChartError.message, 500);
         }
 
-        const supabase = getSystemAdminClient();
+        if (!existingChart) {
+            return jsonError('未找到可更新的命盘', 404);
+        }
+
+        // 基于“旧记录 + 新字段”重算 day_master / day_branch，避免部分更新留下陈旧派生字段
+        const recalculationInput = {
+            ...existingChart,
+            ...sanitizedPayload,
+        };
+        if (!isValidBirthTimeString(recalculationInput.birth_time)) {
+            return jsonError('八字命盘必须提供有效的出生时辰', 400);
+        }
+        const output = calculateBaziOutputFromStoredFields(recalculationInput);
+        if (output) {
+            (sanitizedPayload as Record<string, unknown>).day_master = output.dayMaster;
+            (sanitizedPayload as Record<string, unknown>).day_branch = output.fourPillars.day.branch;
+        }
+
         const { data, error } = await supabase
             .from('bazi_charts')
             .update(sanitizedPayload)

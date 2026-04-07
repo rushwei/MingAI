@@ -1,14 +1,15 @@
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { isValidBirthTimeString } from '@/lib/divination/birth-time';
 import { isValidUUID } from '@/lib/validation';
 
 const ALLOWED_FIELDS = [
     'name',
-    'chart_data',
     'birth_date',
     'birth_time',
     'gender',
     'birth_place',
+    'longitude',
     'is_leap_month',
     'calendar_type',
 ] as const;
@@ -50,6 +51,13 @@ export async function POST(request: NextRequest) {
 
         if (Object.keys(sanitizedPayload).length === 0) {
             return jsonError('没有可更新的字段', 400);
+        }
+
+        if (
+            'birth_time' in sanitizedPayload
+            && !isValidBirthTimeString(sanitizedPayload.birth_time)
+        ) {
+            return jsonError('紫微命盘必须提供有效的出生时辰', 400);
         }
 
         // 4. 业务逻辑

@@ -25,13 +25,13 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(Number.parseInt(searchParams.get('limit') || '100', 10) || 100, 1), 100);
     const offset = Math.max(Number.parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
     const sourceType = searchParams.get('sourceType');
+    const chartId = searchParams.get('chartId');
 
     let query = auth.supabase
         .from('conversations_with_archive_status')
         .select(CONVERSATION_LIST_SELECT)
         .eq('user_id', auth.user.id)
-        .order('updated_at', { ascending: false })
-        .range(offset, offset + limit);
+        .order('updated_at', { ascending: false });
 
     if (!includeArchived) {
         query = query.eq('is_archived', false);
@@ -39,8 +39,11 @@ export async function GET(request: NextRequest) {
     if (sourceType) {
         query = query.eq('source_type', sourceType);
     }
+    if (chartId) {
+        query = query.eq('source_data->>chart_id', chartId);
+    }
 
-    const { data, error } = await query;
+    const { data, error } = await query.range(offset, offset + limit);
     if (error) {
         console.error('[conversations] failed to load list:', error);
         return jsonError('加载对话列表失败', 500);

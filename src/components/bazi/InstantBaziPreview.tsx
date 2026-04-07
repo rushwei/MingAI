@@ -10,8 +10,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Solar } from 'lunar-javascript';
+import { calculateBazi } from '@mingai/core/bazi';
 import type { BaziFormData } from '@/types';
-import { calculateBazi } from '@/lib/divination/bazi';
 import { getEarthlyBranchByHour } from '@/lib/divination/bazi-form-utils';
 
 interface InstantBaziPreviewProps {
@@ -52,7 +52,17 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
         };
 
         try {
-            const result = calculateBazi(formData);
+            const result = calculateBazi({
+                gender: formData.gender,
+                birthYear: formData.birthYear,
+                birthMonth: formData.birthMonth,
+                birthDay: formData.birthDay,
+                birthHour: formData.birthHour,
+                birthMinute: formData.birthMinute,
+                calendarType: 'solar',
+                isLeapMonth: false,
+                birthPlace: formData.birthPlace,
+            });
             return result.fourPillars;
         } catch (error) {
             console.error('计算即时八字失败:', error);

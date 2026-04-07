@@ -6,17 +6,15 @@
 'use client';
 
 import { useState } from 'react';
-import type { BaziCanonicalJSON } from '@mingai/core/json';
+import type { BaziCanonicalJSON } from '@mingai/core/bazi';
 import {
-    getElementColor,
-    STEM_ELEMENTS,
-    BRANCH_ELEMENTS,
     type DaYunInfo,
     type LiuNianInfo,
     type LiuYueInfo,
     type LiuRiInfo,
 } from '@/lib/divination/bazi';
-import type { EarthlyBranch, HeavenlyStem, HiddenStemDetail } from '@/types';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
+import type { HiddenStemDetail } from '@/types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // 神煞吉凶分类
@@ -160,12 +158,12 @@ export function ProfessionalTable({
     const hasFortuneColumns = fortuneColumns.length > 0;
 
     const getStemColor = (stem: string) => {
-        const element = STEM_ELEMENTS[stem as HeavenlyStem];
+        const element = getStemElement(stem);
         return element ? getElementColor(element) : undefined;
     };
 
     const getBranchColor = (branch: string) => {
-        const element = BRANCH_ELEMENTS[branch as EarthlyBranch];
+        const element = getBranchElement(branch);
         return element ? getElementColor(element) : undefined;
     };
 

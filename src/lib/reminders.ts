@@ -8,7 +8,8 @@ import { getSystemAdminClient } from '@/lib/api-utils';
 import { createNotification } from '@/lib/notification-server';
 import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
 import { calculateDailyFortune, generateEnhancedKeyDates, compareLevels, isLevelFavorable } from '@/lib/divination/fortune';
-import type { BaziChart } from '@/types';
+import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 // ===== 提醒类型 =====
 
@@ -433,7 +434,7 @@ export async function scheduleUpcomingSolarTermReminders(userId: string): Promis
  */
 export async function scheduleUpcomingFortuneReminders(
     userId: string,
-    baziChart: BaziChart
+    baziOutput: CoreBaziOutput
 ): Promise<number> {
     const serviceClient = getSystemAdminClient();
     const now = new Date();
@@ -444,7 +445,7 @@ export async function scheduleUpcomingFortuneReminders(
         const targetDate = new Date(now);
         targetDate.setDate(now.getDate() + i);
 
-        const fortune = calculateDailyFortune(baziChart, targetDate);
+        const fortune = calculateDailyFortune(baziOutput, targetDate);
         const dateStr = fortune.date;
 
         // 识别运势波动：大吉 或 凶
@@ -489,7 +490,7 @@ export async function scheduleUpcomingFortuneReminders(
  */
 export async function scheduleKeyDateReminders(
     userId: string,
-    baziChart: BaziChart
+    baziOutput: CoreBaziOutput
 ): Promise<number> {
     const serviceClient = getSystemAdminClient();
     const now = new Date();
@@ -498,7 +499,7 @@ export async function scheduleKeyDateReminders(
     let scheduled = 0;
 
     // 获取当月关键日
-    const keyDates = generateEnhancedKeyDates(baziChart, year, month);
+    const keyDates = generateEnhancedKeyDates(baziOutput, year, month);
 
     for (const keyDate of keyDates) {
         // 只安排未来的日期
@@ -542,21 +543,19 @@ export async function scheduleKeyDateReminders(
 /**
  * 获取用户的主要八字命盘（用于运势计算）
  */
-async function getUserPrimaryBaziChart(userId: string): Promise<BaziChart | null> {
+async function getUserPrimaryBaziChart(userId: string): Promise<CoreBaziOutput | null> {
     const serviceClient = getSystemAdminClient();
 
     // 查找用户最近保存的八字命盘
     const { data } = await serviceClient
         .from('bazi_charts')
-        .select('chart_data, day_master, day_branch')
+        .select('gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-    if (!data?.chart_data) return null;
-
-    return data.chart_data as BaziChart;
+    return calculateBaziOutputFromStoredFields(data || {});
 }
 
 /**

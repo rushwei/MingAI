@@ -25,12 +25,16 @@ export async function loadConversationAnalysisSnapshot(
 
 export async function loadLatestConversationAnalysisSnapshot(filters: {
   sourceType: string;
+  chartId?: string;
 }): Promise<ConversationAnalysisSnapshot | null> {
   const query = new URLSearchParams({
     includeArchived: 'true',
     limit: '1',
     sourceType: filters.sourceType,
   });
+  if (filters.chartId) {
+    query.set('chartId', filters.chartId);
+  }
 
   const response = await fetch(`/api/conversations?${query.toString()}`, {
     credentials: 'include',

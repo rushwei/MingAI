@@ -9,10 +9,11 @@
 
 import { useReducer, useMemo, useEffect, useCallback } from 'react';
 import { TrendingUp, Calendar } from 'lucide-react';
-import type { ZiweiCanonicalJSON, ZiweiHoroscopeCanonicalJSON } from '@mingai/core/json';
-import type { ZiweiChart, DecadalInfo } from '@/lib/divination/ziwei';
+import type { ZiweiCanonicalJSON, ZiweiOutput as CoreZiweiOutput } from '@mingai/core/ziwei';
+import type { ZiweiHoroscopeCanonicalJSON } from '@mingai/core/ziwei-horoscope';
+import type { Astrolabe, DecadalInfo } from '@/lib/divination/ziwei';
 import { buildZiweiHoroscopeCanonicalJSON } from '@/lib/divination/ziwei';
-import { getStemElement, getBranchElement, getElementColor } from '@/lib/divination/bazi';
+import { getStemElement, getBranchElement, getElementColor } from '@/lib/divination/display-helpers';
 
 export interface HoroscopeInfo {
     decadal?: DecadalInfo;
@@ -29,7 +30,8 @@ export interface HoroscopeHighlight {
 }
 
 interface ZiweiHoroscopePanelProps {
-    chart: ZiweiChart;
+    output: CoreZiweiOutput;
+    astrolabe: Astrolabe;
     canonicalChart: ZiweiCanonicalJSON;
     onPalaceHighlight?: (highlights: HoroscopeHighlight) => void;
     onHoroscopeChange?: (info: HoroscopeInfo) => void;
@@ -101,8 +103,8 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
 // Fix 1: 模块级缓存，避免重复排盘计算
 const canonicalHoroscopeCacheMap = new WeakMap<object, Map<string, ReturnType<typeof buildZiweiHoroscopeCanonicalJSON>>>();
 
-function getCachedHoroscopeCanonical(chart: ZiweiChart, date: Date) {
-    const cacheKey = chart;
+function getCachedHoroscopeCanonical(output: CoreZiweiOutput, astrolabe: Astrolabe, date: Date) {
+    const cacheKey = astrolabe;
     let dateCache = canonicalHoroscopeCacheMap.get(cacheKey);
     if (!dateCache) {
         dateCache = new Map();
@@ -112,12 +114,12 @@ function getCachedHoroscopeCanonical(chart: ZiweiChart, date: Date) {
     if (dateCache.has(dateKey)) {
         return dateCache.get(dateKey)!;
     }
-    const result = buildZiweiHoroscopeCanonicalJSON(chart, date);
+    const result = buildZiweiHoroscopeCanonicalJSON(output, astrolabe, date);
     dateCache.set(dateKey, result);
     return result;
 }
 
-export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
+export function ZiweiHoroscopePanel({ output, astrolabe, canonicalChart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
     const [state, dispatch] = useReducer(selectionReducer, initialSelectionState);
     const { selectedDecadalIndex, selectedYear, selectedMonth, selectedDay } = state;
 
@@ -161,18 +163,18 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
 
     const yearlyHoroscope = useMemo<ZiweiHoroscopeCanonicalJSON | null>(() => {
         if (!selectedYear) return null;
-        return getCachedHoroscopeCanonical(chart, new Date(selectedYear, 5, 15));
-    }, [chart, selectedYear]);
+        return getCachedHoroscopeCanonical(output, astrolabe, new Date(selectedYear, 5, 15));
+    }, [output, astrolabe, selectedYear]);
 
     const monthlyHoroscope = useMemo<ZiweiHoroscopeCanonicalJSON | null>(() => {
         if (!selectedYear || !selectedMonth) return null;
-        return getCachedHoroscopeCanonical(chart, new Date(selectedYear, selectedMonth - 1, 15));
-    }, [chart, selectedYear, selectedMonth]);
+        return getCachedHoroscopeCanonical(output, astrolabe, new Date(selectedYear, selectedMonth - 1, 15));
+    }, [output, astrolabe, selectedYear, selectedMonth]);
 
     const dailyHoroscope = useMemo<ZiweiHoroscopeCanonicalJSON | null>(() => {
         if (!selectedYear || !selectedMonth || !selectedDay) return null;
-        return getCachedHoroscopeCanonical(chart, new Date(selectedYear, selectedMonth - 1, selectedDay));
-    }, [chart, selectedYear, selectedMonth, selectedDay]);
+        return getCachedHoroscopeCanonical(output, astrolabe, new Date(selectedYear, selectedMonth - 1, selectedDay));
+    }, [output, astrolabe, selectedYear, selectedMonth, selectedDay]);
 
     const yearlyPeriod = yearlyHoroscope?.运限叠宫.find((period) => period.层次 === '流年');
     const monthlyPeriod = monthlyHoroscope?.运限叠宫.find((period) => period.层次 === '流月');
@@ -242,13 +244,13 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
     // 计算当前大限内的流年列表
     const yearlyList = useMemo(() => {
         if (!displayDecadal) return [];
-        const startYear = birthYear + displayDecadal.startAge;
+            const startYear = birthYear + displayDecadal.startAge;
         const endYear = birthYear + displayDecadal.endAge;
         const years: { year: number; stem: string; branch: string; palace: string }[] = [];
 
         for (let year = startYear; year <= endYear; year++) {
             const yearDate = new Date(year, 5, 15);
-            const yearHoroscope = getCachedHoroscopeCanonical(chart, yearDate);
+            const yearHoroscope = getCachedHoroscopeCanonical(output, astrolabe, yearDate);
             const yearly = yearHoroscope?.运限叠宫.find((period) => period.层次 === '流年');
             if (yearly) {
                 years.push({
@@ -260,7 +262,7 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
             }
         }
         return years;
-    }, [chart, displayDecadal, birthYear]);
+    }, [output, astrolabe, displayDecadal, birthYear]);
 
     // 计算当前选中年份的12个月（仅在选中流年后才计算）
     const monthlyList = useMemo(() => {
@@ -268,7 +270,7 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
         const months: { month: number; stem: string; branch: string; palace: string }[] = [];
         for (let m = 1; m <= 12; m++) {
             const monthDate = new Date(viewYear, m - 1, 15);
-            const monthHoroscope = getCachedHoroscopeCanonical(chart, monthDate);
+            const monthHoroscope = getCachedHoroscopeCanonical(output, astrolabe, monthDate);
             const monthly = monthHoroscope?.运限叠宫.find((period) => period.层次 === '流月');
             if (monthly) {
                 months.push({
@@ -280,7 +282,7 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
             }
         }
         return months;
-    }, [chart, viewYear, selectedYear]);
+    }, [output, astrolabe, viewYear, selectedYear]);
 
     // 计算当前选中月份的日期列表（仅在选中流月后才计算）
     const dailyList = useMemo(() => {
@@ -292,7 +294,7 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
 
         for (let d = 1; d <= daysInMonth; d++) {
             const dayDate = new Date(year, month, d);
-            const dayHoroscope = getCachedHoroscopeCanonical(chart, dayDate);
+            const dayHoroscope = getCachedHoroscopeCanonical(output, astrolabe, dayDate);
             const daily = dayHoroscope?.运限叠宫.find((period) => period.层次 === '流日');
             if (daily) {
                 days.push({
@@ -304,7 +306,7 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
             }
         }
         return days;
-    }, [chart, viewYear, viewMonth, selectedMonth]);
+    }, [output, astrolabe, viewYear, viewMonth, selectedMonth]);
 
     // 大限选择 - 支持取消，切换大限时清除流年/流月/流日
     const handleDecadalSelect = (d: DecadalInfo) => {

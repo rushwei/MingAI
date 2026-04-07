@@ -32,9 +32,9 @@ import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTre
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/divination/calendar';
 
-import type { BaziChart, FortuneLevel } from '@/types';
+import type { FortuneLevel } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { loadFortuneBaziChart, loadUserChartBundle, toFortuneBaziChart } from '@/lib/user/charts-client';
+import { loadSavedBaziChart, loadUserChartBundle, toSavedBaziChart, type SavedBaziChart } from '@/lib/user/charts-client';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 const scoreItems = [
@@ -67,7 +67,7 @@ function DailyPageContent() {
     const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
     const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
     const [selectedDate, setSelectedDate] = useState(() => parseDateParam(searchParams.get('date')));
-    const [baziChart, setBaziChart] = useState<BaziChart | null>(null);
+    const [baziChart, setBaziChart] = useState<SavedBaziChart | null>(null);
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
@@ -84,8 +84,8 @@ function DailyPageContent() {
             const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
             if (rows.length > 0) {
                 const charts = rows
-                    .map(toFortuneBaziChart)
-                    .filter((chart): chart is BaziChart => chart !== null);
+                    .map(toSavedBaziChart)
+                    .filter((chart): chart is SavedBaziChart => chart !== null);
                 const defaultId = bundle?.defaultChartIds?.bazi ?? null;
                 const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
                 if (charts.length > 0) {
@@ -131,7 +131,7 @@ function DailyPageContent() {
     // 计算运势
     const fortune = useMemo(() => {
         if (baziChart) {
-            return calculateDailyFortune(baziChart, selectedDate);
+            return calculateDailyFortune(baziChart.output, selectedDate);
         }
         const generic = calculateGenericDailyFortune(selectedDate);
         return {
@@ -156,7 +156,7 @@ function DailyPageContent() {
     };
 
     const handleSelectChart = async (chart: ChartItem) => {
-        const fullChart = await loadFortuneBaziChart(chart.id);
+        const fullChart = await loadSavedBaziChart(chart.id);
         if (fullChart) {
             setBaziChart(fullChart);
         } else {
@@ -171,7 +171,7 @@ function DailyPageContent() {
     // 计算周趋势数据（用于趋势图）
     const trendData = useMemo((): FortuneTrendDataPoint[] => {
         if (!baziChart) return [];
-        const weekData = calculateWeeklyTrend(baziChart, selectedDate);
+        const weekData = calculateWeeklyTrend(baziChart.output, selectedDate);
         return weekData.map(d => ({
             date: d.date,
             fullDate: d.fullDate,

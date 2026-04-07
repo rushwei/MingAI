@@ -8,9 +8,22 @@
  */
 
 import { Solar } from 'lunar-javascript';
-import { STEM_ELEMENTS } from './bazi';
+import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import {
+    STEM_ELEMENTS,
+    ZHI_WUXING,
+    calculateTenGod,
+    getElementRelation,
+} from '@mingai/core/utils';
+import {
+    HIDDEN_STEM_DETAILS,
+    LIU_CHONG,
+    LIU_HE,
+    TAO_HUA,
+    YI_MA,
+} from '@mingai/core/data/shensha-data';
 import { createMemoryCache } from '@/lib/cache/memory';
-import type { BaziChart, HeavenlyStem, FiveElement, FortuneLevel } from '@/types';
+import type { HeavenlyStem, FiveElement, FortuneLevel } from '@/types';
 
 // 运势计算缓存（TTL 24h，按天不变）
 const dailyFortuneCache = createMemoryCache<DailyFortune>(24 * 60 * 60 * 1000);
@@ -126,38 +139,16 @@ const TEN_GOD_ADJUSTMENTS: Record<string, Partial<FortuneChartScores>> = {
     '正印': { career: 10, love: 5, wealth: 0, health: 10, social: 5 },
 };
 
-/** 地支藏干表 */
-const BRANCH_HIDDEN_STEMS: Record<string, HeavenlyStem[]> = {
-    '子': ['癸'],
-    '丑': ['己', '癸', '辛'],
-    '寅': ['甲', '丙', '戊'],
-    '卯': ['乙'],
-    '辰': ['戊', '乙', '癸'],
-    '巳': ['丙', '庚', '戊'],
-    '午': ['丁', '己'],
-    '未': ['己', '丁', '乙'],
-    '申': ['庚', '壬', '戊'],
-    '酉': ['辛'],
-    '戌': ['戊', '辛', '丁'],
-    '亥': ['壬', '甲'],
-};
-
-/** 地支六冲 */
-const BRANCH_CLASH: Record<string, string> = {
-    '子': '午', '午': '子', '丑': '未', '未': '丑',
-    '寅': '申', '申': '寅', '卯': '酉', '酉': '卯',
-    '辰': '戌', '戌': '辰', '巳': '亥', '亥': '巳',
-};
-
-/** 地支六合 */
-const BRANCH_COMBINE: Record<string, string> = {
-    '子': '丑', '丑': '子', '寅': '亥', '亥': '寅',
-    '卯': '戌', '戌': '卯', '辰': '酉', '酉': '辰',
-    '巳': '申', '申': '巳', '午': '未', '未': '午',
-};
-
-const PEACH_BLOSSOM_BRANCHES = new Set(['子', '午', '卯', '酉']);
-const TRAVEL_STAR_BRANCHES = new Set(['寅', '申', '巳', '亥']);
+const STEM_ELEMENTS_MAP = STEM_ELEMENTS as Record<HeavenlyStem, FiveElement>;
+const BRANCH_ELEMENTS = ZHI_WUXING as Record<string, FiveElement>;
+const BRANCH_HIDDEN_STEMS: Record<string, HeavenlyStem[]> = Object.fromEntries(
+    Object.entries(HIDDEN_STEM_DETAILS).map(([branch, stems]) => [
+        branch,
+        stems.map((item) => item.stem as HeavenlyStem),
+    ]),
+) as Record<string, HeavenlyStem[]>;
+const BRANCH_CLASH: Record<string, string> = LIU_CHONG;
+const BRANCH_COMBINE: Record<string, string> = LIU_HE;
 
 const ELEMENT_COLORS: Record<FiveElement, string> = {
     '木': '绿色', '火': '红色', '土': '黄色', '金': '白色', '水': '黑色/蓝色',
@@ -167,45 +158,7 @@ const ELEMENT_DIRECTIONS: Record<FiveElement, string> = {
     '木': '东方', '火': '南方', '土': '中央', '金': '西方', '水': '北方',
 };
 
-const BRANCH_ELEMENTS: Record<string, FiveElement> = {
-    '子': '水', '丑': '土', '寅': '木', '卯': '木',
-    '辰': '土', '巳': '火', '午': '火', '未': '土',
-    '申': '金', '酉': '金', '戌': '土', '亥': '水',
-};
-
 // ===== 工具函数 =====
-
-function getStemYinYang(stem: HeavenlyStem): 'yang' | 'yin' {
-    const yangStems: HeavenlyStem[] = ['甲', '丙', '戊', '庚', '壬'];
-    return yangStems.includes(stem) ? 'yang' : 'yin';
-}
-
-function getElementRelation(from: FiveElement, to: FiveElement): string {
-    const order: FiveElement[] = ['木', '火', '土', '金', '水'];
-    const fromIdx = order.indexOf(from);
-    const toIdx = order.indexOf(to);
-    if (from === to) return 'same';
-    if ((fromIdx + 1) % 5 === toIdx) return 'produce';
-    if ((toIdx + 1) % 5 === fromIdx) return 'produced';
-    if ((fromIdx + 2) % 5 === toIdx) return 'control';
-    return 'controlled';
-}
-
-function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem): string {
-    if (dayStem === targetStem) return '比肩';
-    const dayElement = STEM_ELEMENTS[dayStem];
-    const targetElement = STEM_ELEMENTS[targetStem];
-    const sameYY = getStemYinYang(dayStem) === getStemYinYang(targetStem);
-    const relation = getElementRelation(dayElement, targetElement);
-    const tenGodMap: Record<string, [string, string]> = {
-        'same': ['比肩', '劫财'],
-        'produce': ['食神', '伤官'],
-        'control': ['偏财', '正财'],
-        'controlled': ['七杀', '正官'],
-        'produced': ['偏印', '正印'],
-    };
-    return tenGodMap[relation][sameYY ? 0 : 1];
-}
 
 /** 限制内部权重范围 */
 function clampWeight(w: number): number {
@@ -217,10 +170,10 @@ function calcHiddenStemBonus(userDayStem: HeavenlyStem, branch: string): number 
     const hiddenStems = BRANCH_HIDDEN_STEMS[branch];
     if (!hiddenStems || hiddenStems.length === 0) return 0;
     const weights = [0.6, 0.3, 0.1];
-    const userElement = STEM_ELEMENTS[userDayStem];
+    const userElement = STEM_ELEMENTS_MAP[userDayStem];
     let bonus = 0;
     for (let i = 0; i < hiddenStems.length; i++) {
-        const stemElement = STEM_ELEMENTS[hiddenStems[i]];
+        const stemElement = STEM_ELEMENTS_MAP[hiddenStems[i]];
         const relation = getElementRelation(userElement, stemElement);
         const w = weights[i] ?? 0.1;
         const relW: Record<string, number> = {
@@ -237,14 +190,16 @@ function calcBranchInteraction(
     flowBranch: string
 ): { career: number; love: number; wealth: number; health: number; social: number } {
     const r = { career: 0, love: 0, wealth: 0, health: 0, social: 0 };
+    const peachBlossomBranch = TAO_HUA[userDayBranch];
+    const travelStarBranch = YI_MA[userDayBranch];
     if (BRANCH_COMBINE[userDayBranch] === flowBranch) {
         r.career += 4; r.love += 5; r.wealth += 3; r.health += 3; r.social += 5;
     }
     if (BRANCH_CLASH[userDayBranch] === flowBranch) {
         r.career -= 5; r.love -= 4; r.wealth -= 3; r.health -= 6; r.social -= 4;
     }
-    if (PEACH_BLOSSOM_BRANCHES.has(flowBranch)) { r.love += 4; r.social += 3; }
-    if (TRAVEL_STAR_BRANCHES.has(flowBranch)) { r.career += 3; r.wealth += 2; }
+    if (peachBlossomBranch === flowBranch) { r.love += 4; r.social += 3; }
+    if (travelStarBranch === flowBranch) { r.career += 3; r.wealth += 2; }
     return r;
 }
 
@@ -296,9 +251,9 @@ function getLuckyElement(userElement: FiveElement): FiveElement {
  * 4. 地支互动（六合/六冲/桃花/驿马）
  * 5. 权重 → FortuneLevel
  */
-export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFortune {
+export function calculateDailyFortune(baziOutput: CoreBaziOutput, date: Date): DailyFortune {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const cacheKey = `${baziChart.dayMaster}-${baziChart.birthDate || ''}-${dateStr}`;
+    const cacheKey = `${baziOutput.dayMaster}-${baziOutput.fourPillars.day.stem}-${baziOutput.fourPillars.day.branch}-${dateStr}`;
     const cached = dailyFortuneCache.get(cacheKey);
     if (cached) return cached;
 
@@ -308,10 +263,10 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
 
     const dayStem = eightChar.getDayGan() as HeavenlyStem;
     const dayBranch = eightChar.getDayZhi() as string;
-    const userDayStem = baziChart.dayMaster as HeavenlyStem;
-    const userDayBranch = (baziChart.fourPillars?.day?.branch ?? '') as string;
+    const userDayStem = baziOutput.dayMaster as HeavenlyStem;
+    const userDayBranch = baziOutput.fourPillars.day.branch as string;
 
-    const relation = getElementRelation(STEM_ELEMENTS[userDayStem], STEM_ELEMENTS[dayStem]);
+    const relation = getElementRelation(STEM_ELEMENTS_MAP[userDayStem], STEM_ELEMENTS_MAP[dayStem]);
     const baseWeight = ELEMENT_RELATION_WEIGHTS[relation];
     const tenGod = calculateTenGod(userDayStem, dayStem);
     const hiddenBonus = calcHiddenStemBonus(userDayStem, dayBranch);
@@ -321,7 +276,7 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
 
     const { levels, chart } = calcDimensionWeightsAndLevels(baseWeight, tenGod, hiddenBonus, branchBonus);
     const advice = generateDailyAdvice(tenGod, levels);
-    const userElement = STEM_ELEMENTS[userDayStem];
+    const userElement = STEM_ELEMENTS_MAP[userDayStem];
     const luckyElement = getLuckyElement(userElement);
 
     const result: DailyFortune = {
@@ -342,8 +297,8 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
 /**
  * 计算每月个性化运势
  */
-export function calculateMonthlyFortune(baziChart: BaziChart, year: number, month: number): MonthlyFortune {
-    const monthlyCacheKey = `${baziChart.dayMaster}-${baziChart.birthDate || ''}-${year}-${month}`;
+export function calculateMonthlyFortune(baziOutput: CoreBaziOutput, year: number, month: number): MonthlyFortune {
+    const monthlyCacheKey = `${baziOutput.dayMaster}-${baziOutput.fourPillars.day.stem}-${baziOutput.fourPillars.day.branch}-${year}-${month}`;
     const monthlyCached = monthlyFortuneCache.get(monthlyCacheKey);
     if (monthlyCached) return monthlyCached;
 
@@ -353,11 +308,11 @@ export function calculateMonthlyFortune(baziChart: BaziChart, year: number, mont
 
     const monthStem = eightChar.getMonthGan() as HeavenlyStem;
     const monthBranch = eightChar.getMonthZhi() as string;
-    const userDayStem = baziChart.dayMaster as HeavenlyStem;
-    const userDayBranch = (baziChart.fourPillars?.day?.branch ?? '') as string;
+    const userDayStem = baziOutput.dayMaster as HeavenlyStem;
+    const userDayBranch = baziOutput.fourPillars.day.branch as string;
 
     const tenGod = calculateTenGod(userDayStem, monthStem);
-    const relation = getElementRelation(STEM_ELEMENTS[userDayStem], STEM_ELEMENTS[monthStem]);
+    const relation = getElementRelation(STEM_ELEMENTS_MAP[userDayStem], STEM_ELEMENTS_MAP[monthStem]);
     const baseWeight = ELEMENT_RELATION_WEIGHTS[relation];
     const hiddenBonus = calcHiddenStemBonus(userDayStem, monthBranch);
     const branchBonus = userDayBranch
@@ -366,7 +321,7 @@ export function calculateMonthlyFortune(baziChart: BaziChart, year: number, mont
 
     const { levels, chart } = calcDimensionWeightsAndLevels(baseWeight, tenGod, hiddenBonus, branchBonus);
     const summary = generateMonthlySummary(tenGod, levels.overall);
-    const keyDates = generateKeyDates(baziChart, year, month);
+    const keyDates = generateKeyDates(baziOutput, year, month);
 
     const monthlyResult: MonthlyFortune = {
         year, month, monthStem, monthBranch, tenGod,
@@ -389,7 +344,7 @@ export function calculateGenericDailyFortune(date: Date): FortuneLevels & { advi
     const dayStem = eightChar.getDayGan() as HeavenlyStem;
     const dayBranch = eightChar.getDayZhi() as string;
 
-    const stemElement = STEM_ELEMENTS[dayStem];
+    const stemElement = STEM_ELEMENTS_MAP[dayStem];
     const stemBaseMap: Record<FiveElement, number> = {
         '木': 72, '火': 68, '土': 75, '金': 70, '水': 73,
     };
@@ -436,7 +391,7 @@ export function calculateGenericMonthlyFortune(year: number, month: number): For
     const monthStem = eightChar.getMonthGan() as HeavenlyStem;
     const monthBranch = eightChar.getMonthZhi() as string;
 
-    const stemElement = STEM_ELEMENTS[monthStem];
+    const stemElement = STEM_ELEMENTS_MAP[monthStem];
     const stemBaseMap: Record<FiveElement, number> = {
         '木': 72, '火': 68, '土': 75, '金': 70, '水': 73,
     };
@@ -531,14 +486,14 @@ function generateMonthlySummary(tenGod: string, overall: FortuneLevel): string {
     return summary;
 }
 
-function generateKeyDates(baziChart: BaziChart, year: number, month: number): { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] {
+function generateKeyDates(baziOutput: CoreBaziOutput, year: number, month: number): { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] {
     const keyDates: { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
     const dailyData: { day: number; levels: FortuneLevels; chart: FortuneChartScores }[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
         const d = new Date(year, month - 1, day);
-        const f = calculateDailyFortune(baziChart, d);
+        const f = calculateDailyFortune(baziOutput, d);
         dailyData.push({ day, levels: { overall: f.overall, career: f.career, love: f.love, wealth: f.wealth, health: f.health, social: f.social }, chart: f._chart });
     }
 
@@ -580,14 +535,14 @@ function generateKeyDates(baziChart: BaziChart, year: number, month: number): { 
 /**
  * 生成增强版关键日期
  */
-export function generateEnhancedKeyDates(baziChart: BaziChart, year: number, month: number): EnhancedKeyDate[] {
+export function generateEnhancedKeyDates(baziOutput: CoreBaziOutput, year: number, month: number): EnhancedKeyDate[] {
     const enhancedKeyDates: EnhancedKeyDate[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
     const dailyData: { day: number; levels: FortuneLevels; chart: FortuneChartScores }[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
         const d = new Date(year, month - 1, day);
-        const f = calculateDailyFortune(baziChart, d);
+        const f = calculateDailyFortune(baziOutput, d);
         dailyData.push({ day, levels: { overall: f.overall, career: f.career, love: f.love, wealth: f.wealth, health: f.health, social: f.social }, chart: f._chart });
     }
 
@@ -658,12 +613,12 @@ export function generateEnhancedKeyDates(baziChart: BaziChart, year: number, mon
  * 计算周趋势数据（用于趋势图）
  * 返回 FortuneChartScores 供图表渲染
  */
-export function calculateWeeklyTrend(baziChart: BaziChart, centerDate: Date): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores }[] {
+export function calculateWeeklyTrend(baziOutput: CoreBaziOutput, centerDate: Date): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores }[] {
     const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores }[] = [];
     for (let offset = -2; offset <= 4; offset++) {
         const d = new Date(centerDate);
         d.setDate(d.getDate() + offset);
-        const fortune = calculateDailyFortune(baziChart, d);
+        const fortune = calculateDailyFortune(baziOutput, d);
         result.push({
             date: `${d.getMonth() + 1}/${d.getDate()}`,
             fullDate: fortune.date,
@@ -678,19 +633,19 @@ export function calculateWeeklyTrend(baziChart: BaziChart, centerDate: Date): { 
  * 计算月度趋势数据（用于趋势图）
  */
 export function calculateMonthlyTrend(
-    baziChart: BaziChart,
+    baziOutput: CoreBaziOutput,
     year: number,
     month: number
 ): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] {
     const daysInMonth = new Date(year, month, 0).getDate();
     const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] = [];
 
-    const enhancedKeyDates = generateEnhancedKeyDates(baziChart, year, month);
+    const enhancedKeyDates = generateEnhancedKeyDates(baziOutput, year, month);
     const keyDateMap = new Map(enhancedKeyDates.map(k => [k.date, k]));
 
     for (let day = 1; day <= daysInMonth; day++) {
         const d = new Date(year, month - 1, day);
-        const fortune = calculateDailyFortune(baziChart, d);
+        const fortune = calculateDailyFortune(baziOutput, d);
         const keyDate = keyDateMap.get(day);
         result.push({
             date: `${month}/${day}`,

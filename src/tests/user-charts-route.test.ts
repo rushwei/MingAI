@@ -12,6 +12,7 @@ type ChartRecord = {
   birth_date: string;
   birth_time: string | null;
   birth_place?: string | null;
+  longitude?: number | null;
   created_at?: string;
 };
 
@@ -64,6 +65,7 @@ test('user charts GET aggregates bazi and ziwei charts through a single user API
                         birth_date: '1992-02-02',
                         birth_time: '10:30',
                         birth_place: '杭州',
+                        longitude: 120.1551,
                         created_at: '2026-03-02T00:00:00.000Z',
                       } satisfies ChartRecord],
                       error: null,

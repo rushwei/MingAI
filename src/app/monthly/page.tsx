@@ -22,9 +22,9 @@ import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPicke
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/auth';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
-import type { BaziChart, FortuneLevel } from '@/types';
-import { loadFortuneBaziChart, loadUserChartBundle, toFortuneBaziChart } from '@/lib/user/charts-client';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
+import type { FortuneLevel } from '@/types';
+import { loadSavedBaziChart, loadUserChartBundle, toSavedBaziChart, type SavedBaziChart } from '@/lib/user/charts-client';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
@@ -35,7 +35,7 @@ function MonthlyPageContent() {
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
-    const [baziChart, setBaziChart] = useState<BaziChart | null>(null);
+    const [baziChart, setBaziChart] = useState<SavedBaziChart | null>(null);
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
@@ -49,8 +49,8 @@ function MonthlyPageContent() {
             const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
             if (rows.length > 0) {
                 const charts = rows
-                    .map(toFortuneBaziChart)
-                    .filter((chart): chart is BaziChart => chart !== null);
+                    .map(toSavedBaziChart)
+                    .filter((chart): chart is SavedBaziChart => chart !== null);
                 const defaultId = bundle?.defaultChartIds?.bazi ?? null;
                 const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
                 if (charts.length > 0) {
@@ -86,7 +86,7 @@ function MonthlyPageContent() {
     // 计算月度运势
     const fortune = useMemo((): MonthlyFortune | null => {
         if (baziChart) {
-            return calculateMonthlyFortune(baziChart, year, month);
+            return calculateMonthlyFortune(baziChart.output, year, month);
         }
         return null;
     }, [baziChart, year, month]);
@@ -101,7 +101,7 @@ function MonthlyPageContent() {
             let level: FortuneLevel;
 
             if (baziChart) {
-                const dayFortune = calculateDailyFortune(baziChart, date);
+                const dayFortune = calculateDailyFortune(baziChart.output, date);
                 level = dayFortune.overall;
             } else {
                 const generic = calculateGenericDailyFortune(date);
@@ -121,7 +121,7 @@ function MonthlyPageContent() {
     // 计算月度趋势数据（用于趋势图）
     const trendData = useMemo((): FortuneTrendDataPoint[] => {
         if (!baziChart) return [];
-        const monthData = calculateMonthlyTrend(baziChart, year, month);
+        const monthData = calculateMonthlyTrend(baziChart.output, year, month);
         return monthData.map(d => ({
             date: d.date,
             fullDate: d.fullDate,
@@ -164,7 +164,7 @@ function MonthlyPageContent() {
     };
 
     const handleSelectChart = async (chart: ChartItem) => {
-        const fullChart = await loadFortuneBaziChart(chart.id);
+        const fullChart = await loadSavedBaziChart(chart.id);
         if (fullChart) {
             setBaziChart(fullChart);
         } else {

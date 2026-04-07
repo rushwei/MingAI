@@ -1,19 +1,17 @@
 import { MapPinned } from 'lucide-react';
-import type { BaziCanonicalJSON } from '@mingai/core/json';
-import type { BaziFormData } from '@/types';
+import type { BaziCanonicalJSON } from '@mingai/core/bazi';
+import type { BaziMeta } from '@/lib/divination/bazi';
 
 export function ProfileSummaryCard({
-    formData,
-    isUnknownTime,
+    meta,
     canonicalChart,
 }: {
-    formData: BaziFormData;
-    isUnknownTime: boolean;
+    meta: BaziMeta;
     canonicalChart: BaziCanonicalJSON;
 }) {
-    const timeText = isUnknownTime
+    const timeText = meta.isUnknownTime
         ? '时辰未知'
-        : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute || 0).padStart(2, '0')}`;
+        : meta.birthTime;
 
     const summaryItems = [
         {
@@ -22,7 +20,7 @@ export function ProfileSummaryCard({
         },
         {
             label: '出生时间',
-            value: `${formData.birthYear}年${formData.birthMonth}月${formData.birthDay}日 ${timeText}`,
+            value: `${meta.birthDate} ${timeText}`,
         },
         canonicalChart.基本信息.出生地 ? {
             label: '出生地点',
@@ -35,10 +33,10 @@ export function ProfileSummaryCard({
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                     <h1 className="text-xl font-semibold tracking-tight truncate text-foreground">
-                        {formData.name}
+                        {meta.name}
                     </h1>
-                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-[0.18em] ${formData.gender === 'male' ? 'text-blue-500/70 bg-blue-50' : 'text-pink-500/70 bg-pink-50'}`}>
-                        {formData.gender === 'male' ? '男' : '女'}
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-[0.18em] ${meta.gender === 'male' ? 'text-blue-500/70 bg-blue-50' : 'text-pink-500/70 bg-pink-50'}`}>
+                        {meta.gender === 'male' ? '男' : '女'}
                     </span>
                 </div>
 

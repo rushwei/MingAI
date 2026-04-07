@@ -1,5 +1,5 @@
 import type { DaYunInfo } from '@/lib/divination/bazi';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
 
 export function DaYunTable({
     daYun,
