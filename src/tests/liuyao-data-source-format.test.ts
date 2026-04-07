@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { liuyaoProvider } from '../lib/data-sources/liuyao';
 
-test('liuyao provider keeps raw context but skips formal analysis for questionless records', () => {
-    const content = liuyaoProvider.formatForAI({
+test('liuyao provider keeps raw context but skips formal analysis for questionless records', async () => {
+    const content = await liuyaoProvider.formatForAI({
         id: 'rec-1',
         user_id: 'user-1',
         question: '',

@@ -258,7 +258,7 @@ test('hepan data source formatForAI should match saved analysis structure instea
     },
   };
 
-  const text = hepanProvider.formatForAI(row as never);
+  const text = await hepanProvider.formatForAI(row as never);
   assert.ok(text.includes('合盘类型：情侣合婚'));
   assert.ok(text.includes('综合契合度：86分'));
   assert.ok(text.includes('沟通: 90分 - 交流顺畅'));
@@ -284,7 +284,7 @@ test('mbti data source formatForAI should match saved analysis structure instead
     conversation_id: null,
   };
 
-  const text = mbtiProvider.formatForAI(row as never);
+  const text = await mbtiProvider.formatForAI(row as never);
   assert.ok(text.includes('类型名称：策略家'));
   assert.ok(text.includes('外向(E) 30% vs 内向(I) 70%'));
   assert.ok(text.includes('实感(S) 20% vs 直觉(N) 80%'));

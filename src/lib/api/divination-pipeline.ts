@@ -48,6 +48,10 @@ type RouteError = { error: string; status: number };
 
 type AuthMethod = 'bearer' | 'userContext';
 
+function isRouteError(value: unknown): value is RouteError {
+  return Boolean(value && typeof value === 'object' && 'error' in value && 'status' in value);
+}
+
 export interface DivinationRouteConfig<
   T extends InterpretInput = InterpretInput,
   TContext extends InterpretPromptContext = InterpretPromptContext,
@@ -210,9 +214,8 @@ export function createInterpretHandler<
   ): Promise<Response> {
     // Parse input first (fast fail for invalid params)
     const parsed = parseInput(body);
-    if (parsed && typeof parsed === 'object' && 'error' in parsed && 'status' in parsed) {
-      const err = parsed as { error: string; status: number };
-      return jsonError(err.error, err.status, { success: false });
+    if (isRouteError(parsed)) {
+      return jsonError(parsed.error, parsed.status, { success: false });
     }
     const input = parsed as T;
 
@@ -233,7 +236,7 @@ export function createInterpretHandler<
     const promptContextResult = resolvePromptContext
       ? await resolvePromptContext(input, user.id)
       : undefined;
-    if (promptContextResult && typeof promptContextResult === 'object' && 'error' in promptContextResult && 'status' in promptContextResult) {
+    if (isRouteError(promptContextResult)) {
       return jsonError(promptContextResult.error, promptContextResult.status, { success: false });
     }
     const promptContext = promptContextResult as TContext | undefined;

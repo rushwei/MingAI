@@ -55,14 +55,25 @@ function isRouteError(value: unknown): value is RouteError {
     return Boolean(value && typeof value === 'object' && 'error' in value && 'status' in value);
 }
 
+function isIntegerField(value: unknown): value is number {
+    return typeof value === 'number' && Number.isInteger(value);
+}
+
+function requireQimenInterpretContext(context?: QimenInterpretContext): QimenInterpretContext {
+    if (!context) {
+        throw new Error('Missing qimen interpret context');
+    }
+    return context;
+}
+
 function parseQimenInput(body: QimenRequest): QimenInput | RouteError {
     const { year, month, day, hour, minute, panType, juMethod, zhiFuJiGong } = body;
     if (
-        !Number.isInteger(year)
-        || !Number.isInteger(month)
-        || !Number.isInteger(day)
-        || !Number.isInteger(hour)
-        || !Number.isInteger(minute)
+        !isIntegerField(year)
+        || !isIntegerField(month)
+        || !isIntegerField(day)
+        || !isIntegerField(hour)
+        || !isIntegerField(minute)
     ) {
         return { error: '请提供完整的日期时间', status: 400 };
     }
@@ -163,29 +174,39 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpr
         chart: await calculateQimenOutput(input),
     }),
     buildPrompts: (input, context) => {
-        const chartInfo = buildChartInfoText(context.chart, input.question, context.chartPromptDetailLevel);
+        const resolvedContext = requireQimenInterpretContext(context);
+        const chartInfo = buildChartInfoText(
+            resolvedContext.chart,
+            input.question,
+            resolvedContext.chartPromptDetailLevel,
+        );
         return {
             systemPrompt: '',
             userPrompt: `${chartInfo}\n\n请根据以上奇门遁甲排盘信息，为求测者详细解读此局。`,
         };
     },
-    buildSourceData: (input, modelId, reasoningEnabled, context) => ({
-        dun_type: context.chart.dunType,
-        ju_number: context.chart.juNumber,
-        pan_type_label: context.chart.panType,
-        ju_method_label: context.chart.juMethod,
-        four_pillars: context.chart.siZhu,
-        question: input.question || null,
-        model_id: modelId,
-        reasoning: reasoningEnabled,
-    }),
+    buildSourceData: (input, modelId, reasoningEnabled, context) => {
+        const resolvedContext = requireQimenInterpretContext(context);
+        return {
+            dun_type: resolvedContext.chart.dunType,
+            ju_number: resolvedContext.chart.juNumber,
+            pan_type_label: resolvedContext.chart.panType,
+            ju_method_label: resolvedContext.chart.juMethod,
+            four_pillars: resolvedContext.chart.siZhu,
+            question: input.question || null,
+            model_id: modelId,
+            reasoning: reasoningEnabled,
+        };
+    },
     generateTitle: (input, context) => {
+        const resolvedContext = requireQimenInterpretContext(context);
         if (input.question) {
             return `奇门遁甲 - ${input.question.slice(0, 20)}${input.question.length > 20 ? '...' : ''}`;
         }
-        return `奇门遁甲 - ${context.chart.dunType === 'yang' ? '阳遁' : '阴遁'}${context.chart.juNumber}局`;
+        return `奇门遁甲 - ${resolvedContext.chart.dunType === 'yang' ? '阳遁' : '阴遁'}${resolvedContext.chart.juNumber}局`;
     },
     persistRecord: async (input, userId, conversationId, context) => {
+        const resolvedContext = requireQimenInterpretContext(context);
         const serviceClient = getSystemAdminClient();
         if (input.chartId) {
             await serviceClient
@@ -198,7 +219,7 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpr
 
         await serviceClient
             .from('qimen_charts')
-            .insert(buildInsertPayload(userId, input, context.chart, conversationId));
+            .insert(buildInsertPayload(userId, input, resolvedContext.chart, conversationId));
     },
 });
 

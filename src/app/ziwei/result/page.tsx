@@ -178,10 +178,6 @@ function ZiweiResultContent() {
         return { ...resolvedFormData, birthYear: adjustedYear, birthMonth: adjustedMonth, birthDay: adjustedDay, birthHour: adjustedHour };
     }, [resolvedFormData, hourOffset]);
 
-    const timeText = adjustedFormData
-        ? `${String(adjustedFormData.birthHour).padStart(2, '0')}:${String(adjustedFormData.birthMinute || 0).padStart(2, '0')}`
-        : '';
-
     // 计算紫微命盘
     const bundle = useMemo(() => {
         if (!adjustedFormData) {
@@ -306,6 +302,9 @@ function ZiweiResultContent() {
         );
     }
 
+    const displayFormData = adjustedFormData ?? resolvedFormData;
+    const timeText = `${String(displayFormData.birthHour).padStart(2, '0')}:${String(displayFormData.birthMinute || 0).padStart(2, '0')}`;
+
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
@@ -337,7 +336,7 @@ function ZiweiResultContent() {
                                 </span>
                                 <Clock className="w-3.5 h-3.5 text-foreground/35 shrink-0" />
                                 <span className="font-medium text-foreground/80 truncate">
-                                    {adjustedFormData.birthYear}年{adjustedFormData.birthMonth}月{adjustedFormData.birthDay}日 {timeText}
+                                    {displayFormData.birthYear}年{displayFormData.birthMonth}月{displayFormData.birthDay}日 {timeText}
                                 </span>
                                 {hourOffset !== 0 && (
                                     <span className="text-xs font-medium text-[#2eaadc] shrink-0">

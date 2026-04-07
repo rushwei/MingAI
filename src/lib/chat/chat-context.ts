@@ -115,12 +115,12 @@ export async function buildDreamContextPayload(userId: string): Promise<DreamCon
         : null;
 
     let baziText = baziChart
-        ? baziProvider.formatForAI({
+        ? await baziProvider.formatForAI({
             ...(baziChart as Parameters<typeof baziProvider.formatForAI>[0]),
             caseProfile,
         })
         : '';
-    let fortuneText = fortune ? dailyFortuneProvider.formatForAI(fortune) : '';
+    let fortuneText = fortune ? await dailyFortuneProvider.formatForAI(fortune) : '';
 
     baziText = truncateToTokens(baziText, MAX_BAZI_TOKENS);
     fortuneText = truncateToTokens(fortuneText, MAX_FORTUNE_TOKENS);

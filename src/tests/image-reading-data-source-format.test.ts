@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 test('palmProvider formatForAI should reuse user-visible labels and conversation analysis text', async () => {
     const { palmProvider } = await import('../lib/data-sources/palm');
 
-    const text = palmProvider.formatForAI({
+    const text = await palmProvider.formatForAI({
         id: 'palm-1',
         user_id: 'user-1',
         analysis_type: 'fateline',
@@ -34,7 +34,7 @@ test('palmProvider formatForAI should reuse user-visible labels and conversation
 test('faceProvider formatForAI should reuse user-visible labels and conversation analysis text', async () => {
     const { faceProvider } = await import('../lib/data-sources/face');
 
-    const text = faceProvider.formatForAI({
+    const text = await faceProvider.formatForAI({
         id: 'face-1',
         user_id: 'user-1',
         analysis_type: 'career',

@@ -151,9 +151,11 @@ test('bazi chart update recomputes derived fields from merged existing chart dat
 
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
-    assert.equal(updatedPayload?.birth_time, '09:30');
-    assert.equal(typeof updatedPayload?.day_master, 'string');
-    assert.equal(typeof updatedPayload?.day_branch, 'string');
+    assert.ok(updatedPayload);
+    const updatedRecord = updatedPayload as Record<string, unknown>;
+    assert.equal(updatedRecord.birth_time, '09:30');
+    assert.equal(typeof updatedRecord.day_master, 'string');
+    assert.equal(typeof updatedRecord.day_branch, 'string');
 });
 
 test('bazi chart update rejects merged records without valid birth_time', async (t) => {

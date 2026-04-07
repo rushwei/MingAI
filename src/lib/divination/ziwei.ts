@@ -217,7 +217,7 @@ export function getHoroscope(output: CoreZiweiOutput, astrolabe: Astrolabe, date
     }
 }
 
-export function buildZiweiHoroscopeCanonicalJSON(output: CoreZiweiOutput, astrolabe: Astrolabe, date: Date = new Date()) {
+export function buildZiweiHoroscopeCanonicalJSON(_output: CoreZiweiOutput, astrolabe: Astrolabe, date: Date = new Date()) {
     try {
         const result = calculateZiweiHoroscopeDataWithAstrolabe(astrolabe, {
             targetDate: date,

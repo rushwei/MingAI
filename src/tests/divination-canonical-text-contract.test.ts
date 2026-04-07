@@ -23,11 +23,11 @@ const renderToolText = (
 ) => {
   switch (toolName) {
     case 'bazi_pillars_resolve':
-      return toBaziPillarsResolveText(result as never, options as never);
+      return toBaziPillarsResolveText(result as never);
     case 'ziwei_horoscope':
       return toZiweiHoroscopeText(result as never, options as never);
     case 'ziwei_flying_star':
-      return toZiweiFlyingStarText(result as never, options as never);
+      return toZiweiFlyingStarText(result as never);
     case 'bazi':
       return toBaziText(result as never, options as never);
     case 'ziwei':

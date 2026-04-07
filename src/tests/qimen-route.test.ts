@@ -243,18 +243,20 @@ test('qimen save persists base inputs instead of chart_data', async (t) => {
 
     assert.equal(response.status, 200);
     assert.equal(payload.data.chartId, 'chart-1');
-    assert.equal(insertedPayload?.question, '测试问题');
-    assert.equal(insertedPayload?.year, 2025);
-    assert.equal(insertedPayload?.month, 1);
-    assert.equal(insertedPayload?.day, 15);
-    assert.equal(insertedPayload?.hour, 10);
-    assert.equal(insertedPayload?.minute, 30);
-    assert.equal(insertedPayload?.timezone, 'Asia/Shanghai');
-    assert.equal(insertedPayload?.pan_type, 'zhuan');
-    assert.equal(insertedPayload?.ju_method, 'chaibu');
-    assert.equal(insertedPayload?.zhi_fu_ji_gong, 'ji_liuyi');
-    assert.equal(typeof insertedPayload?.chart_time, 'string');
-    assert.ok(!('chart_data' in (insertedPayload || {})));
+    assert.ok(insertedPayload);
+    const insertedRecord = insertedPayload as Record<string, unknown>;
+    assert.equal(insertedRecord.question, '测试问题');
+    assert.equal(insertedRecord.year, 2025);
+    assert.equal(insertedRecord.month, 1);
+    assert.equal(insertedRecord.day, 15);
+    assert.equal(insertedRecord.hour, 10);
+    assert.equal(insertedRecord.minute, 30);
+    assert.equal(insertedRecord.timezone, 'Asia/Shanghai');
+    assert.equal(insertedRecord.pan_type, 'zhuan');
+    assert.equal(insertedRecord.ju_method, 'chaibu');
+    assert.equal(insertedRecord.zhi_fu_ji_gong, 'ji_liuyi');
+    assert.equal(typeof insertedRecord.chart_time, 'string');
+    assert.ok(!('chart_data' in insertedRecord));
 });
 
 test('qimen route rejects unsupported juMethod before auth', async () => {
