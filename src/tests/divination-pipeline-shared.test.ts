@@ -183,6 +183,40 @@ test('divination pipeline returns 500 when credit deduction fails', async (t) =>
   assert.equal(payload.error, '积分扣减失败，请稍后重试');
 });
 
+test('divination pipeline resolves async validation before credit gate', async (t) => {
+  const { credits, loadPipeline } = setupPipelineMocks(t);
+  let authInfoCalls = 0;
+  credits.getUserAuthInfo = async () => {
+    authInfoCalls += 1;
+    return {
+      credits: 0,
+      effectiveMembership: 'pro',
+      hasCredits: false,
+    };
+  };
+
+  const { createInterpretHandler } = loadPipeline();
+  const handler = createInterpretHandler<Record<string, unknown>, { userId: string; chartPromptDetailLevel: 'full' }>({
+    sourceType: 'test_divination',
+    tag: 'test-divination',
+    parseInput: (body) => (body ?? {}) as Record<string, unknown>,
+    resolvePromptContext: async () => ({ error: '缺少前置条件', status: 400 }),
+    buildPrompts: () => ({
+      systemPrompt: 'system prompt',
+      userPrompt: 'user prompt',
+    }),
+    buildSourceData: () => ({}),
+    generateTitle: () => 'Shared Pipeline Test',
+  });
+
+  const response = await handler(createTestRequest(), { action: 'interpret' });
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(payload.error, '缺少前置条件');
+  assert.equal(authInfoCalls, 0);
+});
+
 test('divination pipeline persists streamed analysis and calls persistRecord after completion', async (t) => {
   const { createCalls, loadPipeline } = setupPipelineMocks(t);
   const persistCalls: Array<{ input: Record<string, unknown>; userId: string; conversationId: string | null }> = [];

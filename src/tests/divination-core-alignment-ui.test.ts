@@ -1,14 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
+import { calculateBaziChartBundle, generateBaziChartText } from '@/lib/divination/bazi';
 import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
-import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
-import { findHexagram, type Yao, calculateDerivedHexagrams, calculateGuaShen } from '@/lib/divination/liuyao';
-import { drawForSpread, generateTarotReadingText } from '@/lib/divination/tarot';
+import {
+    calculateLiuyaoBundle,
+    findHexagram,
+    type Yao,
+    calculateDerivedHexagrams,
+    calculateGuaShen,
+    generateLiuyaoChartText,
+} from '@/lib/divination/liuyao';
+import { TAROT_CARDS, drawForSpread, generateTarotReadingText } from '@/lib/divination/tarot';
 
 test('bazi shared chart text should use the slimmer default layout while preserving key runtime facts', () => {
-    const chart = calculateBazi({
+    const bundle = calculateBaziChartBundle({
         name: '测试',
         gender: 'male',
         birthYear: 1990,
@@ -20,8 +26,9 @@ test('bazi shared chart text should use the slimmer default layout while preserv
         longitude: 121.47,
         calendarType: 'solar',
     });
+    const chart = bundle.output;
 
-    const text = generateBaziChartText(chart);
+    const text = generateBaziChartText(chart, { name: bundle.meta.name, meta: bundle.meta });
 
     assert.match(text, /命局全盘/u, 'bazi text should expose the default chart overview section');
     assert.match(text, /真太阳时/u, 'bazi text should expose true solar time info when core provides it');
@@ -34,7 +41,7 @@ test('bazi shared chart text should use the slimmer default layout while preserv
 });
 
 test('bazi chart text should keep hidden stem details, diShi, and kong markers in the new table layout', () => {
-    const chart = calculateBazi({
+    const { output: chart } = calculateBaziChartBundle({
         name: '测试',
         gender: 'male',
         birthYear: 1990,
@@ -48,20 +55,20 @@ test('bazi chart text should keep hidden stem details, diShi, and kong markers i
     });
 
     const text = generateBaziChartText(chart);
-    const qiType = chart.fourPillars.year.hiddenStemDetails?.[0]?.qiType;
+    const qiType = chart.fourPillars.year.hiddenStems[0]?.qiType;
 
     assert.ok(qiType, 'bazi hidden stem details should include qiType from core output');
     assert.match(text, /地势/u, 'bazi text should include diShi markers for pillars');
     assert.match(text, /空亡/u, 'bazi text should include kong markers for pillars');
     assert.match(text, /地支藏干\(十神\)/u, 'bazi text should expose the hidden-stem column header');
-    const firstHiddenStem = chart.fourPillars.year.hiddenStemDetails?.[0];
+    const firstHiddenStem = chart.fourPillars.year.hiddenStems[0];
     assert.ok(firstHiddenStem, 'bazi hidden stem details should exist');
     assert.match(text, new RegExp(firstHiddenStem.stem), 'bazi text should surface hidden stem name');
     assert.doesNotMatch(text, /纳音/u, 'bazi text should drop naYin from the slimmer default output');
 });
 
 test('web divination adapters should use explicit longitude instead of local fuzzy place matching', () => {
-    const baziChart = calculateBazi({
+    const { output: baziChart } = calculateBaziChartBundle({
         name: '测试',
         gender: 'male',
         birthYear: 1990,
@@ -71,7 +78,7 @@ test('web divination adapters should use explicit longitude instead of local fuz
         birthMinute: 0,
         calendarType: 'solar',
         longitude: 121.47,
-    } as Parameters<typeof calculateBazi>[0] & { longitude: number });
+    });
 
     const ziweiChart = calculateZiwei({
         name: '测试',
@@ -159,15 +166,14 @@ test('liuyao prompt should include derived hexagrams and gua shen', () => {
         position: index + 1,
     }));
 
-    const text = buildTraditionalInfo(
+    const bundle = calculateLiuyaoBundle({
         yaos,
-        '111111',
-        undefined,
-        '测试问题',
-        new Date('2026-01-01T00:00:00Z'),
-        ['父母'],
-        hexagram!,
-    );
+        question: '测试问题',
+        date: new Date('2026-01-01T00:00:00Z'),
+        yongShenTargets: ['父母'],
+        hexagram: hexagram!,
+    });
+    const text = generateLiuyaoChartText(bundle.output);
 
     assert.match(text, /互卦/u, 'liuyao prompt should include nuclear hexagram');
     assert.match(text, /错卦/u, 'liuyao prompt should include opposite hexagram');
@@ -239,4 +245,10 @@ test('tarot draw should accept ISO datetime birthDate for numerology', async () 
     });
 
     assert.ok(result?.numerology, 'tarot draw should return numerology when birth date is provided');
+});
+
+test('tarot display catalog should reuse core chinese card names instead of legacy web aliases', () => {
+    assert.equal(TAROT_CARDS.find((card) => card.name === 'The Fool')?.nameChinese, '愚者');
+    assert.equal(TAROT_CARDS.find((card) => card.name === 'The Empress')?.nameChinese, '女皇');
+    assert.equal(TAROT_CARDS.find((card) => card.name === 'The Tower')?.nameChinese, '塔');
 });

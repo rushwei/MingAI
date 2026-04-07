@@ -2,22 +2,54 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  renderBaziCanonicalText,
-  renderBaziPillarsResolveCanonicalText,
-  renderDaliurenCanonicalText,
-  renderFortuneCanonicalText,
-  renderLiuyaoCanonicalText,
-  renderQimenCanonicalText,
-  renderZiweiFlyingStarCanonicalText,
-  renderZiweiHoroscopeCanonicalText,
-  renderZiweiCanonicalText,
-} from '../../packages/core/src/text';
-import type { DaliurenOutput } from '../../packages/core/src/daliuren/types';
-import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
-import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
+  toAlmanacText,
+  toBaziPillarsResolveText,
+  toBaziText,
+  toDaliurenText,
+  toLiuyaoCanonicalText,
+  toQimenText,
+  toZiweiFlyingStarText,
+  toZiweiHoroscopeText,
+  toZiweiText,
+  type DaliurenOutput,
+} from '@mingai/core';
+import { calculateBaziChartBundle, generateBaziChartText } from '@/lib/divination/bazi';
+import { calculateZiwei, calculateZiweiChartBundle, generateZiweiChartText } from '@/lib/divination/ziwei';
+
+const renderToolText = (
+  toolName: string,
+  result: unknown,
+  options?: Record<string, unknown>,
+) => {
+  switch (toolName) {
+    case 'bazi_pillars_resolve':
+      return toBaziPillarsResolveText(result as never, options as never);
+    case 'ziwei_horoscope':
+      return toZiweiHoroscopeText(result as never, options as never);
+    case 'ziwei_flying_star':
+      return toZiweiFlyingStarText(result as never, options as never);
+    case 'bazi_calculate':
+      return toBaziText(result as never, options as never);
+    case 'ziwei_calculate':
+      return toZiweiText(result as never, options as never);
+    case 'qimen_calculate':
+      return toQimenText(result as never, options as never);
+    case 'daliuren':
+      return toDaliurenText(result as never, options as never);
+    case 'almanac':
+      return toAlmanacText(result as never, options as never);
+    default:
+      throw new Error(`Unsupported tool in test renderer: ${toolName}`);
+  }
+};
+
+const renderToolDebugText = (toolName: string, result: unknown) =>
+  toolName === 'liuyao'
+    ? toLiuyaoCanonicalText(result as never)
+    : '';
 
 test('specialized core canonical text renderers should cover non-mainline tools', () => {
-  const pillarsText = renderBaziPillarsResolveCanonicalText({
+  const pillarsText = renderToolText('bazi_pillars_resolve', {
     pillars: {
       yearPillar: '甲子',
       monthPillar: '乙丑',
@@ -53,7 +85,7 @@ test('specialized core canonical text renderers should cover non-mainline tools'
   assert.match(pillarsText, /四柱反推候选时间/u);
   assert.match(pillarsText, /候选 1/u);
 
-  const horoscopeText = renderZiweiHoroscopeCanonicalText({
+  const horoscopeText = renderToolText('ziwei_horoscope', {
     solarDate: '1990-01-01',
     lunarDate: '1989-12-05',
     soul: '廉贞',
@@ -70,7 +102,7 @@ test('specialized core canonical text renderers should cover non-mainline tools'
     transitStars: [{ starName: '流昌', palaceName: '命宫' }, { starName: '流禄', palaceName: '财帛' }],
     yearlyDecStar: { suiqian12: ['岁建'], jiangqian12: ['将星'] },
   });
-  const horoscopeFullText = renderZiweiHoroscopeCanonicalText({
+  const horoscopeFullText = renderToolText('ziwei_horoscope', {
     solarDate: '1990-01-01',
     lunarDate: '1989-12-05',
     soul: '廉贞',
@@ -96,7 +128,7 @@ test('specialized core canonical text renderers should cover non-mainline tools'
   assert.match(horoscopeFullText, /流时/u);
   assert.match(horoscopeFullText, /岁前十二星|将前十二星/u);
 
-  const flyingStarText = renderZiweiFlyingStarCanonicalText({
+  const flyingStarText = renderToolText('ziwei_flying_star', {
     results: [
       {
         queryIndex: 0,
@@ -129,7 +161,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
     dayOffset: -1,
   };
 
-  const markdown = renderBaziCanonicalText({
+  const markdown = renderToolText('bazi_calculate', {
     gender: 'male',
     birthPlace: '新疆',
     dayMaster: '甲',
@@ -151,7 +183,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
   assert.match(markdown, /时辰索引|真太阳时索引/u, 'mcp bazi markdown should expose trueTimeIndex');
   assert.match(markdown, /跨日/u, 'mcp bazi markdown should expose dayOffset');
 
-  const chart = calculateBazi({
+  const { output: chart } = calculateBaziChartBundle({
     name: '测试',
     gender: 'male',
     birthYear: 1990,
@@ -169,7 +201,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
 });
 
 test('ziwei full text should keep full age arrays instead of truncating them while default stays compact', () => {
-  const markdown = renderZiweiCanonicalText({
+  const markdown = renderToolText('ziwei_calculate', {
     solarDate: '1990-1-1',
     lunarDate: '1989-12-5',
     fourPillars: {
@@ -292,8 +324,8 @@ test('qimen canonical text should keep default compact while full appends supple
     monthPhase: { 甲: '死', 乙: '死', 丙: '囚', 丁: '囚', 戊: '休', 己: '休', 庚: '旺', 辛: '旺', 壬: '相', 癸: '相' },
   };
 
-  const defaultText = renderQimenCanonicalText(chart);
-  const fullText = renderQimenCanonicalText(chart, { detailLevel: 'full' });
+  const defaultText = renderToolText('qimen_calculate', chart);
+  const fullText = renderToolText('qimen_calculate', chart, { detailLevel: 'full' });
 
   assert.match(defaultText, /值符 \(大局趋势\): 天芮星/u);
   assert.match(defaultText, /\| 宫位\(五行\) \| 八神 \| 九星\(五行\) \| 八门\(五行\) \| 天盘天干 \| 地盘天干 \| 宫位状态 \|/u);
@@ -360,8 +392,8 @@ test('daliuren canonical text should keep default focused while full only append
     question: '事业如何',
   };
 
-  const defaultText = renderDaliurenCanonicalText(chart);
-  const fullText = renderDaliurenCanonicalText(chart, { detailLevel: 'full' });
+  const defaultText = renderToolText('daliuren', chart);
+  const fullText = renderToolText('daliuren', chart, { detailLevel: 'full' });
 
   assert.match(defaultText, /# 大六壬排盘/u);
   assert.match(defaultText, /## 基本信息/u);
@@ -375,7 +407,7 @@ test('daliuren canonical text should keep default focused while full only append
 });
 
 test('almanac canonical text should keep default compact while full appends calendrical details', () => {
-  const text = renderFortuneCanonicalText({
+  const text = renderToolText('almanac', {
     date: '2026-04-01',
     dayInfo: { stem: '乙', branch: '巳', ganZhi: '乙巳' },
     tenGod: '正官',
@@ -419,7 +451,7 @@ test('almanac canonical text should keep default compact while full appends cale
       ],
     },
   });
-  const fullText = renderFortuneCanonicalText({
+  const fullText = renderToolText('almanac', {
     date: '2026-04-01',
     dayInfo: { stem: '乙', branch: '巳', ganZhi: '乙巳' },
     tenGod: '正官',
@@ -474,7 +506,7 @@ test('almanac canonical text should keep default compact while full appends cale
 });
 
 test('web ziwei text should include horoscope block when caller explicitly requests it', () => {
-  const chart = calculateZiwei({
+  const bundle = calculateZiweiChartBundle({
     name: '测试',
     gender: 'male',
     birthYear: 1990,
@@ -485,14 +517,14 @@ test('web ziwei text should include horoscope block when caller explicitly reque
     calendarType: 'solar',
   });
 
-  const text = generateZiweiChartText(chart, { includeHoroscope: true });
+  const text = generateZiweiChartText(bundle.output, { includeHoroscope: true, astrolabe: bundle.astrolabe });
 
   assert.match(text, /## 当前运限/u, 'web ziwei text should preserve the explicit horoscope block');
   assert.match(text, /当前大限|流年宫位|流月宫位|流日宫位/u, 'web ziwei text should surface current horoscope details');
 });
 
 test('core liuyao markdown should surface changedNaJia and huaType in yongshen analysis text', () => {
-  const markdown = renderLiuyaoCanonicalText({
+  const markdown = renderToolDebugText('liuyao', {
     question: '测试问题',
     hexagramName: '乾为天',
     hexagramGong: '乾',

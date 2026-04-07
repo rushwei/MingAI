@@ -70,6 +70,7 @@ mustNotExist('src/lib/auth-client.ts', 'legacy browser auth client entrypoint sh
 mustNotExist('src/app/api/supabase/proxy/route.ts', 'legacy supabase proxy route should stay removed');
 mustNotExist('src/lib/data-sources/init.ts', 'data source side-effect init should stay removed');
 mustNotExist('src/lib/divination/qimen-shared.ts', 'legacy qimen shared adapter should stay removed');
+mustNotExist('src/lib/divination/liuyao-traditional.ts', 'legacy liuyao traditional adapter should stay removed');
 
 mustMatch(
   'src/app/api/auth/route.ts',
@@ -193,14 +194,19 @@ mustNotMatch(
   'tarot wrapper should not import the root core entry',
 );
 mustMatch(
-  'src/app/api/daliuren/route.ts',
+  'src/lib/divination/daliuren.ts',
   /from ['"]@mingai\/core\/daliuren['"]/u,
-  'daliuren route should import daliuren APIs from the daliuren domain subpath',
+  'daliuren wrapper should import daliuren APIs from the daliuren domain subpath',
 );
 mustNotMatch(
-  'src/app/api/daliuren/route.ts',
+  'src/lib/divination/daliuren.ts',
   /from ['"]@mingai\/core\/daliuren-core['"]/u,
-  'daliuren route should not depend on the removed daliuren-core subpath',
+  'daliuren wrapper should not depend on the removed daliuren-core subpath',
+);
+mustMatch(
+  'src/app/api/daliuren/route.ts',
+  /from ['"]@\/lib\/divination\/daliuren['"]/u,
+  'daliuren route should use the daliuren wrapper',
 );
 mustMatch(
   'src/lib/divination/qimen.ts',
@@ -219,13 +225,28 @@ mustMatch(
 );
 mustMatch(
   'src/app/api/daliuren/route.ts',
-  /calculateDaliuren\(\{[\s\S]*timezone[\s\S]*\}\)/u,
-  'daliuren route should forward timezone into the root core calculation API',
+  /calculateDaliurenBundle\(\{[\s\S]*timezone[\s\S]*\}\)/u,
+  'daliuren route should forward timezone into the daliuren wrapper calculate call',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
   /from ['"]@mingai\/core\/liuyao['"]/u,
   'liuyao web adapter should import shared liuyao helpers from the liuyao domain subpath',
+);
+mustMatch(
+  'src/app/api/liuyao/route.ts',
+  /from ['"]@\/lib\/divination\/liuyao['"]/u,
+  'liuyao route should use the liuyao wrapper',
+);
+mustMatch(
+  'src/app/liuyao/result/page.tsx',
+  /from ['"]@\/lib\/divination\/liuyao['"]/u,
+  'liuyao result page should use the liuyao wrapper',
+);
+mustMatch(
+  'src/lib/data-sources/liuyao.ts',
+  /from ['"]@\/lib\/divination\/liuyao['"]/u,
+  'liuyao data source should use the liuyao wrapper',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
@@ -274,19 +295,19 @@ mustNotMatch(
 );
 mustMatch(
   'src/app/qimen/result/page.tsx',
-  /from ['"]@mingai\/core\/qimen['"]/u,
-  'qimen result page should import qimen formatters from the qimen domain subpath',
+  /from ['"]@\/lib\/divination\/qimen['"]/u,
+  'qimen result page should import qimen helpers from the qimen wrapper',
 );
 mustMatch(
   'src/app/daliuren/result/page.tsx',
-  /from ['"]@mingai\/core\/daliuren['"]/u,
-  'daliuren result page should import daliuren formatters from the daliuren domain subpath',
+  /from ['"]@\/lib\/divination\/daliuren['"]/u,
+  'daliuren result page should import daliuren formatters from the daliuren wrapper',
 );
 
 mustMatch(
   'src/app/qimen/result/page.tsx',
-  /import\s*\{[\s\S]*toQimenJson[\s\S]*toQimenText[\s\S]*\}\s*from ['"]@mingai\/core\/qimen['"]/u,
-  'qimen result page should use direct core qimen domain renderers',
+  /import\s*\{[\s\S]*buildQimenCanonicalJSON[\s\S]*generateQimenChartText[\s\S]*\}\s*from ['"]@\/lib\/divination\/qimen['"]/u,
+  'qimen result page should use the qimen wrapper canonical/text helpers',
 );
 mustNotMatch(
   'src/app/qimen/result/page.tsx',
@@ -300,8 +321,8 @@ mustNotMatch(
 );
 mustMatch(
   'src/app/api/qimen/route.ts',
-  /import\s*\{[\s\S]*toQimenText[\s\S]*\}\s*from ['"]@mingai\/core\/qimen['"]/u,
-  'qimen route should use direct core qimen text renderer',
+  /import\s*\{[\s\S]*calculateQimenBundle[\s\S]*generateQimenChartText[\s\S]*\}\s*from ['"]@\/lib\/divination\/qimen['"]/u,
+  'qimen route should use the qimen wrapper',
 );
 mustNotMatch(
   'src/app/api/qimen/route.ts',
