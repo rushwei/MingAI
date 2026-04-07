@@ -1,9 +1,9 @@
 import type {
   DerivedHexagramJSON,
-  LiuyaoAISafeCombinationJSON
+  LiuyaoCombinationJSON,
 } from '../shared/json-types.js';
 
-export interface LiuyaoAISafeJSON {
+export interface LiuyaoJSON {
   卦盘: {
     问题?: string;
     本卦: {
@@ -41,12 +41,12 @@ export interface LiuyaoAISafeJSON {
     全局神煞?: string[];
   };
   六爻全盘: {
-    爻列表: LiuyaoAISafeBoardLineJSON[];
+    爻列表: LiuyaoBoardLineJSON[];
   };
   全局互动: {
-    组合关系: LiuyaoAISafeCombinationJSON[];
-    冲合转换?: LiuyaoAISafeTransitionJSON[];
-    反伏信息?: LiuyaoAISafeResonanceJSON[];
+    组合关系: LiuyaoCombinationJSON[];
+    冲合转换?: LiuyaoTransitionJSON[];
+    反伏信息?: LiuyaoResonanceJSON[];
     是否六冲卦?: '是' | '否';
     是否六合卦?: '是' | '否';
     冲合趋势?: '冲转合' | '合转冲';
@@ -56,7 +56,7 @@ export interface LiuyaoAISafeJSON {
   };
 }
 
-export interface LiuyaoAISafeLineJSON {
+export interface LiuyaoLineJSON {
   position?: string;
   liuQin: string;
   naJia?: string;
@@ -74,7 +74,7 @@ export interface LiuyaoAISafeLineJSON {
   transformation?: string;
 }
 
-export interface LiuyaoAISafeBoardLineJSON {
+export interface LiuyaoBoardLineJSON {
   爻位: string;
   六神: string;
   神煞?: string[];
@@ -100,13 +100,19 @@ export interface LiuyaoAISafeBoardLineJSON {
   世应?: '世' | '应';
 }
 
-export interface LiuyaoAISafeTransitionJSON {
+export interface LiuyaoTransitionJSON {
   类型: '冲转合' | '合转冲';
 }
 
-export interface LiuyaoAISafeResonanceJSON {
+export interface LiuyaoResonanceJSON {
   类型: '反吟' | '伏吟';
 }
+
+export type LiuyaoAISafeJSON = LiuyaoJSON;
+export type LiuyaoAISafeLineJSON = LiuyaoLineJSON;
+export type LiuyaoAISafeBoardLineJSON = LiuyaoBoardLineJSON;
+export type LiuyaoAISafeTransitionJSON = LiuyaoTransitionJSON;
+export type LiuyaoAISafeResonanceJSON = LiuyaoResonanceJSON;
 
 export interface LiuyaoCanonicalJSON {
   卦盘: {

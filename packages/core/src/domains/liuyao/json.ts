@@ -1,10 +1,12 @@
 import type {
-  LiuyaoAISafeCombinationJSON,
-  LiuyaoAISafeJSON,
-  LiuyaoAISafeParticipantJSON,
   LiuyaoCanonicalJSON,
-  LiuyaoYaoJSON
-} from '../../json-types.js';
+  LiuyaoJSON,
+  LiuyaoYaoJSON,
+} from './json-types.js';
+import type {
+  LiuyaoCombinationJSON,
+  LiuyaoParticipantJSON,
+} from '../shared/json-types.js';
 import {
   formatGuaLevelLines,
   KONG_WANG_LABELS,
@@ -12,17 +14,19 @@ import {
   traditionalYaoName,
   WANG_SHUAI_LABELS,
   YONG_SHEN_STATUS_LABELS,
-} from '../../liuyao-core.js';
+} from './calculate.js';
 import {
   buildShenSystemMap,
   mapLiuyaoRelationLabel,
-  normalizeDetailLevel3Way
-} from '../../render-utils.js';
+  normalizeDetailLevel3Way,
+} from '../../shared/render-utils.js';
 import type {
   DetailLevel,
+  ShenSystemInfo,
+} from '../shared/types.js';
+import type {
   LiuyaoOutput,
-  ShenSystemInfo
-} from '../../types.js';
+} from './types.js';
 
 function buildShenSystemJSON(
   system: ShenSystemInfo | undefined,
@@ -44,8 +48,8 @@ function buildLiuyaoPositionLabel(
   return attached ? `${traditionalYaoName(position, attached.type)}爻` : `${position}爻`;
 }
 
-function buildLiuyaoInteractionSources(result: LiuyaoOutput): LiuyaoAISafeParticipantJSON[] {
-  const participants: LiuyaoAISafeParticipantJSON[] = [];
+function buildLiuyaoInteractionSources(result: LiuyaoOutput): LiuyaoParticipantJSON[] {
+  const participants: LiuyaoParticipantJSON[] = [];
   for (const yao of result.fullYaos || []) {
     if (yao.isChanging) {
       participants.push({
@@ -71,9 +75,9 @@ function buildLiuyaoInteractionSources(result: LiuyaoOutput): LiuyaoAISafePartic
 
 function buildBanHeParticipants(
   branches: string[],
-  sources: LiuyaoAISafeParticipantJSON[],
-): LiuyaoAISafeParticipantJSON[] {
-  const priority: Record<LiuyaoAISafeParticipantJSON['来源'], number> = {
+  sources: LiuyaoParticipantJSON[],
+): LiuyaoParticipantJSON[] {
+  const priority: Record<LiuyaoParticipantJSON['来源'], number> = {
     变爻: 0,
     动爻: 1,
     月建: 2,
@@ -87,12 +91,12 @@ function buildBanHeParticipants(
   });
 }
 
-function buildLiuyaoAISafeBoardLines(
+function buildLiuyaoBoardLines(
   result: LiuyaoOutput,
   detailLevel: DetailLevel,
-): LiuyaoAISafeJSON['六爻全盘']['爻列表'] {
+): LiuyaoJSON['六爻全盘']['爻列表'] {
   return sortYaosDescending(result.fullYaos || []).map((yao) => {
-    const line: LiuyaoAISafeJSON['六爻全盘']['爻列表'][number] = {
+    const line: LiuyaoJSON['六爻全盘']['爻列表'][number] = {
       爻位: traditionalYaoName(yao.position, yao.type),
       六神: yao.liuShen,
       ...(detailLevel !== 'default' && yao.shenSha?.length ? { 神煞: [...yao.shenSha] } : {}),
@@ -343,15 +347,15 @@ export function renderLiuyaoCanonicalJSON(result: LiuyaoOutput): LiuyaoCanonical
   };
 }
 
-export function renderLiuyaoAISafeJSON(
+export function renderLiuyaoJSON(
   result: LiuyaoOutput,
-  options?: { detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug'; },
-): LiuyaoAISafeJSON {
+  options?: { detailLevel?: DetailLevel; },
+): LiuyaoJSON {
   const detailLevel = normalizeDetailLevel3Way(options?.detailLevel);
   const raw = renderLiuyaoCanonicalJSON(result);
 
   const interactionSources = buildLiuyaoInteractionSources(result);
-  const combinations: LiuyaoAISafeCombinationJSON[] = [];
+  const combinations: LiuyaoCombinationJSON[] = [];
   if (result.sanHeAnalysis?.banHe?.length) {
     for (const item of result.sanHeAnalysis.banHe) {
       combinations.push({
@@ -372,16 +376,16 @@ export function renderLiuyaoAISafeJSON(
     }
   }
 
-  const transitions: LiuyaoAISafeJSON['全局互动']['冲合转换'] = [];
+  const transitions: LiuyaoJSON['全局互动']['冲合转换'] = [];
   if (result.chongHeTransition && (result.chongHeTransition.type === 'chong_to_he' || result.chongHeTransition.type === 'he_to_chong')) {
     transitions.push({ 类型: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' });
   }
 
-  const resonances: LiuyaoAISafeJSON['全局互动']['反伏信息'] = [];
+  const resonances: LiuyaoJSON['全局互动']['反伏信息'] = [];
   if (result.guaFanFuYin?.isFuYin) resonances.push({ 类型: '伏吟' });
   if (result.guaFanFuYin?.isFanYin) resonances.push({ 类型: '反吟' });
 
-  const payload: LiuyaoAISafeJSON = {
+  const payload: LiuyaoJSON = {
     卦盘: {
       ...(result.question ? { 问题: result.question } : {}),
       本卦: {
@@ -415,7 +419,7 @@ export function renderLiuyaoAISafeJSON(
       干支时间: raw.干支时间,
     },
     六爻全盘: {
-      爻列表: buildLiuyaoAISafeBoardLines(result, detailLevel),
+      爻列表: buildLiuyaoBoardLines(result, detailLevel),
     },
     全局互动: {
       组合关系: combinations,

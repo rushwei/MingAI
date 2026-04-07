@@ -1,10 +1,3 @@
-/**
- * Core 主入口
- */
-
-import { getToolRegistryEntry } from './tool-registry.js';
-import { tools } from './tools.js';
-
 export type {
   BaziCanonicalJSON,
   BaziPillarJSON,
@@ -13,7 +6,9 @@ export type {
   DayunCanonicalJSON,
   DayunItemJSON,
   DerivedHexagramJSON,
-  FortuneCanonicalJSON,
+  AlmanacCanonicalJSON,
+  LiuyaoJSON,
+  LiuyaoLineJSON,
   LiuyaoAISafeJSON,
   LiuyaoAISafeLineJSON,
   LiuyaoCanonicalJSON,
@@ -34,61 +29,90 @@ export type {
   ZiweiStarJSON
 } from './json-types.js';
 export {
-  renderBaziCanonicalJSON,
-  renderBaziPillarsResolveCanonicalJSON,
-  renderDaliurenCanonicalJSON,
-  renderDayunCanonicalJSON,
-  renderFortuneCanonicalJSON,
-  renderLiuyaoAISafeJSON,
-  renderLiuyaoCanonicalJSON,
-  renderMeihuaCanonicalJSON,
-  renderQimenCanonicalJSON,
-  renderTarotCanonicalJSON,
-  renderZiweiCanonicalJSON, renderZiweiFlyingStarCanonicalJSON, renderZiweiHoroscopeCanonicalJSON
-} from './json.js';
-export { calculateBaziPillarsResolve } from './bazi-pillars-resolve-core.js';
-export { calculateBaziData } from './bazi-core.js';
-export { calculateDailyFortune } from './fortune-core.js';
-export { calculateDaliurenData } from './daliuren-core.js';
-export { calculateDayunData } from './dayun-core.js';
-export { calculateLiuyaoData } from './liuyao-core.js';
-export { calculateMeihua } from './meihua-core.js';
-export { calculateQimenData } from './qimen-core.js';
-export { calculateTarotData } from './tarot-core.js';
+  calculateBazi,
+  calculateBaziFiveElementsStats,
+  calculateBaziLiuRiData,
+  calculateBaziLiuYueData,
+  calculateBaziShenShaData,
+  toBaziJson,
+  toBaziText,
+} from './domains/bazi/index.js';
+export { calculateBaziDayun, toBaziDayunJson, toBaziDayunText } from './domains/bazi-dayun/index.js';
+export { resolveBaziPillars, toBaziPillarsResolveJson, toBaziPillarsResolveText } from './domains/bazi-pillars-resolve/index.js';
+export { calculateDaliuren, toDaliurenJson, toDaliurenText } from './domains/daliuren/index.js';
+export { calculateDailyAlmanac, toAlmanacJson, toAlmanacText } from './domains/almanac/index.js';
+export { calculateLiuyao, toLiuyaoCanonicalJson, toLiuyaoCanonicalText, toLiuyaoJson, toLiuyaoText } from './domains/liuyao/index.js';
 export {
-  renderBaziCanonicalText,
-  renderBaziPillarsResolveCanonicalText, renderDaliurenCanonicalText, renderDayunCanonicalText,
-  renderFortuneCanonicalText,
-  renderLiuyaoAISafeText, renderLiuyaoCanonicalText, renderLiuyaoLevelText,
-  renderMeihuaCanonicalText, renderQimenCanonicalText,
-  renderTarotCanonicalText, renderZiweiCanonicalText, renderZiweiFlyingStarCanonicalText, renderZiweiHoroscopeCanonicalText
-} from './text.js';
-export type { MeihuaCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
+  calculateDerivedHexagrams,
+  calculateFullYaoInfo,
+  calculateGanZhiTime,
+  calculateGuaShen,
+  calculateKongWangByPillar,
+  findHexagram,
+  formatGanZhiTime,
+  formatGuaLevelLines,
+  getHexagramContext,
+  hasInvalidYongShenTargets,
+  KONG_WANG_LABELS,
+  MOVEMENT_LABELS,
+  normalizeYongShenTargets,
+  performFullAnalysis,
+  sortYaosDescending,
+  traditionalYaoName,
+  TRIGRAM_NA_JIA,
+  WANG_SHUAI_LABELS,
+  YAO_POSITION_NAMES,
+  YONG_SHEN_STATUS_LABELS,
+} from './domains/liuyao/index.js';
+export { calculateMeihua, toMeihuaJson, toMeihuaText } from './domains/meihua/index.js';
+export { calculateQimen, toQimenJson, toQimenText } from './domains/qimen/index.js';
+export { calculateTarot, toTarotJson, toTarotText } from './domains/tarot/index.js';
 export {
-  calculateZiweiData,
+  calculateZiwei,
+  calculateZiweiDecadalListWithAstrolabe,
   calculateZiweiDataWithAstrolabe,
   calculateZiweiHoroscopeData,
   calculateZiweiHoroscopeDataWithAstrolabe,
   createAstrolabeWithTrueSolar,
-} from './ziwei-core.js';
-export { calculateZiweiFlyingStar } from './ziwei-flying-star-core.js';
-export type { RenderOptions } from './tool-contract.js';
-export { renderToolResult } from './tool-output.js';
-export { toolRegistry } from './tool-registry.js';
-export { tools } from './tools.js';
-export type { ToolAnnotation, ToolDefinition, ToolInput } from './tools.js';
+  toZiweiJson,
+  toZiweiText,
+} from './domains/ziwei/index.js';
+export { calculateZiweiFlyingStar, toZiweiFlyingStarJson, toZiweiFlyingStarText } from './domains/ziwei-flying-star/index.js';
+export { calculateZiweiHoroscope, toZiweiHoroscopeJson, toZiweiHoroscopeText } from './domains/ziwei-horoscope/index.js';
+export type {
+  ChangedYaoDetail,
+  DerivedHexagramInfo,
+  DiZhi,
+  FullYaoInfo,
+  FullYaoInfoExtended,
+  FuShen,
+  GanZhiTime,
+  GuaShenInfo,
+  KongWang,
+  KongWangByPillar,
+  LiuQinType,
+  LiuYaoFullAnalysis,
+  ShenSystemByYongShen,
+  TianGan,
+  TimeRecommendation,
+  WuXing,
+  YaoChange,
+  YaoInput,
+  YaoStrength,
+  YaoType,
+  YongShenCandidate,
+  YongShenGroup,
+} from './domains/liuyao/index.js';
+export type {
+  BaziCanonicalTextOptions,
+  AlmanacCanonicalTextOptions,
+  DaliurenCanonicalTextOptions,
+  DayunCanonicalTextOptions,
+  MeihuaCanonicalTextOptions,
+  QimenCanonicalTextOptions,
+  TarotCanonicalTextOptions,
+  ZiweiCanonicalTextOptions,
+  ZiweiHoroscopeCanonicalTextOptions,
+} from './domains/shared/text-options.js';
 
 export * from './types.js';
-
-/**
- * 统一工具调用分发（消除 mcp-server / mcp 重复 switch）
- */
-export async function handleToolCall(name: string, args: unknown): Promise<unknown> {
-  const entry = getToolRegistryEntry(name);
-  if (!entry) {
-    const availableTools = tools.map((t) => t.name).join(', ');
-    throw new Error(`未知工具: ${name}。可用的工具: ${availableTools}`);
-  }
-
-  return entry.execute(args);
-}

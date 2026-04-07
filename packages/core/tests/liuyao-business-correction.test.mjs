@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import * as mcpCore from '@mingai/core';
 
 test('mcp liuyao uses fixed najia for 天风姤 and should not treat second yao as 妻财', async () => {
-  const result = await mcpCore.calculateLiuyaoData({
+  const result = await mcpCore.calculateLiuyao({
     question: '问财运',
     yongShenTargets: ['妻财'],
     method: 'select',
@@ -19,7 +19,7 @@ test('mcp liuyao uses fixed najia for 天风姤 and should not treat second yao 
 
 test('mcp liuyao should reject empty question instead of producing formal interpretation context', async () => {
   await assert.rejects(
-    () => mcpCore.calculateLiuyaoData({
+    () => mcpCore.calculateLiuyao({
       question: '',
       yongShenTargets: [],
       method: 'select',

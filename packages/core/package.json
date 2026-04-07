@@ -20,83 +20,98 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./bazi-core": {
-      "types": "./dist/bazi-core.d.ts",
-      "default": "./dist/bazi-core.js"
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js",
+      "default": "./dist/mcp/index.js"
     },
-    "./bazi-pillars-resolve-core": {
-      "types": "./dist/bazi-pillars-resolve-core.d.ts",
-      "default": "./dist/bazi-pillars-resolve-core.js"
+    "./bazi": {
+      "types": "./dist/domains/bazi/index.d.ts",
+      "import": "./dist/domains/bazi/index.js",
+      "default": "./dist/domains/bazi/index.js"
     },
-    "./dayun-core": {
-      "types": "./dist/dayun-core.d.ts",
-      "default": "./dist/dayun-core.js"
+    "./bazi-dayun": {
+      "types": "./dist/domains/bazi-dayun/index.d.ts",
+      "import": "./dist/domains/bazi-dayun/index.js",
+      "default": "./dist/domains/bazi-dayun/index.js"
     },
-    "./fortune-core": {
-      "types": "./dist/fortune-core.d.ts",
-      "default": "./dist/fortune-core.js"
+    "./bazi-pillars-resolve": {
+      "types": "./dist/domains/bazi-pillars-resolve/index.d.ts",
+      "import": "./dist/domains/bazi-pillars-resolve/index.js",
+      "default": "./dist/domains/bazi-pillars-resolve/index.js"
     },
-    "./liuyao-core": {
-      "types": "./dist/liuyao-core.d.ts",
-      "default": "./dist/liuyao-core.js"
+    "./ziwei": {
+      "types": "./dist/domains/ziwei/index.d.ts",
+      "import": "./dist/domains/ziwei/index.js",
+      "default": "./dist/domains/ziwei/index.js"
     },
-    "./meihua-core": {
-      "types": "./dist/meihua-core.d.ts",
-      "default": "./dist/meihua-core.js"
+    "./ziwei-horoscope": {
+      "types": "./dist/domains/ziwei-horoscope/index.d.ts",
+      "import": "./dist/domains/ziwei-horoscope/index.js",
+      "default": "./dist/domains/ziwei-horoscope/index.js"
     },
-    "./qimen-core": {
-      "types": "./dist/qimen-core.d.ts",
-      "default": "./dist/qimen-core.js"
+    "./ziwei-flying-star": {
+      "types": "./dist/domains/ziwei-flying-star/index.d.ts",
+      "import": "./dist/domains/ziwei-flying-star/index.js",
+      "default": "./dist/domains/ziwei-flying-star/index.js"
     },
-    "./tarot-core": {
-      "types": "./dist/tarot-core.d.ts",
-      "default": "./dist/tarot-core.js"
+    "./liuyao": {
+      "types": "./dist/domains/liuyao/index.d.ts",
+      "import": "./dist/domains/liuyao/index.js",
+      "default": "./dist/domains/liuyao/index.js"
     },
-    "./ziwei-core": {
-      "types": "./dist/ziwei-core.d.ts",
-      "default": "./dist/ziwei-core.js"
+    "./meihua": {
+      "types": "./dist/domains/meihua/index.d.ts",
+      "import": "./dist/domains/meihua/index.js",
+      "default": "./dist/domains/meihua/index.js"
     },
-    "./ziwei-horoscope-core": {
-      "types": "./dist/ziwei-horoscope-core.d.ts",
-      "default": "./dist/ziwei-horoscope-core.js"
+    "./qimen": {
+      "types": "./dist/domains/qimen/index.d.ts",
+      "import": "./dist/domains/qimen/index.js",
+      "default": "./dist/domains/qimen/index.js"
     },
-    "./ziwei-flying-star-core": {
-      "types": "./dist/ziwei-flying-star-core.d.ts",
-      "default": "./dist/ziwei-flying-star-core.js"
+    "./tarot": {
+      "types": "./dist/domains/tarot/index.d.ts",
+      "import": "./dist/domains/tarot/index.js",
+      "default": "./dist/domains/tarot/index.js"
     },
-    "./daliuren-core": {
-      "types": "./dist/daliuren-core.d.ts",
-      "default": "./dist/daliuren-core.js"
+    "./daliuren": {
+      "types": "./dist/domains/daliuren/index.d.ts",
+      "import": "./dist/domains/daliuren/index.js",
+      "default": "./dist/domains/daliuren/index.js"
+    },
+    "./almanac": {
+      "types": "./dist/domains/almanac/index.d.ts",
+      "import": "./dist/domains/almanac/index.js",
+      "default": "./dist/domains/almanac/index.js"
     },
     "./data/hexagram-data": {
       "types": "./dist/data/hexagram-data.d.ts",
+      "import": "./dist/data/hexagram-data.js",
       "default": "./dist/data/hexagram-data.js"
+    },
+    "./data/hexagram-texts": {
+      "types": "./dist/data/hexagram-texts.d.ts",
+      "import": "./dist/data/hexagram-texts.js",
+      "default": "./dist/data/hexagram-texts.js"
     },
     "./data/shensha-data": {
       "types": "./dist/data/shensha-data.d.ts",
+      "import": "./dist/data/shensha-data.js",
       "default": "./dist/data/shensha-data.js"
     },
     "./utils": {
-      "types": "./dist/utils.d.ts",
-      "default": "./dist/utils.js"
-    },
-    "./transport": {
-      "types": "./dist/transport.d.ts",
-      "default": "./dist/transport.js"
-    },
-    "./text": {
-      "types": "./dist/text.d.ts",
-      "default": "./dist/text.js"
-    },
-    "./json": {
-      "types": "./dist/json.d.ts",
-      "default": "./dist/json.js"
+      "types": "./dist/shared/utils.d.ts",
+      "import": "./dist/shared/utils.js",
+      "default": "./dist/shared/utils.js"
     },
     "./timezone-utils": {
-      "types": "./dist/timezone-utils.d.ts",
-      "default": "./dist/timezone-utils.js"
+      "types": "./dist/shared/timezone-utils.d.ts",
+      "import": "./dist/shared/timezone-utils.js",
+      "default": "./dist/shared/timezone-utils.js"
     }
   },
   "publishConfig": {

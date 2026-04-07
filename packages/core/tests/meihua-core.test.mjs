@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { Lunar } from 'lunar-javascript';
 
 import * as mcpCore from '@mingai/core';
-import { buildListToolsPayload, buildToolSuccessPayload } from '@mingai/core/transport';
+import { buildListToolsPayload, buildToolSuccessPayload, executeTool } from '@mingai/core/mcp';
 
 function toIsoLocal(solar, hour = 12, minute = 0, second = 0) {
   return `${solar.getYear()}-${String(solar.getMonth()).padStart(2, '0')}-${String(solar.getDay()).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
@@ -618,7 +618,7 @@ test('meihua number_pair should remain available as extended modern casting and 
 });
 
 test('meihua tool output should stay on meihua semantics instead of liuyao vocabulary', async () => {
-  const rawResult = await mcpCore.handleToolCall('meihua', {
+  const rawResult = await executeTool('meihua', {
     question: '输出契约测试',
     method: 'number_pair',
     numbers: [3, 8],
@@ -638,7 +638,7 @@ test('meihua tool output should stay on meihua semantics instead of liuyao vocab
 });
 
 test('meihua canonical output should preserve date and selected text for multi-clause intent casting', async () => {
-  const rawResult = await mcpCore.handleToolCall('meihua', {
+  const rawResult = await executeTool('meihua', {
     question: '审计',
     method: 'text_split',
     text: '甲乙。丙丁。戊己辛。',
@@ -665,7 +665,7 @@ test('meihua canonical output should preserve date and selected text for multi-c
 });
 
 test('meihua canonical output should preserve structured raw inputs for non-text casting methods', async () => {
-  const classifierRaw = await mcpCore.handleToolCall('meihua', {
+  const classifierRaw = await executeTool('meihua', {
     question: 'cue',
     method: 'classifier_pair',
     upperCue: '老人',
@@ -674,14 +674,14 @@ test('meihua canonical output should preserve structured raw inputs for non-text
     lowerCueCategory: 'direction',
     date: '2026-04-04T10:30:00',
   });
-  const countRaw = await mcpCore.handleToolCall('meihua', {
+  const countRaw = await executeTool('meihua', {
     question: 'count',
     method: 'count_with_time',
     count: 7,
     countCategory: 'sound',
     date: '2026-04-04T05:00:00',
   });
-  const measureRaw = await mcpCore.handleToolCall('meihua', {
+  const measureRaw = await executeTool('meihua', {
     question: 'measure',
     method: 'measure',
     measureKind: '丈尺',
@@ -708,7 +708,7 @@ test('meihua canonical output should preserve structured raw inputs for non-text
 });
 
 test('meihua canonical output should preserve stroke split counts in structured raw input', async () => {
-  const rawResult = await mcpCore.handleToolCall('meihua', {
+  const rawResult = await executeTool('meihua', {
     question: 'stroke',
     method: 'text_split',
     textSplitMode: 'stroke',

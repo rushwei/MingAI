@@ -5,25 +5,26 @@
  * 不再承载任何具体术数实现。
  */
 
-import type { DayunOutput, DetailLevel } from '../../types.js';
+import type { DayunOutput } from '../bazi-dayun/types.js';
+import type { DetailLevel } from './types.js';
 
 export type BaziCanonicalTextOptions = {
   name?: string;
   dayun?: DayunOutput;
-  detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
 
 export type DayunCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
 
 export type TarotCanonicalTextOptions = {
   birthDate?: string | null;
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
 
 export type ZiweiCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
   horoscope?: {
     decadal: { palaceName: string; ageRange: string; };
     yearly: { palaceName: string; period: string; };
@@ -33,22 +34,21 @@ export type ZiweiCanonicalTextOptions = {
 };
 
 export type QimenCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
 
 export type DaliurenCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
 
 export type ZiweiHoroscopeCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
 
-export type FortuneCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+export type AlmanacCanonicalTextOptions = {
+  detailLevel?: DetailLevel;
 };
 
 export type MeihuaCanonicalTextOptions = {
-  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+  detailLevel?: DetailLevel;
 };
-

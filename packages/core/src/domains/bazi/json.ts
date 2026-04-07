@@ -1,18 +1,20 @@
 import type {
   BaziCanonicalJSON,
+} from './json-types.js';
+import type {
   BranchRelationJSON,
   DayunItemJSON,
   HiddenStemJSON,
   LiunianItemJSON,
   TrueSolarTimeJSON
-} from '../../json-types.js';
+} from '../shared/json-types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   BaziOutput
-} from '../../types.js';
-import { GAN_WUXING } from '../../utils.js';
+} from './types.js';
+import { GAN_WUXING } from '../../shared/utils.js';
 import type {
   BaziCanonicalTextOptions
 } from '../shared/text-options.js';

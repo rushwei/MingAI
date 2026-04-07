@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { zonedTimeToUtc } = require('../src/timezone-utils.ts');
+const { zonedTimeToUtc } = require('../src/shared/timezone-utils.ts');
 
 test('zonedTimeToUtc converts Asia/Shanghai local time to UTC', () => {
   const date = zonedTimeToUtc({

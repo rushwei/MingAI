@@ -1,7 +1,7 @@
-import type { DaliurenOutput } from '../../daliuren/types.js';
+import type { DaliurenOutput } from './types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   DaliurenCanonicalTextOptions
 } from '../shared/text-options.js';

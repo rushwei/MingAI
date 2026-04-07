@@ -1,12 +1,14 @@
 import {
   mapZiweiFlyingStarQueryType
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   FlyingStarResult,
+  ZiweiFlyingStarOutput
+} from './types.js';
+import type {
   MutagedPlaceInfo,
   SurroundedPalaceInfo,
-  ZiweiFlyingStarOutput
-} from '../../types.js';
+} from '../shared/types.js';
 
 function formatZiweiFlyingStarResult(r: FlyingStarResult, lines: string[]): void {
   const formatPalace = (name: string | null | undefined) => {

@@ -1,9 +1,9 @@
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   DayunOutput
-} from '../../types.js';
+} from './types.js';
 import type {
   DayunCanonicalTextOptions
 } from '../shared/text-options.js';

@@ -1,18 +1,20 @@
 import type {
-  BranchRelationJSON,
   DayunCanonicalJSON,
+} from './json-types.js';
+import type {
+  BranchRelationJSON,
   DayunItemJSON,
   HiddenStemJSON,
   LiunianItemJSON
-} from '../../json-types.js';
+} from '../shared/json-types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   DayunOutput
-} from '../../types.js';
+} from './types.js';
 import type {
-  BaziCanonicalTextOptions
+  DayunCanonicalTextOptions
 } from '../shared/text-options.js';
 
 function buildHiddenStemJSON(item: { stem: string; tenGod: string; qiType?: string; }): HiddenStemJSON {
@@ -114,7 +116,7 @@ function buildDayunItemJSON(item: {
   };
 }
 
-export function renderDayunCanonicalJSON(result: DayunOutput, options: { detailLevel?: BaziCanonicalTextOptions['detailLevel']; } = {}): DayunCanonicalJSON {
+export function renderDayunCanonicalJSON(result: DayunOutput, options: { detailLevel?: DayunCanonicalTextOptions['detailLevel']; } = {}): DayunCanonicalJSON {
   const detailLevel = normalizeDetailLevelBinary(options.detailLevel);
   const json: DayunCanonicalJSON = {
     起运信息: {

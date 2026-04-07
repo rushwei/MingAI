@@ -1,4 +1,21 @@
 
+export interface TarotCardDefinition {
+  name: string;
+  nameChinese: string;
+  number?: number;
+  keywords: string[];
+  reversedKeywords?: string[];
+  suit: 'major' | 'wands' | 'cups' | 'swords' | 'pentacles';
+  element?: string;
+  astrologicalCorrespondence?: string;
+}
+
+export interface TarotSpreadDefinition {
+  id: string;
+  name: string;
+  positions: string[];
+}
+
 export interface TarotCardResult {
   position: string;
   card: {

@@ -1,9 +1,9 @@
 import type {
   BaziPillarsResolveCanonicalJSON
-} from '../../json-types.js';
+} from './json-types.js';
 import type {
   BaziPillarsResolveOutput
-} from '../../types.js';
+} from './types.js';
 
 export function renderBaziPillarsResolveCanonicalJSON(
   result: BaziPillarsResolveOutput,

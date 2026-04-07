@@ -5,15 +5,17 @@ import {
   traditionalYaoName,
   WANG_SHUAI_LABELS,
   YONG_SHEN_STATUS_LABELS,
-} from '../../liuyao-core.js';
+} from './calculate.js';
 import {
   buildShenSystemMap,
   mapLiuyaoRelationLabel
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
+import type {
+  ShenSystemInfo
+} from '../shared/types.js';
 import type {
   LiuyaoOutput,
-  ShenSystemInfo
-} from '../../types.js';
+} from './types.js';
 
 function formatShenSystemParts(system: ShenSystemInfo | undefined): string[] {
   const parts: string[] = [];
@@ -252,18 +254,14 @@ function buildLiuyaoSafeInteractionText(result: LiuyaoOutput): string[] {
   return lines;
 }
 
-export function renderLiuyaoAISafeText(result: LiuyaoOutput): string {
-  return renderLiuyaoLevelText(result, { detailLevel: 'default' });
-}
-
-export function renderLiuyaoLevelText(
+export function renderLiuyaoText(
   result: LiuyaoOutput,
-  options?: { detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug'; },
+  options?: { detailLevel?: 'default' | 'more' | 'full'; },
 ): string {
   const requested = options?.detailLevel;
-  const detailLevel = requested === 'more' || requested === 'facts'
+  const detailLevel= requested === 'more'
     ? 'more'
-    : requested === 'full' || requested === 'debug'
+    : requested === 'full'
       ? 'full'
       : 'default';
 

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateLiuyaoData, renderLiuyaoCanonicalJSON, renderToolResult } from '@mingai/core';
-import { buildToolSuccessPayload } from '@mingai/core/transport';
+import { calculateLiuyao, toLiuyaoCanonicalJson } from '@mingai/core/liuyao';
+import { buildToolSuccessPayload, renderToolResult } from '@mingai/core/mcp';
 
-const SAFE_SAMPLE = {
+const DEFAULT_SAMPLE = {
   seed: 'seed',
   question: '事业是否顺利',
   hexagramName: '天火同人',
@@ -66,8 +66,8 @@ const SAFE_SAMPLE = {
   ],
 };
 
-test('liuyao tool markdown defaults to AI-safe text', () => {
-  const markdown = renderToolResult('liuyao', SAFE_SAMPLE, 'markdown', { detailLevel: 'default' }).content[0].text;
+test('liuyao tool markdown defaults to the compact board text', () => {
+  const markdown = renderToolResult('liuyao', DEFAULT_SAMPLE, 'markdown', { detailLevel: 'default' }).content[0].text;
 
   assert.match(markdown, /# 六爻盘面/u);
   assert.match(markdown, /## 卦盘总览/u);
@@ -81,8 +81,8 @@ test('liuyao tool markdown defaults to AI-safe text', () => {
   assert.doesNotMatch(markdown, /huaJue/u);
 });
 
-test('liuyao more detail level should expose deterministic facts without computed flags', async () => {
-  const result = await calculateLiuyaoData({
+test('liuyao more detail level should expose expanded board details without computed flags', async () => {
+  const result = await calculateLiuyao({
     method: 'select',
     yongShenTargets: ['官鬼', '父母'],
     changedHexagramName: '巽为风',
@@ -104,8 +104,8 @@ test('liuyao more detail level should expose deterministic facts without compute
   assert.doesNotMatch(payload.content[0].text, /\| 爻位 \| 六神 \| 神煞 \| 伏神 \| 本卦六亲\/干支 \| 旺衰 \|/u);
 });
 
-test('liuyao full detail level should expose facts and computed flags for the exam sample', async () => {
-  const result = await calculateLiuyaoData({
+test('liuyao full detail level should expose complete board details and computed flags for the exam sample', async () => {
+  const result = await calculateLiuyao({
     method: 'select',
     yongShenTargets: ['官鬼', '父母'],
     changedHexagramName: '巽为风',
@@ -137,7 +137,7 @@ test('liuyao full detail level should expose facts and computed flags for the ex
 });
 
 test('liuyao canonical json should keep global shensha separate from guaLevelAnalysis', () => {
-  const json = renderLiuyaoCanonicalJSON({
+  const json = toLiuyaoCanonicalJson({
     question: '事业是否顺利',
     hexagramName: '天火同人',
     hexagramGong: '离',
@@ -170,7 +170,7 @@ test('liuyao canonical json should keep global shensha separate from guaLevelAna
 });
 
 test('liuyao canonical json should preserve selected snapshot fields for non-visible yongshen sources', () => {
-  const json = renderLiuyaoCanonicalJSON({
+  const json = toLiuyaoCanonicalJson({
     question: '测试',
     hexagramName: '水雷屯',
     hexagramGong: '坎',

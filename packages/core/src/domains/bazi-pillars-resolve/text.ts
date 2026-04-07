@@ -1,6 +1,6 @@
 import type {
   BaziPillarsResolveOutput
-} from '../../types.js';
+} from './types.js';
 
 export function renderBaziPillarsResolveCanonicalText(result: BaziPillarsResolveOutput): string {
   const lines: string[] = [

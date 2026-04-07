@@ -100,7 +100,7 @@ const rendered = renderToolResult('bazi_calculate', result, 'json');
 | `@mingai/core/bazi-core` | 八字核心算法 |
 | `@mingai/core/bazi-pillars-resolve-core` | 四柱反推候选时间 |
 | `@mingai/core/dayun-core` | 大运核心算法 |
-| `@mingai/core/fortune-core` | 黄历/每日运势核心算法 |
+| `@mingai/core/almanac` | 黄历/每日运势核心算法 |
 | `@mingai/core/liuyao-core` | 六爻共享核心 |
 | `@mingai/core/meihua-core` | 梅花易数核心算法 |
 | `@mingai/core/ziwei-core` | 紫微排盘与共享 helper |

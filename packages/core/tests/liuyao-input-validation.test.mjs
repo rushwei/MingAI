@@ -6,7 +6,7 @@ import * as mcpCore from '@mingai/core';
 test('liuyao rejects missing yongShenTargets when question is provided', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: '近期事业如何',
         method: 'select',
         hexagramName: '天火同人',
@@ -19,7 +19,7 @@ test('liuyao rejects missing yongShenTargets when question is provided', async (
 test('liuyao rejects empty yongShenTargets when question is provided', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: '近期事业如何',
         yongShenTargets: [],
         method: 'select',
@@ -33,7 +33,7 @@ test('liuyao rejects empty yongShenTargets when question is provided', async () 
 test('liuyao rejects empty question with explicit empty yongShenTargets', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: '',
         yongShenTargets: [],
         method: 'select',
@@ -47,7 +47,7 @@ test('liuyao rejects empty question with explicit empty yongShenTargets', async 
 test('liuyao rejects omitted yongShenTargets even when question is empty', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: '',
         method: 'select',
         hexagramName: '天火同人',
@@ -60,7 +60,7 @@ test('liuyao rejects omitted yongShenTargets even when question is empty', async
 test('liuyao rejects non-array yongShenTargets even when question is empty', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: '',
         yongShenTargets: null,
         method: 'select',
@@ -74,7 +74,7 @@ test('liuyao rejects non-array yongShenTargets even when question is empty', asy
 test('liuyao rejects non-string question to avoid contract bypass', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: 123,
         yongShenTargets: [],
         method: 'select',
@@ -88,7 +88,7 @@ test('liuyao rejects non-string question to avoid contract bypass', async () => 
 test('liuyao rejects illegal yongShenTargets values', async () => {
   await assert.rejects(
     () =>
-      mcpCore.calculateLiuyaoData({
+      mcpCore.calculateLiuyao({
         question: '近期事业如何',
         yongShenTargets: ['官鬼', '无效目标'],
         method: 'select',
@@ -100,7 +100,7 @@ test('liuyao rejects illegal yongShenTargets values', async () => {
 });
 
 test('liuyao accepts explicit multiple targets in strict mode', async () => {
-  const result = await mcpCore.calculateLiuyaoData({
+  const result = await mcpCore.calculateLiuyao({
     question: '考试结果和排名怎么样',
     yongShenTargets: ['官鬼', '父母'],
     method: 'select',

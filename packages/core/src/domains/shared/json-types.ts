@@ -63,19 +63,22 @@ export interface DerivedHexagramJSON {
   象辞?: string;
 }
 
-export interface LiuyaoAISafeCombinationJSON {
+export interface LiuyaoCombinationJSON {
   类型: '半合' | '三合';
   结果五行: string;
-  参与者?: LiuyaoAISafeParticipantJSON[];
+  参与者?: LiuyaoParticipantJSON[];
   名称?: string;
   位置?: string[];
 }
 
-export interface LiuyaoAISafeParticipantJSON {
+export interface LiuyaoParticipantJSON {
   来源: '动爻' | '变爻' | '月建' | '日建';
   地支: string;
   位置?: string;
 }
+
+export type LiuyaoAISafeCombinationJSON = LiuyaoCombinationJSON;
+export type LiuyaoAISafeParticipantJSON = LiuyaoParticipantJSON;
 
 // ===== 紫微 =====
 
@@ -107,16 +110,3 @@ export interface ZiweiFlyingStarResultJSON {
   本宫?: string;
   矩阵宫位?: { 对宫: string; 三合1: string; 三合2: string; };
 }
-
-export type { DayunCanonicalJSON } from '../bazi-dayun/json-types.js';
-export type { BaziPillarsResolveCanonicalJSON } from '../bazi-pillars-resolve/json-types.js';
-export type { BaziCanonicalJSON, BaziPillarJSON } from '../bazi/json-types.js';
-export type { DaliurenCanonicalJSON } from '../daliuren/json-types.js';
-export type { FortuneCanonicalJSON } from '../fortune/json-types.js';
-export type { LiuyaoAISafeJSON, LiuyaoAISafeLineJSON, LiuyaoCanonicalJSON, LiuyaoYaoJSON, LiuyaoYongShenJSON } from '../liuyao/json-types.js';
-export type { MeihuaCanonicalJSON } from '../meihua/json-types.js';
-export type { QimenCanonicalJSON, QimenPalaceJSON } from '../qimen/json-types.js';
-export type { TarotCanonicalJSON, TarotCardJSON, TarotNumerologyCardJSON } from '../tarot/json-types.js';
-export type { ZiweiFlyingStarCanonicalJSON } from '../ziwei-flying-star/json-types.js';
-export type { ZiweiHoroscopeCanonicalJSON } from '../ziwei-horoscope/json-types.js';
-export type { ZiweiCanonicalJSON, ZiweiPalaceJSON } from '../ziwei/json-types.js';

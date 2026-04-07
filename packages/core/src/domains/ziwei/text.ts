@@ -1,10 +1,10 @@
 import {
   formatZiweiCanonicalLunarDate,
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   ZiweiOutput
-} from '../../types.js';
+} from './types.js';
 import type {
   ZiweiCanonicalTextOptions
 } from '../shared/text-options.js';

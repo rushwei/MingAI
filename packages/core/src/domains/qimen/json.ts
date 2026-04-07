@@ -1,12 +1,12 @@
 import type {
   QimenCanonicalJSON
-} from '../../json-types.js';
+} from './json-types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   QimenOutput
-} from '../../types.js';
+} from './types.js';
 import type {
   QimenCanonicalTextOptions
 } from '../shared/text-options.js';

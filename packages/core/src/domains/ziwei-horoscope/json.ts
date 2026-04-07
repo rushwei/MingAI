@@ -1,13 +1,13 @@
 import { Solar } from 'lunar-javascript';
 import type {
   ZiweiHoroscopeCanonicalJSON
-} from '../../json-types.js';
+} from './json-types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   ZiweiHoroscopeOutput
-} from '../../types.js';
+} from './types.js';
 import type {
   ZiweiHoroscopeCanonicalTextOptions
 } from '../shared/text-options.js';

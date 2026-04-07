@@ -1,15 +1,19 @@
 import type {
-  ZiweiFlyingStarCanonicalJSON,
   ZiweiFlyingStarResultJSON
-} from '../../json-types.js';
+} from '../shared/json-types.js';
+import type {
+  ZiweiFlyingStarCanonicalJSON,
+} from './json-types.js';
 import {
   mapZiweiFlyingStarQueryType
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   MutagedPlaceInfo,
   SurroundedPalaceInfo,
+} from '../shared/types.js';
+import type {
   ZiweiFlyingStarOutput
-} from '../../types.js';
+} from './types.js';
 
 export function renderZiweiFlyingStarCanonicalJSON(
   result: ZiweiFlyingStarOutput,

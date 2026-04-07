@@ -1,10 +1,10 @@
-import type { DaliurenOutput } from '../../daliuren/types.js';
+import type { DaliurenOutput } from './types.js';
 import type {
   DaliurenCanonicalJSON
-} from '../../json-types.js';
+} from './json-types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   DaliurenCanonicalTextOptions
 } from '../shared/text-options.js';
@@ -52,7 +52,7 @@ export function renderDaliurenCanonicalJSON(result: DaliurenOutput, options: { d
     遁干: chuanData[i][3] || '-',
   }));
 
-  const gongInfos = result.gongInfos.map((item) => ({
+  const gongInfos = result.gongInfos.map((item: DaliurenOutput['gongInfos'][number]) => ({
     地盘: item.diZhi,
     ...(item.wuXing ? { 五行: item.wuXing } : {}),
     ...(item.wangShuai ? { 旺衰: item.wangShuai } : {}),

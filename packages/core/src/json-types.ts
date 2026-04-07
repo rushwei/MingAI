@@ -2,7 +2,7 @@ export * from './domains/bazi-dayun/json-types.js';
 export * from './domains/bazi-pillars-resolve/json-types.js';
 export * from './domains/bazi/json-types.js';
 export * from './domains/daliuren/json-types.js';
-export * from './domains/fortune/json-types.js';
+export * from './domains/almanac/json-types.js';
 export * from './domains/liuyao/json-types.js';
 export * from './domains/meihua/json-types.js';
 export * from './domains/qimen/json-types.js';

@@ -2,23 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  calculateDailyFortune,
-  calculateBaziPillarsResolve,
-  renderBaziCanonicalJSON,
-  calculateDaliurenData,
-  calculateQimenData,
-  calculateTarotData,
+  calculateDailyAlmanac,
+  calculateDaliuren,
+  calculateQimen,
+  calculateTarot,
+  calculateZiwei,
   calculateZiweiFlyingStar,
-  calculateZiweiHoroscopeData,
-  calculateZiweiData,
-  renderDaliurenCanonicalJSON,
-  renderBaziPillarsResolveCanonicalJSON,
-  renderFortuneCanonicalJSON,
-  renderQimenCanonicalJSON,
-  renderTarotCanonicalJSON,
-  renderZiweiFlyingStarCanonicalJSON,
-  renderZiweiHoroscopeCanonicalJSON,
-  renderZiweiCanonicalJSON,
+  calculateZiweiHoroscope,
+  resolveBaziPillars,
+  toAlmanacJson,
+  toBaziJson,
+  toBaziPillarsResolveJson,
+  toDaliurenJson,
+  toQimenJson,
+  toTarotJson,
+  toZiweiFlyingStarJson,
+  toZiweiHoroscopeJson,
+  toZiweiJson,
 } from '@mingai/core';
 
 function createBaziResult(overrides = {}) {
@@ -80,7 +80,7 @@ function createBaziResult(overrides = {}) {
 }
 
 test('qimen canonical json should preserve machine-readable fields needed by web ui', async () => {
-  const result = await calculateQimenData({
+  const result = await calculateQimen({
     year: 2026,
     month: 3,
     day: 22,
@@ -90,8 +90,8 @@ test('qimen canonical json should preserve machine-readable fields needed by web
     question: '项目推进',
   });
 
-  const json = renderQimenCanonicalJSON(result);
-  const fullJson = renderQimenCanonicalJSON(result, { detailLevel: 'full' });
+  const json = toQimenJson(result);
+  const fullJson = toQimenJson(result, { detailLevel: 'full' });
 
   assert.equal(json.九宫盘.length, 9);
   assert.equal(typeof json.九宫盘[0]?.宫位序号, 'number');
@@ -107,7 +107,7 @@ test('qimen canonical json should preserve machine-readable fields needed by web
 });
 
 test('daliuren canonical json should not expose fields omitted by canonical text spec', async () => {
-  const result = await calculateDaliurenData({
+  const result = await calculateDaliuren({
     date: '2026-03-22',
     hour: 10,
     minute: 0,
@@ -115,8 +115,8 @@ test('daliuren canonical json should not expose fields omitted by canonical text
     question: '项目推进',
   });
 
-  const json = renderDaliurenCanonicalJSON(result);
-  const fullJson = renderDaliurenCanonicalJSON(result, { detailLevel: 'full' });
+  const json = toDaliurenJson(result);
+  const fullJson = toDaliurenJson(result, { detailLevel: 'full' });
 
   assert.equal('yinYangGuiRen' in result, false);
   assert.equal(json.四课.length, 4);
@@ -131,13 +131,13 @@ test('daliuren canonical json should not expose fields omitted by canonical text
 });
 
 test('almanac canonical json should expose Chinese grouped keys and keep full-only calendrical extensions opt-in', async () => {
-  const result = await calculateDailyFortune({
+  const result = await calculateDailyAlmanac({
     date: '2026-04-01',
     dayMaster: '戊',
   });
 
-  const json = renderFortuneCanonicalJSON(result);
-  const fullJson = renderFortuneCanonicalJSON(result, { detailLevel: 'full' });
+  const json = toAlmanacJson(result);
+  const fullJson = toAlmanacJson(result, { detailLevel: 'full' });
 
   assert.equal(typeof json.基础与个性化坐标.日期, 'string');
   assert.equal(typeof json.基础与个性化坐标.日干支, 'string');
@@ -157,20 +157,20 @@ test('almanac canonical json should expose Chinese grouped keys and keep full-on
 });
 
 test('bazi canonical json should de-duplicate branch relation summaries without showing missing banhe branches', () => {
-  const json = renderBaziCanonicalJSON(createBaziResult());
+  const json = toBaziJson(createBaziResult());
 
   assert.deepEqual(json.干支关系, ['子辰半合水', '寅卯辰三会木']);
 });
 
 test('bazi_pillars_resolve canonical json should expose Chinese keys and next-call guidance', async () => {
-  const result = await calculateBaziPillarsResolve({
+  const result = await resolveBaziPillars({
     yearPillar: '癸未',
     monthPillar: '庚申',
     dayPillar: '戊寅',
     hourPillar: '丁巳',
   });
 
-  const json = renderBaziPillarsResolveCanonicalJSON(result);
+  const json = toBaziPillarsResolveJson(result);
 
   assert.equal(typeof json.原始四柱.年柱, 'string');
   assert.equal(typeof json.候选数量, 'number');
@@ -188,7 +188,7 @@ test('bazi_pillars_resolve canonical json should expose Chinese keys and next-ca
 });
 
 test('daliuren canonical json keeps full tianjiang names for palace grid color mapping', async () => {
-  const result = await calculateDaliurenData({
+  const result = await calculateDaliuren({
     date: '2026-03-22',
     hour: 10,
     minute: 0,
@@ -196,7 +196,7 @@ test('daliuren canonical json keeps full tianjiang names for palace grid color m
     question: '项目推进',
   });
 
-  const json = renderDaliurenCanonicalJSON(result);
+  const json = toDaliurenJson(result);
 
   assert.deepEqual(
     json.天地盘.map((item) => item.天将),
@@ -205,7 +205,7 @@ test('daliuren canonical json keeps full tianjiang names for palace grid color m
 });
 
 test('ziwei canonical json should expose compact default output while keeping full detail opt-in', async () => {
-  const result = await calculateZiweiData({
+  const result = await calculateZiwei({
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,
@@ -215,8 +215,8 @@ test('ziwei canonical json should expose compact default output while keeping fu
     calendarType: 'solar',
   });
 
-  const json = renderZiweiCanonicalJSON(result);
-  const fullJson = renderZiweiCanonicalJSON(result, { detailLevel: 'full' });
+  const json = toZiweiJson(result);
+  const fullJson = toZiweiJson(result, { detailLevel: 'full' });
 
   assert.equal(Array.isArray(json.十二宫位), true);
   assert.equal('decadalList' in json, false);
@@ -242,7 +242,7 @@ test('ziwei canonical json should expose compact default output while keeping fu
 });
 
 test('ziwei_horoscope canonical json should expose Chinese keys for horoscope periods', async () => {
-  const result = await calculateZiweiHoroscopeData({
+  const result = await calculateZiweiHoroscope({
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -253,8 +253,8 @@ test('ziwei_horoscope canonical json should expose Chinese keys for horoscope pe
     targetDate: '2026-03-22',
   });
 
-  const json = renderZiweiHoroscopeCanonicalJSON(result);
-  const fullJson = renderZiweiHoroscopeCanonicalJSON(result, { detailLevel: 'full' });
+  const json = toZiweiHoroscopeJson(result);
+  const fullJson = toZiweiHoroscopeJson(result, { detailLevel: 'full' });
 
   assert.equal(typeof json.基本信息.目标日期, 'string');
   assert.equal(typeof json.基本信息.五行局, 'string');
@@ -288,7 +288,7 @@ test('ziwei_flying_star canonical json should expose Chinese keys and readable q
     ],
   });
 
-  const json = renderZiweiFlyingStarCanonicalJSON(result);
+  const json = toZiweiFlyingStarJson(result);
 
   assert.equal(Array.isArray(json.查询结果), true);
   assert.equal(typeof json.查询结果[0]?.查询序号, 'number');
@@ -305,7 +305,7 @@ test('ziwei_flying_star canonical json should expose Chinese keys and readable q
 });
 
 test('tarot canonical json should expose slim default output and full numerology detail on demand', async () => {
-  const result = await calculateTarotData({
+  const result = await calculateTarot({
     spreadType: 'three-card',
     question: '接下来会怎样',
     birthYear: 2003,
@@ -314,8 +314,8 @@ test('tarot canonical json should expose slim default output and full numerology
     seed: 'tarot-contract',
   });
 
-  const json = renderTarotCanonicalJSON(result);
-  const fullJson = renderTarotCanonicalJSON(result, { detailLevel: 'full' });
+  const json = toTarotJson(result);
+  const fullJson = toTarotJson(result, { detailLevel: 'full' });
 
   assert.equal(typeof json.问卜设定.牌阵, 'string');
   assert.equal(typeof json.问卜设定.问题, 'string');

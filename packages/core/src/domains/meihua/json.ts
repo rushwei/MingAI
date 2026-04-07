@@ -1,15 +1,15 @@
 import type {
   MeihuaCanonicalJSON
-} from '../../json-types.js';
+} from './json-types.js';
 import {
   traditionalYaoName
-} from '../../liuyao-core.js';
+} from '../liuyao/calculate.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   MeihuaOutput
-} from '../../types.js';
+} from './types.js';
 import type {
   MeihuaCanonicalTextOptions
 } from '../shared/text-options.js';

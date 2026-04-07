@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as mcpCore from '@mingai/core';
 
 test('liuyao should accept ISO timestamps with timezone offsets', async () => {
-  const result = await mcpCore.calculateLiuyaoData({
+  const result = await mcpCore.calculateLiuyao({
     question: '这个计划能推进吗',
     yongShenTargets: ['官鬼'],
     method: 'select',

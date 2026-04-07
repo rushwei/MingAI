@@ -1,10 +1,10 @@
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   QimenOutput
-} from '../../types.js';
-import { GAN_WUXING } from '../../utils.js';
+} from './types.js';
+import { GAN_WUXING } from '../../shared/utils.js';
 import type {
   QimenCanonicalTextOptions
 } from '../shared/text-options.js';

@@ -1,12 +1,12 @@
 import type {
   TarotCanonicalJSON
-} from '../../json-types.js';
+} from './json-types.js';
 import {
   normalizeDetailLevelBinary
-} from '../../render-utils.js';
+} from '../../shared/render-utils.js';
 import type {
   TarotOutput
-} from '../../types.js';
+} from './types.js';
 import type {
   TarotCanonicalTextOptions
 } from '../shared/text-options.js';

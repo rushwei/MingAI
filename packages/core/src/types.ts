@@ -2,7 +2,7 @@ export * from './domains/bazi-dayun/types.js';
 export * from './domains/bazi-pillars-resolve/types.js';
 export * from './domains/bazi/types.js';
 export * from './domains/daliuren/types.js';
-export * from './domains/fortune/types.js';
+export * from './domains/almanac/types.js';
 export * from './domains/liuyao/types.js';
 export * from './domains/meihua/types.js';
 export * from './domains/qimen/types.js';

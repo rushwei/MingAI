@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as mcpCore from '@mingai/core';
-import { buildToolSuccessPayload } from '@mingai/core/transport';
+import { buildToolSuccessPayload, executeTool } from '@mingai/core/mcp';
 
 function createBaziResult() {
   return {
@@ -45,8 +44,54 @@ test('markdown response should still keep schema-aligned structuredContent', () 
   assert.doesNotMatch(payload.content[0].text, /"basicInfo"/u, 'markdown content should remain human-readable text');
 });
 
+test('runtime placeResolutionInfo should merge into ziwei structured output when declared in tool schema', async () => {
+  const horoscopeRaw = await executeTool('ziwei_horoscope', {
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    birthHour: 10,
+    birthMinute: 20,
+    calendarType: 'solar',
+  });
+  const flyingStarRaw = await executeTool('ziwei_flying_star', {
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    birthHour: 10,
+    birthMinute: 20,
+    calendarType: 'solar',
+    queries: [{ type: 'mutagedPlaces', palace: '命宫' }],
+  });
+  const placeResolutionInfo = {
+    requestedPlace: '广东河源',
+    resolved: true,
+    provider: 'amap',
+    usedLongitude: 114.700215,
+    source: 'birth_place',
+    trueSolarTimeApplied: true,
+  };
+
+  const horoscopePayload = buildToolSuccessPayload(
+    'ziwei_horoscope',
+    { ...horoscopeRaw, placeResolutionInfo },
+    'json',
+  );
+  const flyingStarPayload = buildToolSuccessPayload(
+    'ziwei_flying_star',
+    { ...flyingStarRaw, placeResolutionInfo },
+    'json',
+  );
+
+  assert.equal(horoscopePayload.structuredContent.placeResolutionInfo.usedLongitude, 114.700215);
+  assert.equal(horoscopePayload.structuredContent.placeResolutionInfo.source, 'birth_place');
+  assert.equal(flyingStarPayload.structuredContent.placeResolutionInfo.usedLongitude, 114.700215);
+  assert.equal(flyingStarPayload.structuredContent.placeResolutionInfo.source, 'birth_place');
+});
+
 test('tarot default/full should split slim card text from detailed numerology metadata', async () => {
-  const rawResult = await mcpCore.handleToolCall('tarot', {
+  const rawResult = await executeTool('tarot', {
     spreadType: 'single',
     question: '今天如何',
     birthYear: 2003,
@@ -79,7 +124,7 @@ test('tarot default/full should split slim card text from detailed numerology me
 });
 
 test('almanac default/full should keep default compact and full append complete calendrical details', async () => {
-  const rawResult = await mcpCore.handleToolCall('almanac', {
+  const rawResult = await executeTool('almanac', {
     date: '2026-04-01',
     dayMaster: '戊',
   });
@@ -107,7 +152,7 @@ test('almanac default/full should keep default compact and full append complete 
 });
 
 test('meihua detailLevel full should reach transport renderers and expose full-only seasonal fields', async () => {
-  const rawResult = await mcpCore.handleToolCall('meihua', {
+  const rawResult = await executeTool('meihua', {
     question: '这次合作能否谈成？',
     method: 'time',
     date: '2026-04-04T10:30:00',
@@ -132,7 +177,7 @@ test('meihua detailLevel full should reach transport renderers and expose full-o
 });
 
 test('bazi_calculate tool output should keep chart-only boundaries without implicit dayun summary', async () => {
-  const rawResult = await mcpCore.handleToolCall('bazi_calculate', {
+  const rawResult = await executeTool('bazi_calculate', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -150,7 +195,7 @@ test('bazi_calculate tool output should keep chart-only boundaries without impli
 });
 
 test('bazi_calculate detailLevel full should restore full metadata while default stays slim', async () => {
-  const rawResult = await mcpCore.handleToolCall('bazi_calculate', {
+  const rawResult = await executeTool('bazi_calculate', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -180,7 +225,7 @@ test('bazi_calculate detailLevel full should restore full metadata while default
 });
 
 test('bazi_dayun should expose slim default output and detailed full output', async () => {
-  const rawResult = await mcpCore.handleToolCall('bazi_dayun', {
+  const rawResult = await executeTool('bazi_dayun', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -208,7 +253,7 @@ test('bazi_dayun should expose slim default output and detailed full output', as
 });
 
 test('ziwei_calculate should expose compact default output and preserve full detail on demand', async () => {
-  const rawResult = await mcpCore.handleToolCall('ziwei_calculate', {
+  const rawResult = await executeTool('ziwei_calculate', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -255,7 +300,7 @@ test('ziwei_calculate should expose compact default output and preserve full det
 });
 
 test('ziwei_calculate should expose compact default output and keep full board behind detailLevel full', async () => {
-  const rawResult = await mcpCore.handleToolCall('ziwei_calculate', {
+  const rawResult = await executeTool('ziwei_calculate', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
