@@ -5,7 +5,7 @@
 
 import { useMemo, useState, type CSSProperties } from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
-import type { LiuyaoCanonicalJSON } from '@mingai/core/json';
+import type { LiuyaoCanonicalJSON } from '@mingai/core/liuyao';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS } from '@/lib/divination/liuyao-term-tips';
 import { KONG_WANG_LABELS } from '@/lib/divination/liuyao';
 

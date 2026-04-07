@@ -1,9 +1,47 @@
-import type { DaliurenOutput } from '@mingai/core/daliuren-core';
-import { renderDaliurenCanonicalText } from '@mingai/core/text';
+/**
+ * 大六壬薄封装层
+ *
+ * 统一 Web 侧对 core 计算、canonical JSON 与复制文本的访问入口。
+ */
+
+import {
+    calculateDaliuren,
+    toDaliurenJson,
+    toDaliurenText,
+    type DaliurenCanonicalJSON,
+    type DaliurenInput,
+    type DaliurenOutput,
+} from '@mingai/core/daliuren';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
-export function generateDaliurenResultText(result: DaliurenOutput, options: { detailLevel?: ChartTextDetailLevel } = {}): string {
-    return renderDaliurenCanonicalText(result, {
-        detailLevel: resolveChartTextDetailLevel('daliuren', options.detailLevel),
+export type {
+    DaliurenCanonicalJSON,
+    DaliurenInput,
+    DaliurenOutput,
+} from '@mingai/core/daliuren';
+
+export function calculateDaliurenBundle(input: DaliurenInput): { output: DaliurenOutput } {
+    return {
+        output: calculateDaliuren(input),
+    };
+}
+
+export function buildDaliurenCanonicalJSON(output: DaliurenOutput): DaliurenCanonicalJSON {
+    return toDaliurenJson(output) as DaliurenCanonicalJSON;
+}
+
+export function generateDaliurenChartText(
+    output: DaliurenOutput,
+    options?: {
+        question?: string;
+        detailLevel?: ChartTextDetailLevel;
+    },
+): string {
+    const nextOutput = options?.question
+        ? { ...output, question: options.question }
+        : output;
+
+    return toDaliurenText(nextOutput, {
+        detailLevel: resolveChartTextDetailLevel('daliuren', options?.detailLevel),
     });
 }

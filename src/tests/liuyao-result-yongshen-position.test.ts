@@ -5,22 +5,18 @@ import { resolveTraditionalYongShenPositions } from '../lib/divination/liuyao-re
 
 test('result page resolves yongshen highlight positions when selected labels include 爻 suffix', () => {
     const positions = resolveTraditionalYongShenPositions({
-        yaos: [
-            { position: '上九', liuQin: '子孙' },
-            { position: '九五', liuQin: '妻财' },
-            { position: '九四', liuQin: '兄弟' },
-            { position: '六三', liuQin: '官鬼' },
-            { position: '六二', liuQin: '父母' },
-            { position: '初九', liuQin: '妻财' },
+        六爻: [
+            { 爻位: '上九', 六亲: '子孙' },
+            { 爻位: '九五', 六亲: '妻财' },
+            { 爻位: '九四', 六亲: '兄弟' },
+            { 爻位: '六三', 六亲: '官鬼' },
+            { 爻位: '六二', 六亲: '父母' },
+            { 爻位: '初九', 六亲: '妻财' },
         ],
-        yongShenAnalysis: [{
-            targetLiuQin: '妻财',
-            selectionStatus: '已定',
-            selected: {
-                position: '初九爻',
-                liuQin: '妻财',
-                strengthLabel: '旺',
-                movementLabel: '静',
+        用神分析: [{
+            已选用神: {
+                爻位: '初九爻',
+                六亲: '妻财',
             },
         }],
     } as any);
@@ -30,22 +26,18 @@ test('result page resolves yongshen highlight positions when selected labels inc
 
 test('result page does not highlight yongshen when normalized position matches but liuqin differs', () => {
     const positions = resolveTraditionalYongShenPositions({
-        yaos: [
-            { position: '上九', liuQin: '子孙' },
-            { position: '九五', liuQin: '妻财' },
-            { position: '九四', liuQin: '兄弟' },
-            { position: '六三', liuQin: '官鬼' },
-            { position: '六二', liuQin: '父母' },
-            { position: '初九', liuQin: '兄弟' },
+        六爻: [
+            { 爻位: '上九', 六亲: '子孙' },
+            { 爻位: '九五', 六亲: '妻财' },
+            { 爻位: '九四', 六亲: '兄弟' },
+            { 爻位: '六三', 六亲: '官鬼' },
+            { 爻位: '六二', 六亲: '父母' },
+            { 爻位: '初九', 六亲: '兄弟' },
         ],
-        yongShenAnalysis: [{
-            targetLiuQin: '妻财',
-            selectionStatus: '已定',
-            selected: {
-                position: '初九爻',
-                liuQin: '妻财',
-                strengthLabel: '旺',
-                movementLabel: '静',
+        用神分析: [{
+            已选用神: {
+                爻位: '初九爻',
+                六亲: '妻财',
             },
         }],
     } as any);

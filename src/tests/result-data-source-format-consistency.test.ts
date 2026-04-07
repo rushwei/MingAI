@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { toDaliurenText, toQimenText } from '@mingai/core';
+import { resolveChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
@@ -39,7 +41,7 @@ test('tarot data source formatForAI should reuse canonical reading text', async 
 
 test('qimen data source formatForAI should reuse canonical qimen text', async () => {
   const { qimenProvider } = await import('../lib/data-sources/qimen');
-  const { generateQimenResultText } = await import('../lib/divination/qimen-shared');
+  const { calculateQimenBundle } = await import('../lib/divination/qimen');
 
   const row = {
     id: 'qimen-1',
@@ -47,46 +49,41 @@ test('qimen data source formatForAI should reuse canonical qimen text', async ()
     question: '项目会顺利吗',
     dun_type: 'yang',
     ju_number: 3,
-    chart_data: {
-      solarDate: '2026-03-25 10:00',
-      lunarDate: '二月初七',
-      fourPillars: { year: '甲辰', month: '丁卯', day: '己亥', hour: '己巳' },
-      dunType: 'yang',
-      juNumber: 3,
-      xunShou: '甲子',
-      yuan: '上元',
-      zhiFu: '天蓬',
-      zhiFuPalace: 1,
-      zhiShi: '休门',
-      zhiShiPalace: 1,
-      solarTerm: '春分',
-      solarTermRange: '2026-03-20 ~ 2026-04-03',
-      panTypeLabel: '转盘',
-      juMethodLabel: '拆补',
-      palaces: [],
-      monthPhase: {},
-      kongWang: {
-        dayKong: { branches: ['辰', '巳'], palaces: [4, 9] },
-        hourKong: { branches: ['午', '未'], palaces: [2, 7] },
-      },
-      yiMa: { branch: '申', palace: 6 },
-      globalFormations: [],
-    },
+    year: 2026,
+    month: 3,
+    day: 25,
+    hour: 10,
+    minute: 0,
+    timezone: 'Asia/Shanghai',
+    pan_type: 'zhuan',
+    ju_method: 'chaibu',
+    zhi_fu_ji_gong: 'ji_liuyi',
     created_at: '2026-03-25T00:00:00.000Z',
   };
 
+  const { output } = await calculateQimenBundle({
+    year: row.year,
+    month: row.month,
+    day: row.day,
+    hour: row.hour,
+    minute: row.minute,
+    timezone: row.timezone,
+    question: row.question,
+    panType: 'zhuan',
+    juMethod: 'chaibu',
+    zhiFuJiGong: 'jiLiuYi',
+  });
+
   assert.equal(
-    qimenProvider.formatForAI(row as never),
-    generateQimenResultText({
-      ...row.chart_data,
-      question: row.question,
-    } as never),
+    await qimenProvider.formatForAI(row as never),
+    toQimenText(row.question ? { ...output, question: row.question } : output, {
+      detailLevel: resolveChartTextDetailLevel('qimen', undefined),
+    }),
   );
 });
 
 test('daliuren data source formatForAI should reuse canonical daliuren text', async () => {
   const { daliurenProvider } = await import('../lib/data-sources/daliuren');
-  const { generateDaliurenResultText } = await import('../lib/divination/daliuren');
 
   const row = {
     id: 'daliuren-1',
@@ -147,14 +144,19 @@ test('daliuren data source formatForAI should reuse canonical daliuren text', as
 
   assert.equal(
     daliurenProvider.formatForAI(row as never),
-    generateDaliurenResultText(row.result_data as never),
+    toDaliurenText(row.result_data as never, {
+      detailLevel: resolveChartTextDetailLevel('daliuren', undefined),
+    }),
   );
 });
 
 test('liuyao data source formatForAI should reuse traditional copy text path when analysis data is complete', async () => {
   const { liuyaoProvider } = await import('../lib/data-sources/liuyao');
-  const { buildTraditionalInfo } = await import('../lib/divination/liuyao-format-utils');
-  const { findHexagram } = await import('../lib/divination/liuyao');
+  const {
+    calculateLiuyaoBundle,
+    findHexagram,
+    generateLiuyaoChartText,
+  } = await import('../lib/divination/liuyao');
 
   const row = {
     id: 'liuyao-1',
@@ -173,19 +175,58 @@ test('liuyao data source formatForAI should reuse traditional copy text path whe
     change: row.changed_lines.includes(index + 1) ? 'changing' as const : 'stable' as const,
     position: index + 1,
   }));
+  const bundle = calculateLiuyaoBundle({
+    yaos,
+    question: row.question,
+    date: new Date(row.created_at),
+    yongShenTargets: ['官鬼'],
+    hexagram: findHexagram(row.hexagram_code)!,
+    changedHexagram: findHexagram(row.changed_hexagram_code)!,
+  });
 
   assert.equal(
     liuyaoProvider.formatForAI(row as never),
-    buildTraditionalInfo(
-      yaos,
-      row.hexagram_code,
-      row.changed_hexagram_code,
-      row.question,
-      new Date(row.created_at),
-      ['官鬼'],
-      findHexagram(row.hexagram_code)!,
-      findHexagram(row.changed_hexagram_code)!,
-    ),
+    generateLiuyaoChartText(bundle.output),
+  );
+});
+
+test('ziwei data source formatForAI should rebuild canonical text from stored base fields', async () => {
+  const { ziweiProvider } = await import('../lib/data-sources/ziwei');
+  const { calculateZiweiChartBundle, generateZiweiChartText } = await import('../lib/divination/ziwei');
+
+  const row = {
+    id: 'ziwei-1',
+    user_id: 'user-1',
+    name: '紫微命主',
+    gender: 'male',
+    birth_date: '1990-01-01',
+    birth_time: '08:00',
+    birth_place: '北京',
+    longitude: 116.4074,
+    calendar_type: 'solar',
+    is_leap_month: false,
+    created_at: '2026-03-25T00:00:00.000Z',
+  };
+
+  const bundle = calculateZiweiChartBundle({
+    name: '紫微命主',
+    gender: 'male',
+    birthYear: 1990,
+    birthMonth: 1,
+    birthDay: 1,
+    birthHour: 8,
+    birthMinute: 0,
+    birthPlace: '北京',
+    longitude: 116.4074,
+    calendarType: 'solar',
+    isLeapMonth: false,
+  });
+
+  assert.equal(
+    ziweiProvider.formatForAI(row as never),
+    generateZiweiChartText(bundle.output, {
+      detailLevel: resolveChartTextDetailLevel('ziwei', undefined),
+    }),
   );
 });
 

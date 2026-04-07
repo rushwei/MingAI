@@ -1,19 +1,20 @@
 /**
  * 占卜路由工厂
  *
- * 封装 9 条占卜路由共享的 7 步流水线：
+ * 封装 9 条占卜路由共享的 8 步流水线：
  * 1. Auth (requireBearerUser)
- * 2. Credits + membership check (getUserAuthInfo)
- * 3. Model access resolution (resolveModelAccessAsync)
- * 4. Credit deduction (useCredit)
- * 5. AI call (stream / non-stream, text / vision)
- * 6. Persist conversation (createAIAnalysisConversation)
- * 7. Refund on failure (addCredits)
+ * 2. Route precheck
+ * 3. Async prompt-context resolve / request validation
+ * 4. Credits + membership check (getUserAuthInfo)
+ * 5. Model access resolution (resolveModelAccessAsync)
+ * 6. Credit deduction (useCredit)
+ * 7. AI call (stream / non-stream, text / vision)
+ * 8. Persist conversation + refund on failure
  */
 
 import { type NextRequest } from 'next/server';
 import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
-import { jsonError, requireBearerUser, SSE_HEADERS } from '@/lib/api-utils';
+import { jsonError, requireBearerUser, requireUserContext, SSE_HEADERS } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
@@ -40,23 +41,35 @@ export interface InterpretPrompts {
 export interface InterpretPromptContext {
   userId: string;
   chartPromptDetailLevel: ChartTextDetailLevel;
+  [key: string]: unknown;
 }
 
-export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput> {
+type RouteError = { error: string; status: number };
+
+type AuthMethod = 'bearer' | 'userContext';
+
+export interface DivinationRouteConfig<
+  T extends InterpretInput = InterpretInput,
+  TContext extends InterpretPromptContext = InterpretPromptContext,
+> {
   /** conversations.source_type */
-  sourceType: string;
+  sourceType: string | ((input: T, context?: TContext) => string);
   /** Log tag, e.g. 'tarot', 'liuyao' */
   tag: string;
+  /** Auth strategy (defaults to Bearer token). */
+  authMethod?: AuthMethod;
   /** Parse & validate the request body. Return parsed input or an error. */
-  parseInput: (body: unknown) => T | { error: string; status: number };
+  parseInput: (body: unknown) => T | RouteError;
+  /** Optional async precheck after auth but before AI pipeline continues. */
+  precheck?: (request: NextRequest, input: T, userId: string) => Promise<RouteError | null> | RouteError | null;
   /** Build system + user prompts from parsed input. */
-  buildPrompts: (input: T, context?: InterpretPromptContext) => InterpretPrompts | Promise<InterpretPrompts>;
+  buildPrompts: (input: T, context?: TContext) => InterpretPrompts | Promise<InterpretPrompts>;
   /** Optional prompt context resolver (used for user settings such as chart prompt detail level). */
-  resolvePromptContext?: (input: T, userId: string) => Promise<InterpretPromptContext> | InterpretPromptContext;
+  resolvePromptContext?: (input: T, userId: string) => Promise<TContext | RouteError> | TContext | RouteError;
   /** Build source_data for createAIAnalysisConversation. */
-  buildSourceData: (input: T, modelId: string, reasoningEnabled: boolean) => Record<string, unknown>;
+  buildSourceData: (input: T, modelId: string, reasoningEnabled: boolean, context?: TContext) => Record<string, unknown>;
   /** Generate conversation title. */
-  generateTitle: (input: T) => string;
+  generateTitle: (input: T, context?: TContext) => string;
   /** Default model ID (defaults to DEFAULT_MODEL_ID). */
   defaultModelId?: string;
   /** AI personality for the call (defaults to 'general'). */
@@ -71,7 +84,15 @@ export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput
     membershipDeniedMessage?: string;
   };
   /** 该路由允许 AI 输出的可视化图表类型。传入后会自动在 system prompt 尾部追加图表输出合约。 */
-  allowedChartTypes?: ChartType[];
+  allowedChartTypes?: ChartType[] | ((input: T, context?: TContext) => ChartType[]);
+  /** Empty AI result message. */
+  emptyResultMessage?: string;
+  /** Custom success response shape for non-stream routes. */
+  formatSuccessResponse?: (result: {
+    content: string;
+    reasoning: string | null;
+    conversationId: string | null;
+  }) => Record<string, unknown>;
   /**
    * Optional post-persist hook. Called after conversation is created.
    * Use for updating reading/divination records with conversation_id.
@@ -80,6 +101,7 @@ export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput
     input: T,
     userId: string,
     conversationId: string | null,
+    context?: TContext,
   ) => Promise<void>;
 }
 
@@ -143,24 +165,30 @@ export function createPersistentStreamResponse({
 // ─── Factory ───
 
 /**
- * Create a POST handler that runs the 7-step interpret pipeline.
+ * Create a POST handler that runs the shared interpret pipeline.
  *
  * The returned handler:
  * 1. Authenticates via Bearer token
- * 2. Checks credits & membership
- * 3. Resolves model access
- * 4. Deducts a credit
- * 5. Calls AI (stream or non-stream; text or vision)
- * 6. Persists the conversation
- * 7. Refunds on failure
+ * 2. Runs route-specific precheck
+ * 3. Resolves async prompt context / validation
+ * 4. Checks credits & membership
+ * 5. Resolves model access
+ * 6. Deducts a credit
+ * 7. Calls AI (stream or non-stream; text or vision)
+ * 8. Persists the conversation and refunds on failure
  */
-export function createInterpretHandler<T extends InterpretInput>(
-  config: DivinationRouteConfig<T>,
+export function createInterpretHandler<
+  T extends InterpretInput,
+  TContext extends InterpretPromptContext = InterpretPromptContext,
+>(
+  config: DivinationRouteConfig<T, TContext>,
 ) {
   const {
     sourceType,
     tag,
+    authMethod = 'bearer',
     parseInput,
+    precheck,
     buildPrompts,
     resolvePromptContext,
     buildSourceData,
@@ -171,6 +199,8 @@ export function createInterpretHandler<T extends InterpretInput>(
     buildVisionOptions,
     modelAccessOptions,
     allowedChartTypes,
+    emptyResultMessage = 'AI 分析结果为空，请稍后重试',
+    formatSuccessResponse,
     persistRecord,
   } = config;
 
@@ -187,11 +217,26 @@ export function createInterpretHandler<T extends InterpretInput>(
     const input = parsed as T;
 
     // 1. Auth
-    const authResult = await requireBearerUser(request);
+    const authResult = authMethod === 'userContext'
+      ? await requireUserContext(request)
+      : await requireBearerUser(request);
     if ('error' in authResult) {
       return jsonError(authResult.error.message, authResult.error.status, { success: false });
     }
     const { user } = authResult;
+
+    const precheckResult = precheck ? await precheck(request, input, user.id) : null;
+    if (precheckResult) {
+      return jsonError(precheckResult.error, precheckResult.status, { success: false });
+    }
+
+    const promptContextResult = resolvePromptContext
+      ? await resolvePromptContext(input, user.id)
+      : undefined;
+    if (promptContextResult && typeof promptContextResult === 'object' && 'error' in promptContextResult && 'status' in promptContextResult) {
+      return jsonError(promptContextResult.error, promptContextResult.status, { success: false });
+    }
+    const promptContext = promptContextResult as TContext | undefined;
 
     // 2. Credits + membership
     const authInfo = await getUserAuthInfo(user.id);
@@ -213,12 +258,12 @@ export function createInterpretHandler<T extends InterpretInput>(
     const { modelId: resolvedModelId, modelConfig, reasoningEnabled } = access;
 
     // Build prompts, optionally appending visualization output contract
-    const promptContext = resolvePromptContext
-      ? await resolvePromptContext(input, user.id)
-      : undefined;
     const { systemPrompt: rawSystemPrompt, userPrompt } = await buildPrompts(input, promptContext);
-    const systemPrompt = allowedChartTypes?.length
-      ? `${rawSystemPrompt}\n\n${buildVisualizationOutputContractPrompt(allowedChartTypes)}`
+    const resolvedAllowedChartTypes = typeof allowedChartTypes === 'function'
+      ? allowedChartTypes(input, promptContext)
+      : allowedChartTypes;
+    const systemPrompt = resolvedAllowedChartTypes?.length
+      ? `${rawSystemPrompt}\n\n${buildVisualizationOutputContractPrompt(resolvedAllowedChartTypes)}`
       : rawSystemPrompt;
 
     // 4. Deduct credit
@@ -233,20 +278,20 @@ export function createInterpretHandler<T extends InterpretInput>(
       if (isVision && buildVisionOptions) {
         return await handleVisionCall(
           input, user.id, resolvedModelId, modelConfig, reasoningEnabled,
-          systemPrompt, userPrompt,
+          systemPrompt, userPrompt, promptContext,
         );
       }
 
       if (stream) {
         return await handleStreamCall(
           input, user.id, resolvedModelId, reasoningEnabled,
-          systemPrompt, userPrompt,
+          systemPrompt, userPrompt, promptContext,
         );
       }
 
       return await handleNonStreamCall(
         input, user.id, resolvedModelId, reasoningEnabled,
-        systemPrompt, userPrompt,
+        systemPrompt, userPrompt, promptContext,
       );
     } catch (aiError) {
       await addCredits(user.id, 1);
@@ -260,6 +305,7 @@ export function createInterpretHandler<T extends InterpretInput>(
     input: T, userId: string, resolvedModelId: string,
     _modelConfig: AIModelConfig, reasoningEnabled: boolean,
     systemPrompt: string, userPrompt: string,
+    promptContext?: TContext,
   ): Promise<Response> {
     const visionOpts = buildVisionOptions!(input);
     const analysisResult = await callAIVision(
@@ -271,10 +317,10 @@ export function createInterpretHandler<T extends InterpretInput>(
     );
 
     const conversationId = await persistConversation(
-      input, userId, resolvedModelId, reasoningEnabled, analysisResult, null,
+      input, userId, resolvedModelId, reasoningEnabled, analysisResult, null, promptContext,
     );
     if (persistRecord) {
-      await persistRecord(input, userId, conversationId);
+      await persistRecord(input, userId, conversationId, promptContext);
     }
 
     return jsonOk({
@@ -287,6 +333,7 @@ export function createInterpretHandler<T extends InterpretInput>(
   async function handleStreamCall(
     input: T, userId: string, resolvedModelId: string,
     reasoningEnabled: boolean, systemPrompt: string, userPrompt: string,
+    promptContext?: TContext,
   ): Promise<Response> {
     const streamResult = await callAIUIMessageResult(
       [{ role: 'user', content: userPrompt }],
@@ -299,11 +346,15 @@ export function createInterpretHandler<T extends InterpretInput>(
       streamResult,
       onStreamComplete: async ({ content, reasoning }) => {
         try {
+          if (!content?.trim()) {
+            await addCredits(userId, 1);
+            return { error: emptyResultMessage };
+          }
           const conversationId = await persistConversation(
-            input, userId, resolvedModelId, reasoningEnabled, content, reasoning,
+            input, userId, resolvedModelId, reasoningEnabled, content, reasoning, promptContext,
           );
           if (persistRecord) {
-            await persistRecord(input, userId, conversationId);
+            await persistRecord(input, userId, conversationId, promptContext);
           }
           return {};
         } catch (err) {
@@ -318,6 +369,7 @@ export function createInterpretHandler<T extends InterpretInput>(
   async function handleNonStreamCall(
     input: T, userId: string, resolvedModelId: string,
     reasoningEnabled: boolean, systemPrompt: string, userPrompt: string,
+    promptContext?: TContext,
   ): Promise<Response> {
     const { content, reasoning: reasoningText } = await callAIWithReasoning(
       [{ role: 'user', content: userPrompt }],
@@ -326,34 +378,46 @@ export function createInterpretHandler<T extends InterpretInput>(
       `\n\n${systemPrompt}\n\n`,
       { reasoning: reasoningEnabled, temperature: 0.7 },
     );
-
-    const conversationId = await persistConversation(
-      input, userId, resolvedModelId, reasoningEnabled, content, reasoningText ?? null,
-    );
-    if (persistRecord) {
-      await persistRecord(input, userId, conversationId);
+    if (!content?.trim()) {
+      await addCredits(userId, 1);
+      return jsonError(emptyResultMessage, 500, { success: false });
     }
 
-    return jsonOk({
-      success: true,
-      data: { analysis: content, reasoning: reasoningText, conversationId },
-    });
+    const conversationId = await persistConversation(
+      input, userId, resolvedModelId, reasoningEnabled, content, reasoningText ?? null, promptContext,
+    );
+    if (persistRecord) {
+      await persistRecord(input, userId, conversationId, promptContext);
+    }
+
+    return jsonOk(
+      formatSuccessResponse
+        ? formatSuccessResponse({ content, reasoning: reasoningText ?? null, conversationId })
+        : {
+            success: true,
+            data: { analysis: content, reasoning: reasoningText, conversationId },
+          },
+    );
   }
 
   // ── Shared persistence ──
   async function persistConversation(
     input: T, userId: string, resolvedModelId: string,
     reasoningEnabled: boolean, aiResponse: string, reasoningText: string | null,
+    promptContext?: TContext,
   ): Promise<string | null> {
-    const sourceData = buildSourceData(input, resolvedModelId, reasoningEnabled);
+    const sourceData = buildSourceData(input, resolvedModelId, reasoningEnabled, promptContext);
     if (reasoningText) {
       sourceData.reasoning_text = reasoningText;
     }
+    const resolvedSourceType = typeof sourceType === 'function'
+      ? sourceType(input, promptContext)
+      : sourceType;
     return createAIAnalysisConversation({
       userId,
-      sourceType: sourceType as Parameters<typeof createAIAnalysisConversation>[0]['sourceType'],
+      sourceType: resolvedSourceType as Parameters<typeof createAIAnalysisConversation>[0]['sourceType'],
       sourceData,
-      title: generateTitle(input),
+      title: generateTitle(input, promptContext),
       aiResponse,
     });
   }

@@ -53,6 +53,6 @@ export async function resolveDataSources(
     return Promise.all(refs.map(async ({ type, id }) => {
         const provider = await getProvider(type);
         const data = await provider.get(id, userId, ctx);
-        return { type, id, content: data ? provider.formatForAI(data) : '' };
+        return { type, id, content: data ? await provider.formatForAI(data, ctx) : '' };
     }));
 }

@@ -7,9 +7,12 @@ import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
-import { calculateDaliurenData, type DaliurenOutput } from '@mingai/core/daliuren-core';
-import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
+import {
+    calculateDaliurenBundle,
+    generateDaliurenChartText,
+    type DaliurenOutput,
+} from '@/lib/divination/daliuren';
 
 interface DaliurenRequest {
     action: 'calculate' | 'interpret' | 'save';
@@ -35,10 +38,10 @@ interface DaliurenInterpretInput extends InterpretInput {
 }
 
 function buildDaliurenPrompt(result: DaliurenOutput, question?: string, detailLevel?: 'default' | 'more' | 'full'): string {
-    return `${generateDaliurenResultText({
-        ...result,
+    return `${generateDaliurenChartText(result, {
         question: question || result.question,
-    }, { detailLevel })}\n\n请详细解读。`;
+        detailLevel,
+    })}\n\n请详细解读。`;
 }
 
 const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
@@ -97,10 +100,10 @@ export async function POST(request: NextRequest) {
                 if (!date || hour == null) {
                     return jsonError('请提供日期和时辰', 400, { success: false });
                 }
-                const result = calculateDaliurenData({
+                const { output } = calculateDaliurenBundle({
                     date, hour, minute, timezone, question, birthYear, gender,
                 });
-                return jsonOk({ success: true, data: result });
+                return jsonOk({ success: true, data: output });
             }
 
             case 'save': {

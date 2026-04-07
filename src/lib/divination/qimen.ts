@@ -1,129 +1,57 @@
 /**
  * 奇门遁甲薄封装层
  *
- * 从 @mingai/core 导入核心排盘逻辑，
- * 将 core 输出转换为前端所需的数据结构。
+ * Web 侧仅保留输入归一化，计算与输出结构完全以 @mingai/core/qimen 为准。
  */
 
 import {
-    calculateQimenData as coreCalculate,
-    type QimenOutput as CoreOutput,
-    type QimenInput as CoreInput,
-} from '@mingai/core/qimen-core';
-import type { QimenOutput, QimenPalaceInfo } from './qimen-shared';
+    calculateQimen,
+    toQimenJson,
+    toQimenText,
+    type QimenCanonicalJSON,
+    type QimenInput as CoreQimenInput,
+    type QimenOutput,
+} from '@mingai/core/qimen';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
-// ── 前端类型定义 ──
+export type { QimenCanonicalJSON, QimenOutput } from '@mingai/core/qimen';
+export type StoredQimenZhiFuJiGong = 'ji_liuyi' | 'ji_wugong';
 
-export interface QimenInput {
-    year: number;
-    month: number;
-    day: number;
-    hour: number;
+export interface QimenInput extends Omit<CoreQimenInput, 'minute' | 'panType' | 'zhiFuJiGong'> {
     minute: number;
-    timezone?: string;
-    question?: string;
     panType: 'zhuan';
-    juMethod: 'chaibu' | 'maoshan';
     zhiFuJiGong: 'jiLiuYi' | 'jiWuGong';
 }
 
-// ── 天干五行 ──
+export async function calculateQimenBundle(input: QimenInput): Promise<{ output: QimenOutput }> {
+    const output = await calculateQimen({
+        ...input,
+        zhiFuJiGong: toStoredQimenZhiFuJiGong(input.zhiFuJiGong),
+    });
 
-const STEM_ELEMENT: Record<string, string> = {
-    '甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土',
-    '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水',
-};
-
-// ── 月令旺衰 ──
-
-const SEASON_WANG_SHUAI: Record<string, Record<string, string>> = {
-    '春': { '木': '旺', '火': '相', '水': '休', '金': '囚', '土': '死' },
-    '夏': { '火': '旺', '土': '相', '木': '休', '水': '囚', '金': '死' },
-    '四季土': { '土': '旺', '金': '相', '火': '休', '木': '囚', '水': '死' },
-    '秋': { '金': '旺', '水': '相', '土': '休', '火': '囚', '木': '死' },
-    '冬': { '水': '旺', '木': '相', '金': '休', '土': '囚', '火': '死' },
-};
-
-function getSeason(monthBranch: string): string {
-    if (['寅', '卯'].includes(monthBranch)) return '春';
-    if (['巳', '午'].includes(monthBranch)) return '夏';
-    if (['辰', '戌', '丑', '未'].includes(monthBranch)) return '四季土';
-    if (['申', '酉'].includes(monthBranch)) return '秋';
-    return '冬';
+    return { output };
 }
 
-function computeMonthPhase(monthPillar: string): Record<string, string> {
-    const monthBranch = monthPillar[1];
-    const season = getSeason(monthBranch);
-    const phaseMap = SEASON_WANG_SHUAI[season] || {};
-    const result: Record<string, string> = {};
-    for (const [stem, element] of Object.entries(STEM_ELEMENT)) {
-        result[stem] = phaseMap[element] || '';
-    }
-    return result;
+export function toStoredQimenZhiFuJiGong(value: QimenInput['zhiFuJiGong']): StoredQimenZhiFuJiGong {
+    return value === 'jiWuGong' ? 'ji_wugong' : 'ji_liuyi';
 }
 
-// ── 核心排盘 + 转换 ──
+export function fromStoredQimenZhiFuJiGong(value: string | null | undefined): QimenInput['zhiFuJiGong'] {
+    return value === 'ji_wugong' ? 'jiWuGong' : 'jiLiuYi';
+}
 
-export async function calculateQimenData(input: QimenInput): Promise<QimenOutput> {
-    const coreInput: CoreInput = {
-        year: input.year,
-        month: input.month,
-        day: input.day,
-        hour: input.hour,
-        minute: input.minute,
-        timezone: input.timezone,
-        question: input.question,
-        juMethod: input.juMethod,
-        zhiFuJiGong: input.zhiFuJiGong === 'jiWuGong' ? 'ji_wugong' : 'ji_liuyi',
-    };
+export function buildQimenCanonicalJSON(output: QimenOutput): QimenCanonicalJSON {
+    return toQimenJson(output);
+}
 
-    const core: CoreOutput = await coreCalculate(coreInput);
-
-    const monthPhase = computeMonthPhase(core.siZhu.month);
-
-    const palaces: QimenPalaceInfo[] = core.palaces.map((p) => ({
-        palaceNumber: p.palaceIndex,
-        palaceName: p.palaceName,
-        direction: p.direction,
-        element: p.element,
-        earthStem: p.earthStem,
-        heavenStem: p.heavenStem,
-        star: p.star,
-        gate: p.gate,
-        god: p.deity,
-        patterns: p.formations,
-        isEmpty: p.isKongWang ?? false,
-        isHorseStar: p.isYiMa ?? false,
-        isRuMu: p.isRuMu ?? false,
-        earthStemElement: STEM_ELEMENT[p.earthStem] || '',
-        heavenStemElement: STEM_ELEMENT[p.heavenStem] || '',
-        starElement: p.starElement,
-        gateElement: p.gateElement,
-        stemWangShuai: p.stemWangShuai,
-        elementState: p.elementState,
-    }));
-
-    return {
-        solarDate: core.dateInfo.solarDate,
-        lunarDate: core.dateInfo.lunarDate,
-        fourPillars: core.siZhu,
-        xunShou: core.xunShou,
-        dunType: core.dunType,
-        juNumber: core.juNumber,
-        yuan: core.yuan,
-        zhiFu: core.zhiFu.star,
-        zhiFuPalace: core.zhiFu.palace,
-        zhiShi: core.zhiShi.gate,
-        zhiShiPalace: core.zhiShi.palace,
-        solarTerm: core.dateInfo.solarTerm,
-        solarTermRange: core.dateInfo.solarTermRange || '',
-        panTypeLabel: core.panType,
-        juMethodLabel: core.juMethod,
-        palaces,
-        monthPhase,
-        kongWang: core.kongWang,
-        yiMa: core.yiMa,
-        globalFormations: core.globalFormations,
-    };
+export function generateQimenChartText(
+    output: QimenOutput,
+    options?: {
+        question?: string;
+        detailLevel?: ChartTextDetailLevel;
+    },
+): string {
+    return toQimenText(options?.question ? { ...output, question: options.question } : output, {
+        detailLevel: resolveChartTextDetailLevel('qimen', options?.detailLevel),
+    });
 }

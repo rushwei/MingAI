@@ -17,10 +17,12 @@ import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import {
+    buildLiuyaoCanonicalJSON,
+    calculateLiuyaoBundle,
+    generateLiuyaoChartText,
     type DivinationResult,
     type LiuQin,
     normalizeYongShenTargets,
-    yaosTpCode,
 } from '@/lib/divination/liuyao';
 import {
     resolveResultYongShenState,
@@ -37,7 +39,6 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
-import { buildTraditionalCanonicalJSON, buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
@@ -88,15 +89,22 @@ export default function ResultPage() {
     const missingYongShenTargets = requiresYongShenTargets && appliedYongShenTargets.length === 0;
     const hasAppliedTargets = appliedYongShenTargets.length > 0;
     const canAnalyze = requiresYongShenTargets && hasAppliedTargets;
+    const liuyaoBundle = useMemo(() => {
+        if (!result || !canAnalyze) return null;
+        return calculateLiuyaoBundle({
+            yaos: result.yaos,
+            question: result.question,
+            date: result.createdAt,
+            yongShenTargets: appliedYongShenTargets,
+            hexagram: result.hexagram,
+            changedHexagram: result.changedHexagram,
+        });
+    }, [appliedYongShenTargets, canAnalyze, result]);
 
     const traditionalCanonical = useMemo(() => {
-        if (!result || !canAnalyze) return null;
-        const hexagramCode = yaosTpCode(result.yaos);
-        const changedCode = result.changedHexagram
-            ? yaosTpCode(result.yaos.map(y => ({ ...y, type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as 0 | 1 : y.type })))
-            : undefined;
-        return buildTraditionalCanonicalJSON(result.yaos, hexagramCode, changedCode, result.question, result.createdAt, appliedYongShenTargets, result.hexagram, result.changedHexagram);
-    }, [appliedYongShenTargets, canAnalyze, result]);
+        if (!liuyaoBundle) return null;
+        return buildLiuyaoCanonicalJSON(liuyaoBundle.output);
+    }, [liuyaoBundle]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(traditionalCanonical);
     const traditionalYongShenPositions = useMemo(() => resolveTraditionalYongShenPositions(traditionalCanonical), [traditionalCanonical]);
 
@@ -106,7 +114,9 @@ export default function ResultPage() {
 
     const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
         setCopyDetailLevel(level);
-        const text = buildTraditionalInfo(result!.yaos, yaosTpCode(result!.yaos), result!.changedHexagram ? yaosTpCode(result!.yaos.map(y => ({ ...y, type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as 0 | 1 : y.type }))) : undefined, result!.question, result!.createdAt, appliedYongShenTargets, result!.hexagram, result!.changedHexagram, level);
+        const text = liuyaoBundle
+            ? generateLiuyaoChartText(liuyaoBundle.output, { detailLevel: level })
+            : '';
         await navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);

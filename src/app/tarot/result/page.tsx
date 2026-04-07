@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Sparkles, RotateCcw, RefreshCw, Send, BookOpenText, Copy, Check, Info } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
-import { buildTarotCanonicalJSON, generateTarotReadingText, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
+import { buildTarotCanonicalJSON, findTarotCardByChineseName, generateTarotReadingText, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -329,7 +329,7 @@ function TarotResultContent() {
                                     <div className="relative w-full max-w-[100px] aspect-[2/3] rounded-md overflow-hidden border border-border/60 bg-background-secondary/50">
                                         {(() => {
                                             const cardImage = item.card
-                                                ? TAROT_CARDS.find((card) => card.nameChinese === item.card?.nameChinese)?.image
+                                                ? findTarotCardByChineseName(item.card.nameChinese)?.image
                                                 : null;
                                             return cardImage ? (
                                                 <Image src={cardImage} alt={item.card!.nameChinese} fill className="object-cover" />

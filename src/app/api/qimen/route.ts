@@ -2,19 +2,29 @@
  * 奇门遁甲 API 路由
  *
  * action: 'calculate' — 排盘计算
- * action: 'analyze'  — AI 解读（流式）
+ * action: 'interpret' — AI 解读（流式）
  * action: 'save'     — 保存记录
  */
 import { NextRequest } from 'next/server';
+import { DEFAULT_DIVINATION_TIMEZONE, zonedTimeToUtc } from '@mingai/core/timezone-utils';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { calculateQimenData } from '@/lib/divination/qimen';
-import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import {
+    calculateQimenBundle,
+    generateQimenChartText,
+    toStoredQimenZhiFuJiGong,
+    type QimenInput,
+    type QimenOutput,
+} from '@/lib/divination/qimen';
+import {
+    createInterpretHandler,
+    type InterpretInput,
+    type InterpretPromptContext,
+} from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
 interface QimenRequest {
-    action: 'calculate' | 'analyze' | 'save';
+    action: 'calculate' | 'interpret' | 'save';
     year?: number;
     month?: number;
     day?: number;
@@ -25,67 +35,157 @@ interface QimenRequest {
     panType?: 'zhuan';
     juMethod?: 'chaibu' | 'maoshan';
     zhiFuJiGong?: 'jiLiuYi' | 'jiWuGong';
-    chartData?: QimenOutput;
     modelId?: string;
     reasoning?: boolean;
     stream?: boolean;
     chartId?: string;
 }
 
-// ─── Interpret pipeline config ───
+type RouteError = { error: string; status: number };
 
-interface QimenInterpretInput extends InterpretInput {
-    chart: QimenOutput;
-    question?: string;
+interface QimenInterpretInput extends InterpretInput, QimenInput {
     chartId?: string;
 }
 
-/** 构建排盘信息文本供 AI 解读 */
-function buildChartInfoText(chart: QimenOutput, question?: string, detailLevel?: 'default' | 'more' | 'full'): string {
-    return generateQimenResultText({
-        ...chart,
-        question,
-    }, { detailLevel });
+interface QimenInterpretContext extends InterpretPromptContext {
+    chart: QimenOutput;
 }
 
-const handleInterpret = createInterpretHandler<QimenInterpretInput>({
+function isRouteError(value: unknown): value is RouteError {
+    return Boolean(value && typeof value === 'object' && 'error' in value && 'status' in value);
+}
+
+function parseQimenInput(body: QimenRequest): QimenInput | RouteError {
+    const { year, month, day, hour, minute, panType, juMethod, zhiFuJiGong } = body;
+    if (
+        !Number.isInteger(year)
+        || !Number.isInteger(month)
+        || !Number.isInteger(day)
+        || !Number.isInteger(hour)
+        || !Number.isInteger(minute)
+    ) {
+        return { error: '请提供完整的日期时间', status: 400 };
+    }
+    if (panType && panType !== 'zhuan') {
+        return { error: '当前仅支持转盘', status: 400 };
+    }
+    if (juMethod && juMethod !== 'chaibu' && juMethod !== 'maoshan') {
+        return { error: '定局法无效', status: 400 };
+    }
+    if (zhiFuJiGong && zhiFuJiGong !== 'jiLiuYi' && zhiFuJiGong !== 'jiWuGong') {
+        return { error: '直符寄宫配置无效', status: 400 };
+    }
+
+    const timezone = typeof body.timezone === 'string' && body.timezone.trim()
+        ? body.timezone.trim()
+        : undefined;
+    const question = typeof body.question === 'string' && body.question.trim()
+        ? body.question.trim()
+        : undefined;
+
+    return {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        timezone,
+        question,
+        panType: panType || 'zhuan',
+        juMethod: juMethod || 'chaibu',
+        zhiFuJiGong: zhiFuJiGong || 'jiLiuYi',
+    };
+}
+
+async function calculateQimenOutput(input: QimenInput): Promise<QimenOutput> {
+    const { output } = await calculateQimenBundle(input);
+    return output;
+}
+
+function buildChartInfoText(chart: QimenOutput, question?: string, detailLevel?: 'default' | 'more' | 'full'): string {
+    return generateQimenChartText(chart, { question, detailLevel });
+}
+
+function getChartTime(input: QimenInput): string {
+    return zonedTimeToUtc({
+        year: input.year,
+        month: input.month,
+        day: input.day,
+        hour: input.hour,
+        minute: input.minute,
+    }, input.timezone || DEFAULT_DIVINATION_TIMEZONE).toISOString();
+}
+
+function buildInsertPayload(
+    userId: string,
+    input: QimenInput,
+    chart: QimenOutput,
+    conversationId: string | null = null,
+) {
+    return {
+        user_id: userId,
+        question: input.question || null,
+        chart_time: getChartTime(input),
+        year: input.year,
+        month: input.month,
+        day: input.day,
+        hour: input.hour,
+        minute: input.minute,
+        timezone: input.timezone || DEFAULT_DIVINATION_TIMEZONE,
+        dun_type: chart.dunType,
+        ju_number: chart.juNumber,
+        pan_type: input.panType,
+        ju_method: input.juMethod,
+        zhi_fu_ji_gong: toStoredQimenZhiFuJiGong(input.zhiFuJiGong),
+        conversation_id: conversationId,
+    };
+}
+
+const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpretContext>({
     sourceType: 'qimen',
     tag: 'qimen',
     personality: 'qimen',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.qimen_chart],
     parseInput: (body) => {
-        const b = body as QimenRequest;
-        if (!b.chartData) return { error: '请提供排盘数据', status: 400 };
-        return { chart: b.chartData, question: b.question, chartId: b.chartId };
+        const request = body as QimenRequest;
+        const parsed = parseQimenInput(request);
+        if (isRouteError(parsed)) return parsed;
+        return {
+            ...parsed,
+            chartId: typeof request.chartId === 'string' && request.chartId.trim()
+                ? request.chartId
+                : undefined,
+        };
     },
-    resolvePromptContext: async (_input, userId) => ({
+    resolvePromptContext: async (input, userId) => ({
         userId,
         chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(userId, 'qimen'),
+        chart: await calculateQimenOutput(input),
     }),
-    buildPrompts: (input, promptContext) => {
-        const chartInfo = buildChartInfoText(input.chart, input.question, promptContext?.chartPromptDetailLevel);
+    buildPrompts: (input, context) => {
+        const chartInfo = buildChartInfoText(context.chart, input.question, context.chartPromptDetailLevel);
         return {
             systemPrompt: '',
             userPrompt: `${chartInfo}\n\n请根据以上奇门遁甲排盘信息，为求测者详细解读此局。`,
         };
     },
-    buildSourceData: (input, modelId, reasoningEnabled) => ({
-        dun_type: input.chart.dunType,
-        ju_number: input.chart.juNumber,
-        pan_type_label: input.chart.panTypeLabel,
-        ju_method_label: input.chart.juMethodLabel,
-        four_pillars: input.chart.fourPillars,
+    buildSourceData: (input, modelId, reasoningEnabled, context) => ({
+        dun_type: context.chart.dunType,
+        ju_number: context.chart.juNumber,
+        pan_type_label: context.chart.panType,
+        ju_method_label: context.chart.juMethod,
+        four_pillars: context.chart.siZhu,
         question: input.question || null,
         model_id: modelId,
         reasoning: reasoningEnabled,
     }),
-    generateTitle: (input) => {
+    generateTitle: (input, context) => {
         if (input.question) {
-            return `奇门遁甲 - ${(input.question as string).slice(0, 20)}${(input.question as string).length > 20 ? '...' : ''}`;
+            return `奇门遁甲 - ${input.question.slice(0, 20)}${input.question.length > 20 ? '...' : ''}`;
         }
-        return `奇门遁甲 - ${input.chart.dunType === 'yang' ? '阳遁' : '阴遁'}${input.chart.juNumber}局`;
+        return `奇门遁甲 - ${context.chart.dunType === 'yang' ? '阳遁' : '阴遁'}${context.chart.juNumber}局`;
     },
-    persistRecord: async (input, userId, conversationId) => {
+    persistRecord: async (input, userId, conversationId, context) => {
         const serviceClient = getSystemAdminClient();
         if (input.chartId) {
             await serviceClient
@@ -93,78 +193,62 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput>({
                 .update({ conversation_id: conversationId })
                 .eq('id', input.chartId)
                 .eq('user_id', userId);
-        } else {
-            await serviceClient
-                .from('qimen_charts')
-                .insert({
-                    user_id: userId,
-                    question: input.question || null,
-                    chart_time: new Date().toISOString(),
-                    chart_data: input.chart,
-                    dun_type: input.chart.dunType,
-                    ju_number: input.chart.juNumber,
-                    pan_type: 'zhuan',
-                    ju_method: input.chart.juMethodLabel === '茅山法' ? 'maoshan' : 'chaibu',
-                    conversation_id: conversationId,
-                });
+            return;
         }
+
+        await serviceClient
+            .from('qimen_charts')
+            .insert(buildInsertPayload(userId, input, context.chart, conversationId));
     },
 });
 
 export async function POST(request: NextRequest) {
     try {
         const body: QimenRequest = await request.json();
-        const { action } = body;
 
-        switch (action) {
+        switch (body.action) {
             case 'calculate': {
-                const { year, month, day, hour, minute, timezone, question, panType, juMethod, zhiFuJiGong } = body;
-                if (!year || !month || !day || hour == null || minute == null) {
-                    return jsonError('请提供完整的日期时间', 400, { success: false });
+                const parsed = parseQimenInput(body);
+                if (isRouteError(parsed)) {
+                    return jsonError(parsed.error, parsed.status, { success: false });
                 }
-                if (panType && panType !== 'zhuan') {
-                    return jsonError('当前仅支持转盘', 400, { success: false });
-                }
+
                 const authResult = await requireBearerUser(request);
                 if ('error' in authResult) {
                     return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
-                const result = await calculateQimenData({
-                    year, month, day, hour, minute, timezone, question,
-                    panType: panType || 'zhuan',
-                    juMethod: juMethod || 'chaibu',
-                    zhiFuJiGong: zhiFuJiGong || 'jiLiuYi',
-                });
-                return jsonOk({ success: true, data: result });
+
+                const output = await calculateQimenOutput(parsed);
+                return jsonOk({ success: true, data: output });
             }
 
-            case 'analyze':
+            case 'interpret':
                 return handleInterpret(request, body as unknown as Record<string, unknown>);
 
             case 'save': {
-                const { chartData: saveChartData, question } = body;
-                if (!saveChartData) return jsonError('请提供排盘数据', 400, { success: false });
+                const parsed = parseQimenInput(body);
+                if (isRouteError(parsed)) {
+                    return jsonError(parsed.error, parsed.status, { success: false });
+                }
+
                 const authResult = await requireBearerUser(request);
-                if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
+                if ('error' in authResult) {
+                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
+                }
+
+                const output = await calculateQimenOutput(parsed);
                 const serviceClient = getSystemAdminClient();
                 const { data: inserted, error: insertError } = await serviceClient
                     .from('qimen_charts')
-                    .insert({
-                        user_id: authResult.user.id,
-                        question: question || null,
-                        chart_time: new Date().toISOString(),
-                        chart_data: saveChartData,
-                        dun_type: saveChartData.dunType,
-                        ju_number: saveChartData.juNumber,
-                        pan_type: 'zhuan',
-                        ju_method: saveChartData.juMethodLabel === '茅山法' ? 'maoshan' : 'chaibu',
-                    })
+                    .insert(buildInsertPayload(authResult.user.id, parsed, output))
                     .select('id')
                     .single();
+
                 if (insertError) {
                     console.error('[qimen] 保存排盘记录失败:', insertError.message);
                     return jsonError('保存记录失败', 500, { success: false });
                 }
+
                 return jsonOk({ success: true, data: { chartId: inserted?.id } });
             }
 

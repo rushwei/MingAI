@@ -1,5 +1,6 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { generateDaliurenResultText } from '@/lib/divination/daliuren';
+import { toDaliurenText, type DaliurenOutput } from '@mingai/core/daliuren';
+import { resolveChartTextDetailLevel } from '@/lib/divination/detail-level';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type DaliurenRow = {
@@ -10,7 +11,7 @@ type DaliurenRow = {
     day_ganzhi: string;
     hour_ganzhi: string;
     yue_jiang: string;
-    result_data: Record<string, unknown>;
+    result_data: DaliurenOutput;
     settings: Record<string, unknown> | null;
     conversation_id: string | null;
     created_at: string;
@@ -54,20 +55,20 @@ export const daliurenProvider: DataSourceProvider<DaliurenRow> = {
     },
 
     formatForAI(row: DaliurenRow, ctx?: DataSourceQueryContext): string {
-        const result = row.result_data as Record<string, unknown>;
-        if (!result || typeof result !== 'object') {
+        const result = row.result_data;
+        if (!result) {
             return '大六壬排盘记录缺失';
         }
-        const payload = result as unknown as Parameters<typeof generateDaliurenResultText>[0];
-        return generateDaliurenResultText({
-            ...payload,
-            question: row.question || (result.question as string | undefined),
-        }, { detailLevel: ctx?.chartPromptDetailLevel });
+        return toDaliurenText(row.question ? {
+            ...result,
+            question: row.question,
+        } : result, {
+            detailLevel: resolveChartTextDetailLevel('daliuren', ctx?.chartPromptDetailLevel),
+        });
     },
 
     summarize(row: DaliurenRow): string {
-        const rd = row.result_data as Record<string, unknown>;
-        const keName = rd.keName as string | undefined;
+        const keName = row.result_data?.keName;
         return `大六壬 ${keName || row.day_ganzhi + '日'}${row.question ? ' · ' + row.question : ''}`;
     },
 };

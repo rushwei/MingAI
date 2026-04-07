@@ -1,5 +1,5 @@
 import { normalizeYongShenTargets, type LiuQin } from './liuyao';
-import type { LiuyaoCanonicalJSON } from '@mingai/core/json';
+import type { LiuyaoCanonicalJSON } from '@mingai/core/liuyao';
 
 export type ResultYongShenState = {
     appliedTargets: LiuQin[];

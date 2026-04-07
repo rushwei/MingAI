@@ -17,7 +17,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
-    const originalPerformFullAnalysis = liuyaoModule.performFullAnalysis;
+    const originalCalculateLiuyaoBundle = liuyaoModule.calculateLiuyaoBundle;
 
     const createdAt = new Date('2024-01-02T03:04:05.000Z');
     let capturedDate: Date | undefined;
@@ -29,9 +29,9 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
         error: null,
     });
     aiModule.callAIWithReasoning = async () => ({ content: 'analysis' });
-    liuyaoModule.performFullAnalysis = (...args: unknown[]) => {
-        capturedDate = args[4] as Date;
-        return originalPerformFullAnalysis(...args);
+    liuyaoModule.calculateLiuyaoBundle = (input: { date: Date }) => {
+        capturedDate = input.date;
+        return originalCalculateLiuyaoBundle(input);
     };
 
     supabaseServerModule.getSystemAdminClient = () => ({
@@ -102,7 +102,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         aiModule.callAIWithReasoning = originalCallAIWithReasoning;
-        liuyaoModule.performFullAnalysis = originalPerformFullAnalysis;
+        liuyaoModule.calculateLiuyaoBundle = originalCalculateLiuyaoBundle;
     });
 
     const { POST } = await import('../app/api/liuyao/route');

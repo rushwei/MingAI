@@ -9,7 +9,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Brain, RotateCcw, RefreshCw, Sparkles, Copy, Check, Info } from 'lucide-react';
-import { renderDaliurenCanonicalJSON } from '@mingai/core/json';
 import { useToast } from '@/components/ui/Toast';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { TianDiPanGrid } from '@/components/daliuren/TianDiPanGrid';
@@ -20,8 +19,6 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import type { DaliurenOutput } from '@mingai/core/daliuren-core';
-import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
@@ -30,6 +27,11 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
+import {
+    buildDaliurenCanonicalJSON,
+    generateDaliurenChartText,
+    type DaliurenOutput,
+} from '@/lib/divination/daliuren';
 
 type DaliurenSessionParams = Record<string, unknown> & {
     date?: string;
@@ -67,7 +69,10 @@ export default function DaliurenResultPage() {
     const { session, userId, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
-    const canonicalResult = useMemo(() => (result ? renderDaliurenCanonicalJSON(result) : null), [result]);
+    const canonicalResult = useMemo(
+        () => (result ? buildDaliurenCanonicalJSON(result) : null),
+        [result],
+    );
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
     const persistSessionIds = useCallback((next: { divinationId?: string; conversationId?: string; }) => {
@@ -106,7 +111,7 @@ export default function DaliurenResultPage() {
         if (!result) return;
         try {
             setCopyDetailLevel(level);
-            await navigator.clipboard.writeText(generateDaliurenResultText(result, { detailLevel: level }));
+            await navigator.clipboard.writeText(generateDaliurenChartText(result, { detailLevel: level }));
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             showToast('success', '结果已复制到剪贴板');

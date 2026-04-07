@@ -7,7 +7,6 @@ import { createMockUIMessageResult } from './helpers/ui-message-result';
 ensureRouteTestEnv();
 
 test('qimen route persists analysis after streaming completes', async (t) => {
-    const { calculateQimenData } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -20,19 +19,6 @@ test('qimen route persists analysis after streaming completes', async (t) => {
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
-    const chartData = await calculateQimenData({
-        year: 2025,
-        month: 1,
-        day: 15,
-        hour: 10,
-        minute: 30,
-        timezone: 'Asia/Shanghai',
-        question: '测试问题',
-        panType: 'zhuan',
-        juMethod: 'chaibu',
-        zhiFuJiGong: 'jiLiuYi',
-    });
 
     let createArgs: Record<string, unknown> | null = null;
     let updated: Record<string, unknown> | null = null;
@@ -102,11 +88,19 @@ test('qimen route persists analysis after streaming completes', async (t) => {
             'Authorization': 'Bearer test-token',
         },
         body: JSON.stringify({
-            action: 'analyze',
+            action: 'interpret',
             stream: true,
             chartId: 'chart-1',
             question: '测试问题',
-            chartData,
+            year: 2025,
+            month: 1,
+            day: 15,
+            hour: 10,
+            minute: 30,
+            timezone: 'Asia/Shanghai',
+            panType: 'zhuan',
+            juMethod: 'chaibu',
+            zhiFuJiGong: 'jiLiuYi',
         }),
     });
 
@@ -121,7 +115,6 @@ test('qimen route persists analysis after streaming completes', async (t) => {
 });
 
 test('qimen route surfaces SSE error when stream persistence fails after content generation', async (t) => {
-    const { calculateQimenData } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -132,19 +125,6 @@ test('qimen route surfaces SSE error when stream persistence fails after content
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalConsoleError = console.error;
-
-    const chartData = await calculateQimenData({
-        year: 2025,
-        month: 1,
-        day: 15,
-        hour: 10,
-        minute: 30,
-        timezone: 'Asia/Shanghai',
-        question: '测试问题',
-        panType: 'zhuan',
-        juMethod: 'chaibu',
-        zhiFuJiGong: 'jiLiuYi',
-    });
 
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
@@ -175,11 +155,19 @@ test('qimen route surfaces SSE error when stream persistence fails after content
             'Authorization': 'Bearer test-token',
         },
         body: JSON.stringify({
-            action: 'analyze',
+            action: 'interpret',
             stream: true,
             chartId: 'chart-1',
             question: '测试问题',
-            chartData,
+            year: 2025,
+            month: 1,
+            day: 15,
+            hour: 10,
+            minute: 30,
+            timezone: 'Asia/Shanghai',
+            panType: 'zhuan',
+            juMethod: 'chaibu',
+            zhiFuJiGong: 'jiLiuYi',
         }),
     });
 
@@ -190,4 +178,127 @@ test('qimen route surfaces SSE error when stream persistence fails after content
     assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
     assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
     assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
+});
+
+test('qimen save persists base inputs instead of chart_data', async (t) => {
+    const supabaseModule = require('../lib/auth') as any;
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+
+    let insertedPayload: Record<string, unknown> | null = null;
+
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+    });
+    supabaseServerModule.getSystemAdminClient = () => ({
+        from: (table: string) => {
+            assert.equal(table, 'qimen_charts');
+            return {
+                insert: (payload: Record<string, unknown>) => {
+                    insertedPayload = payload;
+                    return {
+                        select: () => ({
+                            single: async () => ({
+                                data: { id: 'chart-1' },
+                                error: null,
+                            }),
+                        }),
+                    };
+                },
+            };
+        },
+    });
+
+    t.after(() => {
+        supabaseModule.supabase.auth.getUser = originalGetUser;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+    });
+
+    const { POST } = await import('../app/api/qimen/route');
+    const request = new NextRequest('http://localhost/api/qimen', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'save',
+            question: '测试问题',
+            year: 2025,
+            month: 1,
+            day: 15,
+            hour: 10,
+            minute: 30,
+            timezone: 'Asia/Shanghai',
+            panType: 'zhuan',
+            juMethod: 'chaibu',
+            zhiFuJiGong: 'jiLiuYi',
+        }),
+    });
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.data.chartId, 'chart-1');
+    assert.equal(insertedPayload?.question, '测试问题');
+    assert.equal(insertedPayload?.year, 2025);
+    assert.equal(insertedPayload?.month, 1);
+    assert.equal(insertedPayload?.day, 15);
+    assert.equal(insertedPayload?.hour, 10);
+    assert.equal(insertedPayload?.minute, 30);
+    assert.equal(insertedPayload?.timezone, 'Asia/Shanghai');
+    assert.equal(insertedPayload?.pan_type, 'zhuan');
+    assert.equal(insertedPayload?.ju_method, 'chaibu');
+    assert.equal(insertedPayload?.zhi_fu_ji_gong, 'ji_liuyi');
+    assert.equal(typeof insertedPayload?.chart_time, 'string');
+    assert.ok(!('chart_data' in (insertedPayload || {})));
+});
+
+test('qimen route rejects unsupported juMethod before auth', async () => {
+    const { POST } = await import('../app/api/qimen/route');
+    const request = new NextRequest('http://localhost/api/qimen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'calculate',
+            year: 2025,
+            month: 1,
+            day: 15,
+            hour: 10,
+            minute: 30,
+            juMethod: 'zhirun',
+        }),
+    });
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.error, '定局法无效');
+});
+
+test('qimen route rejects unsupported zhiFuJiGong before auth', async () => {
+    const { POST } = await import('../app/api/qimen/route');
+    const request = new NextRequest('http://localhost/api/qimen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'calculate',
+            year: 2025,
+            month: 1,
+            day: 15,
+            hour: 10,
+            minute: 30,
+            zhiFuJiGong: 'invalid-value',
+        }),
+    });
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.error, '直符寄宫配置无效');
 });

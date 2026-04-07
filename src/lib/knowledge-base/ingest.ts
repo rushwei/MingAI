@@ -399,7 +399,7 @@ export async function ingestDataSourceAsService(
     const data = await provider.get(ref.id, userId);
     if (!data) throw new Error('Data source not found');
 
-    const content = provider.formatForAI(data);
+    const content = await provider.formatForAI(data);
     const textChunks = chunkText(content, {
         ...DEFAULT_CHUNK_CONFIG,
         ...(options?.chunkConfig || {})

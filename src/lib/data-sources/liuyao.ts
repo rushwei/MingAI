@@ -1,15 +1,14 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
 import {
+    calculateLiuyaoBundle,
     calculateGanZhiTime,
     calculateKongWangByPillar,
     findHexagram,
+    formatGanZhiTime,
+    generateLiuyaoChartText,
     type Yao,
 } from '@/lib/divination/liuyao';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
-import {
-    buildTraditionalInfo,
-    formatGanZhiTime,
-} from '@/lib/divination/liuyao-format-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type LiuyaoRow = {
@@ -92,17 +91,18 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
         const baseHexagram = findHexagram(r.hexagram_code);
         const changedHexagram = r.changed_hexagram_code ? findHexagram(r.changed_hexagram_code) : undefined;
         if (shouldAnalyze && baseHexagram) {
-            return buildTraditionalInfo(
-                buildYaosFromCode(r.hexagram_code, changedLines),
-                r.hexagram_code,
-                r.changed_hexagram_code || undefined,
+            const bundle = calculateLiuyaoBundle({
+                yaos: buildYaosFromCode(r.hexagram_code, changedLines),
                 question,
-                new Date(r.created_at),
+                date: new Date(r.created_at),
                 yongShenTargets,
-                baseHexagram,
+                hexagram: baseHexagram,
                 changedHexagram,
-                ctx?.chartPromptDetailLevel,
-            );
+            });
+
+            return generateLiuyaoChartText(bundle.output, {
+                detailLevel: ctx?.chartPromptDetailLevel,
+            });
         } else {
             effectiveGanZhiTime = calculateGanZhiTime(new Date(r.created_at));
             effectiveKongWangByPillar = calculateKongWangByPillar(effectiveGanZhiTime);

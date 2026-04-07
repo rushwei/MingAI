@@ -57,6 +57,73 @@ test('history summaries route should support qimen summaries through the shared 
   assert.equal(payload.pagination.hasMore, false);
 });
 
+test('history summaries route should return qimen restore payloads from stored base inputs', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+  type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'qimen_charts');
+        return {
+          select(selectClause: string) {
+            assert.equal(selectClause, '*');
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      maybeSingle: async () => ({
+                        data: {
+                          id: 'qm-restore-1',
+                          question: '合作能成吗',
+                          year: 2026,
+                          month: 3,
+                          day: 16,
+                          hour: 9,
+                          minute: 30,
+                          timezone: 'Asia/Shanghai',
+                          pan_type: 'zhuan',
+                          ju_method: 'chaibu',
+                          zhi_fu_ji_gong: 'ji_wugong',
+                          created_at: '2026-03-16T00:00:00.000Z',
+                          conversation_id: 'conv-qm-1',
+                        },
+                        error: null,
+                      }),
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    } as never,
+  } as unknown as RequireUserContextResult);
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { GET } = await import('../app/api/history-summaries/route');
+  const response = await GET(new NextRequest(
+    'http://localhost/api/history-summaries?type=qimen&id=qm-restore-1&timezone=Asia%2FShanghai',
+  ));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.item.sessionKey, 'qimen_result');
+  assert.equal(payload.item.sessionData.year, 2026);
+  assert.equal(payload.item.sessionData.minute, 30);
+  assert.equal(payload.item.sessionData.timezone, 'Asia/Shanghai');
+  assert.equal(payload.item.sessionData.juMethod, 'chaibu');
+  assert.equal(payload.item.sessionData.zhiFuJiGong, 'jiWuGong');
+  assert.equal(payload.item.sessionData.conversationId, 'conv-qm-1');
+});
+
 test('history summaries route should return daliuren restore payloads through the shared history registry', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
   type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;

@@ -9,7 +9,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sparkles, RotateCw, RefreshCw, Copy, Check, Info } from 'lucide-react';
-import { renderQimenCanonicalJSON } from '@mingai/core/json';
 import { QimenGrid } from '@/components/qimen/QimenGrid';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -24,11 +23,17 @@ import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingRe
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
-import { generateQimenResultText, toCoreQimenOutput, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
+import {
+    calculateQimenBundle,
+    buildQimenCanonicalJSON,
+    generateQimenChartText,
+    type QimenInput,
+    type QimenOutput,
+} from '@/lib/divination/qimen';
 
 /** 五行旺衰图例 */
 const PHASE_LEGEND = [
@@ -39,11 +44,41 @@ const PHASE_LEGEND = [
     { label: '土死', color: 'bg-stone-500' },
 ];
 
-interface QimenSessionData extends QimenOutput {
-    question?: string;
+interface QimenSessionData extends QimenInput {
+    output?: QimenOutput;
     createdAt: string;
     chartId?: string;
     conversationId?: string;
+}
+
+function pickQimenInput(sessionData: QimenSessionData): QimenInput {
+    return {
+        year: sessionData.year,
+        month: sessionData.month,
+        day: sessionData.day,
+        hour: sessionData.hour,
+        minute: sessionData.minute,
+        timezone: sessionData.timezone,
+        question: sessionData.question,
+        panType: sessionData.panType,
+        juMethod: sessionData.juMethod,
+        zhiFuJiGong: sessionData.zhiFuJiGong,
+    };
+}
+
+function buildQimenActionPayload(sessionData: QimenSessionData) {
+    return {
+        year: sessionData.year,
+        month: sessionData.month,
+        day: sessionData.day,
+        hour: sessionData.hour,
+        minute: sessionData.minute,
+        timezone: sessionData.timezone,
+        question: sessionData.question,
+        panType: sessionData.panType,
+        juMethod: sessionData.juMethod,
+        zhiFuJiGong: sessionData.zhiFuJiGong,
+    };
 }
 
 export default function QimenResultPage() {
@@ -69,8 +104,11 @@ export default function QimenResultPage() {
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const currentUser = user ? { id: user.id } : null;
-    const coreResult = useMemo(() => (result ? toCoreQimenOutput(result) : null), [result]);
-    const canonicalResult = useMemo(() => (coreResult ? renderQimenCanonicalJSON(coreResult) : null), [coreResult]);
+    const qimenOutput = result?.output ?? null;
+    const canonicalResult = useMemo(
+        () => (qimenOutput ? buildQimenCanonicalJSON(qimenOutput) : null),
+        [qimenOutput],
+    );
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
     useEffect(() => {
@@ -78,11 +116,36 @@ export default function QimenResultPage() {
         const init = async () => {
             const parsed = readSessionJSON<QimenSessionData>('qimen_result');
             if (!parsed) { router.push('/qimen'); return; }
-            setResult(parsed);
-            if (!parsed.chartId && session?.access_token && !hasSavedRef.current) {
+            let nextResult = parsed;
+
+            if (!nextResult.output) {
+                try {
+                    const { output } = await calculateQimenBundle(pickQimenInput(parsed));
+                    nextResult = { ...parsed, output };
+                    updateSessionJSON('qimen_result', () => nextResult);
+                } catch (e) {
+                    console.error('[qimen/result] 重新计算命盘失败:', e);
+                    router.push('/qimen');
+                    return;
+                }
+            }
+
+            setResult(nextResult);
+
+            if (!nextResult.chartId && session?.access_token && !hasSavedRef.current) {
                 hasSavedRef.current = true;
                 try {
-                    const res = await fetch('/api/qimen', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ action: 'save', chartData: parsed, question: parsed.question }) });
+                    const res = await fetch('/api/qimen', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({
+                            action: 'save',
+                            ...buildQimenActionPayload(nextResult),
+                        }),
+                    });
                     const json = await res.json();
                     if (json?.success && json?.data?.chartId) {
                         updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), chartId: json.data.chartId }));
@@ -126,7 +189,14 @@ export default function QimenResultPage() {
         try {
             const streamResult = await streaming.startStream('/api/qimen', {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-                body: JSON.stringify({ action: 'analyze', chartData: result, question: result.question, modelId: selectedModel, reasoning: reasoningEnabled, stream: true, chartId: result.chartId || null }),
+                body: JSON.stringify({
+                    action: 'interpret',
+                    ...buildQimenActionPayload(result),
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
+                    stream: true,
+                    chartId: result.chartId || null,
+                }),
             });
             if (streamResult?.error && isCreditsError(streamResult.error)) setShowCreditsModal(true);
             else if (streamResult?.content) { setInterpretation(streamResult.content); if (streamResult.reasoning) setInterpretationReasoning(streamResult.reasoning); }
@@ -138,14 +208,17 @@ export default function QimenResultPage() {
     };
 
     const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
-        if (!result) return;
+        if (!result?.output) return;
         setCopyDetailLevel(level);
-        await navigator.clipboard.writeText(generateQimenResultText(result, { detailLevel: level }));
+        await navigator.clipboard.writeText(generateQimenChartText(result.output, {
+            question: result.question,
+            detailLevel: level,
+        }));
         setCopied(true); setTimeout(() => setCopied(false), 2000);
         setShowCopyModal(false);
     };
 
-    if (!result) return (
+    if (!result || !qimenOutput) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
             <SoundWaveLoader variant="block" text="正在排盘" />
         </div>
@@ -180,8 +253,8 @@ export default function QimenResultPage() {
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {[
-                            { label: '公历时间', value: coreResult?.dateInfo.solarDate },
-                            { label: '农历时间', value: coreResult?.dateInfo.lunarDate },
+                            { label: '公历时间', value: qimenOutput.dateInfo.solarDate },
+                            { label: '农历时间', value: qimenOutput.dateInfo.lunarDate },
                             { label: '四柱干支', value: canonicalResult?.基本信息.四柱 },
                             { label: '起局信息', value: canonicalResult ? `${canonicalResult.基本信息.局式} ${canonicalResult.基本信息.旬首}` : '' }
                         ].map(item => (
@@ -205,7 +278,7 @@ export default function QimenResultPage() {
 
                 {/* 九宫格 */}
                 <div className="bg-background border border-border rounded-md overflow-hidden">
-                    <QimenGrid palaces={canonicalResult?.九宫盘 || []} monthPhaseMap={coreResult?.monthPhase} ju={canonicalResult?.基本信息.局式 || ''} />
+                    <QimenGrid palaces={canonicalResult?.九宫盘 || []} monthPhaseMap={qimenOutput.monthPhase} ju={canonicalResult?.基本信息.局式 || ''} />
                 </div>
 
                 {/* AI 解读 */}

@@ -1,5 +1,12 @@
+import { DEFAULT_DIVINATION_TIMEZONE } from '@mingai/core/timezone-utils';
+import { toQimenText } from '@mingai/core/qimen';
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
+import {
+    calculateQimenBundle,
+    fromStoredQimenZhiFuJiGong,
+    type QimenInput,
+} from '@/lib/divination/qimen';
+import { resolveChartTextDetailLevel } from '@/lib/divination/detail-level';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type QimenRow = {
@@ -8,7 +15,15 @@ type QimenRow = {
     question: string | null;
     dun_type: string;
     ju_number: number;
-    chart_data: QimenOutput;
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    timezone: string;
+    pan_type: QimenInput['panType'];
+    ju_method: QimenInput['juMethod'];
+    zhi_fu_ji_gong: string | null;
     created_at: string;
 };
 
@@ -45,7 +60,7 @@ export const qimenProvider: DataSourceProvider<QimenRow> = {
         const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('qimen_charts')
-            .select('id, question, dun_type, ju_number, chart_data, created_at')
+            .select('id, question, dun_type, ju_number, year, month, day, hour, minute, timezone, pan_type, ju_method, zhi_fu_ji_gong, created_at')
             .eq('id', id)
             .eq('user_id', userId)
             .maybeSingle();
@@ -53,13 +68,23 @@ export const qimenProvider: DataSourceProvider<QimenRow> = {
         return (data as QimenRow) || null;
     },
 
-    formatForAI(r: QimenRow, ctx?: DataSourceQueryContext): string {
-        const c = r.chart_data;
-        if (!c) return '奇门遁甲排盘数据缺失';
-        return generateQimenResultText({
-            ...c,
-            question: r.question || undefined,
-        }, { detailLevel: ctx?.chartPromptDetailLevel });
+    async formatForAI(r: QimenRow, ctx?: DataSourceQueryContext): Promise<string> {
+        const { output } = await calculateQimenBundle({
+            year: r.year,
+            month: r.month,
+            day: r.day,
+            hour: r.hour,
+            minute: r.minute,
+            timezone: r.timezone || DEFAULT_DIVINATION_TIMEZONE,
+            question: r.question ?? undefined,
+            panType: r.pan_type,
+            juMethod: r.ju_method,
+            zhiFuJiGong: fromStoredQimenZhiFuJiGong(r.zhi_fu_ji_gong),
+        });
+
+        return toQimenText(r.question ? { ...output, question: r.question } : output, {
+            detailLevel: resolveChartTextDetailLevel('qimen', ctx?.chartPromptDetailLevel),
+        });
     },
 
     summarize(r: QimenRow): string {

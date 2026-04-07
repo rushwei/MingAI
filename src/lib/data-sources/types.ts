@@ -43,6 +43,6 @@ export interface DataSourceProvider<T = unknown> {
     displayName: string;
     list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]>;
     get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<T | null>;
-    formatForAI(data: T, ctx?: DataSourceQueryContext): string;
+    formatForAI(data: T, ctx?: DataSourceQueryContext): string | Promise<string>;
     summarize(data: T): string;
 }

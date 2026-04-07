@@ -85,8 +85,13 @@ export default function QimenPage() {
             }
 
             writeSessionJSON('qimen_result', {
-                ...data.data,
+                ...useTime,
+                timezone: localTimeZone,
                 question,
+                panType,
+                juMethod,
+                zhiFuJiGong,
+                output: data.data,
                 createdAt: new Date().toISOString(),
             });
             router.push('/qimen/result');

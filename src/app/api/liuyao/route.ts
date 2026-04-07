@@ -5,22 +5,17 @@
  */
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
-import { callAIWithReasoning, callAIUIMessageResult } from '@/lib/ai/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
+import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import {
+    calculateLiuyaoBundle,
+    generateLiuyaoChartText,
     type Hexagram,
     type Yao,
     type LiuQin,
-    yaosTpCode,
 } from '@/lib/divination/liuyao';
-import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
-import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
+import { generateLiuyaoTitle } from '@/lib/ai/ai-analysis';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
-import { buildVisualizationOutputContractPrompt } from '@/lib/visualization/prompt';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
-import { createPersistentStreamResponse } from '@/lib/api/divination-pipeline';
 
 interface LiuyaoRequest {
     action: 'interpret' | 'save' | 'history' | 'update';
@@ -78,13 +73,160 @@ function parseQuestionInput(value: unknown): { question: string; error?: string 
     return { question: value };
 }
 
-let _liuyaoVizContract: string | null = null;
-function getLiuyaoVizContract(): string {
-    if (!_liuyaoVizContract) {
-        _liuyaoVizContract = buildVisualizationOutputContractPrompt([...SOURCE_CHART_TYPE_MAP.liuyao_divination]);
-    }
-    return _liuyaoVizContract;
+interface LiuyaoInterpretInput extends InterpretInput {
+    hexagram: Hexagram;
+    changedHexagram?: Hexagram;
+    changedLines?: number[];
+    yaos?: Yao[];
+    question: string;
+    divinationId?: string;
+    requestedTargets?: unknown;
 }
+
+type LiuyaoInterpretContext = {
+    userId: string;
+    chartPromptDetailLevel: Awaited<ReturnType<typeof loadResolvedChartPromptDetailLevel>>;
+    analysisDate: Date;
+    effectiveQuestion: string;
+    yongShenTargets: LiuQin[];
+    hexagramCode: string;
+    changedCode?: string;
+    traditionalInfo: string;
+};
+
+const handleInterpret = createInterpretHandler<LiuyaoInterpretInput, LiuyaoInterpretContext>({
+    sourceType: 'liuyao',
+    tag: 'liuyao',
+    personality: 'liuyao',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.liuyao_divination],
+    parseInput: (body) => {
+        const request = body as LiuyaoRequest;
+        if (!request.hexagram) return { error: '请提供卦象', status: 400 };
+
+        const parsedQuestion = parseQuestionInput(request.question);
+        if (parsedQuestion.error) return { error: parsedQuestion.error, status: 400 };
+
+        return {
+            hexagram: request.hexagram,
+            changedHexagram: request.changedHexagram,
+            changedLines: request.changedLines,
+            yaos: request.yaos,
+            question: parsedQuestion.question,
+            divinationId: request.divinationId,
+            requestedTargets: request.yongShenTargets,
+        };
+    },
+    resolvePromptContext: async (input, userId) => {
+        const serviceClient = getSystemAdminClient();
+        let analysisDate = new Date();
+        let effectiveQuestion = input.question;
+        let persistedTargets = input.requestedTargets;
+
+        if (input.divinationId) {
+            const { data } = await serviceClient
+                .from('liuyao_divinations')
+                .select('created_at, question, yongshen_targets')
+                .eq('id', input.divinationId)
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (data) {
+                if (data.created_at) analysisDate = new Date(data.created_at);
+                if (!effectiveQuestion.trim() && typeof data.question === 'string') {
+                    effectiveQuestion = data.question;
+                }
+                if (input.requestedTargets == null) {
+                    persistedTargets = data.yongshen_targets;
+                }
+            }
+        }
+
+        if (!effectiveQuestion.trim()) {
+            return { error: '请先明确问题后再解卦', status: 400 };
+        }
+
+        const parsedTargets = parseYongShenTargets(persistedTargets, { required: true });
+        if (parsedTargets.error) {
+            return { error: parsedTargets.error, status: 400 };
+        }
+
+        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'liuyao');
+        const bundle = input.yaos
+            ? calculateLiuyaoBundle({
+                yaos: input.yaos,
+                question: effectiveQuestion,
+                date: analysisDate,
+                yongShenTargets: parsedTargets.targets,
+                hexagram: input.hexagram,
+                changedHexagram: input.changedHexagram,
+            })
+            : null;
+
+        return {
+            userId,
+            chartPromptDetailLevel,
+            analysisDate,
+            effectiveQuestion,
+            yongShenTargets: parsedTargets.targets,
+            hexagramCode: bundle?.hexagramCode || '',
+            changedCode: bundle?.changedCode,
+            traditionalInfo: bundle
+                ? generateLiuyaoChartText(bundle.output, { detailLevel: chartPromptDetailLevel })
+                : '',
+        };
+    },
+    buildPrompts: (_input, context) => ({
+        systemPrompt: '',
+        userPrompt: `${context?.traditionalInfo || ''}\n\n请根据以上卦象信息，为求卦者详细解读此卦。`,
+    }),
+    buildSourceData: (input, modelId, reasoningEnabled, context) => ({
+        hexagram_code: context?.hexagramCode || '',
+        hexagram_name: input.hexagram.name,
+        changed_hexagram_code: context?.changedCode || null,
+        changed_hexagram_name: input.changedHexagram?.name,
+        changed_lines: input.changedLines,
+        question: context?.effectiveQuestion || null,
+        yongshen_targets: context?.yongShenTargets || [],
+        model_id: modelId,
+        reasoning: reasoningEnabled,
+    }),
+    generateTitle: (input, context) =>
+        generateLiuyaoTitle(context?.effectiveQuestion, input.hexagram.name, input.changedHexagram?.name),
+    formatSuccessResponse: ({ content, reasoning, conversationId }) => ({
+        success: true,
+        data: {
+            interpretation: content,
+            reasoning,
+            conversationId,
+        },
+    }),
+    persistRecord: async (input, userId, conversationId, context) => {
+        const serviceClient = getSystemAdminClient();
+        if (input.divinationId) {
+            await serviceClient
+                .from('liuyao_divinations')
+                .update({
+                    conversation_id: conversationId,
+                    yongshen_targets: toPersistedYongShenTargets(context?.yongShenTargets || []),
+                })
+                .eq('id', input.divinationId)
+                .eq('user_id', userId);
+            return;
+        }
+
+        await serviceClient
+            .from('liuyao_divinations')
+            .insert({
+                user_id: userId,
+                question: context?.effectiveQuestion || '',
+                yongshen_targets: toPersistedYongShenTargets(context?.yongShenTargets || []),
+                hexagram_code: context?.hexagramCode || '',
+                changed_hexagram_code: context?.changedCode || null,
+                changed_lines: input.changedLines,
+                conversation_id: conversationId,
+            });
+    },
+});
 
 export async function POST(request: NextRequest) {
     try {
@@ -118,7 +260,7 @@ export async function POST(request: NextRequest) {
             }
 
             case 'interpret':
-                return handleInterpret(request, body);
+                return handleInterpret(request, body as unknown as Record<string, unknown>);
 
             case 'history': {
                 const authResult = await requireBearerUser(request);
@@ -154,127 +296,6 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('[liuyao] API 错误:', error);
         return jsonError('服务器错误', 500, { success: false });
-    }
-}
-
-async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promise<Response> {
-    const { hexagram, changedHexagram, changedLines, yaos, divinationId, modelId, reasoning, stream } = body;
-    if (!hexagram) return jsonError('请提供卦象', 400, { success: false });
-    const resolvedHexagram = hexagram;
-
-    const parsedQuestion = parseQuestionInput(body.question);
-    if (parsedQuestion.error) return jsonError(parsedQuestion.error, 400, { success: false });
-
-    const authResult = await requireBearerUser(request);
-    if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
-    const { user } = authResult;
-
-    const serviceClient = getSystemAdminClient();
-    let analysisDate = new Date();
-    let effectiveQuestion = parsedQuestion.question;
-    let persistedTargets: unknown = undefined;
-
-    if (divinationId) {
-        const { data } = await serviceClient
-            .from('liuyao_divinations')
-            .select('created_at, question, yongshen_targets')
-            .eq('id', divinationId).eq('user_id', user.id).maybeSingle();
-        if (data) {
-            if (data.created_at) analysisDate = new Date(data.created_at);
-            if (!effectiveQuestion.trim() && typeof data.question === 'string') effectiveQuestion = data.question;
-            if (body.yongShenTargets == null) persistedTargets = data.yongshen_targets;
-        }
-    }
-
-    if (!effectiveQuestion.trim()) return jsonError('请先明确问题后再解卦', 400, { success: false });
-
-    const parsedTargets = parseYongShenTargets(body.yongShenTargets ?? persistedTargets, { required: true });
-    if (parsedTargets.error) return jsonError(parsedTargets.error, 400, { success: false });
-
-    const authInfo = await getUserAuthInfo(user.id);
-    if (!authInfo || !authInfo.hasCredits) return jsonError('积分不足，请充值后使用', 403, { success: false });
-
-    const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, authInfo.effectiveMembership, reasoning);
-    if ('error' in access) return jsonError(access.error, access.status, { success: false });
-    const { modelId: resolvedModelId, reasoningEnabled } = access;
-
-    const hexagramCode = yaos ? yaosTpCode(yaos) : '';
-    const changedCode = computeChangedCode(yaos, changedLines, Boolean(changedHexagram));
-
-    // Build traditional analysis
-    const promptDetailLevel = await loadResolvedChartPromptDetailLevel(user.id, 'liuyao');
-    const traditionalInfo = buildTraditionalInfo(yaos, hexagramCode, changedCode, effectiveQuestion, analysisDate, parsedTargets.targets, resolvedHexagram, changedHexagram, promptDetailLevel);
-
-    const userPrompt = `${traditionalInfo}\n\n请根据以上卦象信息，为求卦者详细解读此卦。`;
-
-    const remaining = await useCredit(user.id);
-    if (remaining === null) return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
-
-    async function persist(interpretation: string, reasoningText: string | null) {
-        const { generateLiuyaoTitle } = await import('@/lib/ai/ai-analysis');
-        const conversationId = await createAIAnalysisConversation({
-            userId: user.id, sourceType: 'liuyao',
-            sourceData: {
-                hexagram_code: hexagramCode, hexagram_name: resolvedHexagram.name,
-                changed_hexagram_code: changedCode || null, changed_hexagram_name: changedHexagram?.name,
-                changed_lines: changedLines, question: effectiveQuestion || null,
-                yongshen_targets: parsedTargets.targets, model_id: resolvedModelId,
-                reasoning: reasoningEnabled, reasoning_text: reasoningText || null,
-            },
-            title: generateLiuyaoTitle(effectiveQuestion, resolvedHexagram.name, changedHexagram?.name),
-            aiResponse: interpretation,
-        });
-        if (divinationId) {
-            await serviceClient.from('liuyao_divinations')
-                .update({ conversation_id: conversationId, yongshen_targets: toPersistedYongShenTargets(parsedTargets.targets) })
-                .eq('id', divinationId).eq('user_id', user.id);
-        } else {
-            await serviceClient.from('liuyao_divinations')
-                .insert({
-                    user_id: user.id, question: effectiveQuestion,
-                    yongshen_targets: toPersistedYongShenTargets(parsedTargets.targets),
-                    hexagram_code: hexagramCode, changed_hexagram_code: changedCode || null,
-                    changed_lines: changedLines, conversation_id: conversationId,
-                });
-        }
-        return conversationId;
-    }
-
-    try {
-        if (stream) {
-            const streamResult = await callAIUIMessageResult(
-                [{ role: 'user', content: userPrompt }], 'liuyao',
-                `\n\n${getLiuyaoVizContract()}\n\n`, resolvedModelId,
-                { reasoning: reasoningEnabled, temperature: 0.7 },
-            );
-            return createPersistentStreamResponse({
-                streamResult,
-                onStreamComplete: async ({ content, reasoning }) => {
-                    try {
-                        if (!content?.trim()) {
-                            await addCredits(user.id, 1);
-                            return { error: 'AI 解读结果为空，请稍后重试' };
-                        }
-                        await persist(content, reasoning);
-                        return {};
-                    } catch (e) {
-                        console.error('[liuyao] 流式结果保存失败:', e);
-                        return { error: '保存结果失败，请稍后重试' };
-                    }
-                },
-            });
-        }
-
-        const { content, reasoning: reasoningText } = await callAIWithReasoning(
-            [{ role: 'user', content: userPrompt }], 'liuyao', resolvedModelId,
-            `\n\n${getLiuyaoVizContract()}\n\n`, { reasoning: reasoningEnabled, temperature: 0.7 },
-        );
-        const conversationId = await persist(content, reasoningText ?? null);
-        return jsonOk({ success: true, data: { interpretation: content, reasoning: reasoningText, conversationId } });
-    } catch (aiError) {
-        await addCredits(user.id, 1);
-        console.error('[liuyao] AI 解读失败:', aiError);
-        return jsonError('AI 解读失败，请稍后重试', 500, { success: false });
     }
 }
 

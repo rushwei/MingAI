@@ -14,6 +14,7 @@ import {
     calculateDerivedHexagrams,
     calculateGuaShen,
     findHexagram as findHexagramCore,
+    formatGanZhiTime as formatGanZhiTimeCore,
     getHexagramContext,
     hasInvalidYongShenTargets as hasInvalidYongShenTargetsCore,
     normalizeYongShenTargets as normalizeYongShenTargetsCore,
@@ -21,6 +22,9 @@ import {
     KONG_WANG_LABELS,
     MOVEMENT_LABELS,
     WANG_SHUAI_LABELS,
+    toLiuyaoCanonicalJson,
+    toLiuyaoCanonicalText,
+    toLiuyaoText,
     type ChangedYaoDetail,
     type DerivedHexagramInfo,
     type DiZhi,
@@ -36,6 +40,8 @@ import {
     type ShenSystemByYongShen,
     type TianGan,
     type TimeRecommendation,
+    type LiuyaoCanonicalJSON,
+    type LiuyaoOutput,
     type WuXing,
     type YaoChange,
     type YaoInput as CoreYao,
@@ -43,7 +49,8 @@ import {
     type YaoType,
     type YongShenCandidate,
     type YongShenGroup,
-} from '@mingai/core/liuyao-core';
+} from '@mingai/core/liuyao';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export type {
     ChangedYaoDetail,
@@ -60,6 +67,8 @@ export type {
     ShenSystemByYongShen,
     TianGan,
     TimeRecommendation,
+    LiuyaoCanonicalJSON,
+    LiuyaoOutput,
     WuXing,
     YaoChange,
     YaoStrength,
@@ -95,6 +104,21 @@ export interface DivinationResult {
     changedHexagram?: Hexagram;
     changedLines: number[];
     createdAt: Date;
+}
+
+export interface LiuyaoBundleInput {
+    yaos: Yao[];
+    question: string;
+    date: Date;
+    yongShenTargets: LiuQin[];
+    hexagram: Hexagram;
+    changedHexagram?: Hexagram;
+}
+
+export interface LiuyaoBundle {
+    output: LiuyaoOutput;
+    hexagramCode: string;
+    changedCode?: string;
 }
 
 export const TRIGRAMS: Record<string, Trigram> = {
@@ -198,6 +222,10 @@ export function calculateGanZhiTime(date: Date): GanZhiTime {
     return calculateGanZhiTimeCore(date);
 }
 
+export function formatGanZhiTime(gz: GanZhiTime): string {
+    return formatGanZhiTimeCore(gz);
+}
+
 export function calculateKongWangByPillar(ganZhiTime: GanZhiTime): KongWangByPillar {
     return calculateKongWangByPillarCore(ganZhiTime);
 }
@@ -226,6 +254,78 @@ export function performFullAnalysis(
         date,
         { yongShenTargets: options?.yongShenTargets ?? [] },
     );
+}
+
+export function calculateLiuyaoBundle(input: LiuyaoBundleInput): LiuyaoBundle {
+    const hexagramCode = yaosTpCode(input.yaos);
+    const { changedCode } = calculateChangedHexagram(input.yaos);
+    const resolvedChangedCode = input.changedHexagram ? changedCode : undefined;
+    const analysis = performFullAnalysisCore(
+        input.yaos,
+        hexagramCode,
+        resolvedChangedCode,
+        input.question,
+        input.date,
+        { yongShenTargets: input.yongShenTargets },
+    );
+    const derived = calculateDerivedHexagrams(hexagramCode);
+    const baseCtx = getHexagramContext(hexagramCode);
+    const changedCtx = resolvedChangedCode ? getHexagramContext(resolvedChangedCode) : undefined;
+
+    return {
+        output: {
+            question: input.question,
+            hexagramName: input.hexagram.name,
+            hexagramGong: baseCtx.palace?.name || '',
+            hexagramElement: input.hexagram.element,
+            hexagramBrief: input.hexagram.nature,
+            guaCi: baseCtx.guaCi,
+            xiangCi: baseCtx.xiangCi,
+            changedHexagramName: input.changedHexagram?.name,
+            changedHexagramGong: changedCtx?.palace?.name || '',
+            changedHexagramElement: input.changedHexagram?.element,
+            changedGuaCi: changedCtx?.guaCi,
+            changedXiangCi: changedCtx?.xiangCi,
+            ganZhiTime: analysis.ganZhiTime,
+            kongWang: analysis.kongWang,
+            kongWangByPillar: analysis.kongWangByPillar,
+            fullYaos: analysis.fullYaos,
+            yongShen: analysis.yongShen,
+            fuShen: analysis.fuShen,
+            shenSystemByYongShen: analysis.shenSystemByYongShen,
+            globalShenSha: analysis.globalShenSha,
+            liuChongGuaInfo: analysis.liuChongGuaInfo,
+            liuHeGuaInfo: analysis.liuHeGuaInfo,
+            chongHeTransition: analysis.chongHeTransition,
+            guaFanFuYin: analysis.guaFanFuYin,
+            sanHeAnalysis: analysis.sanHeAnalysis,
+            warnings: analysis.warnings,
+            timeRecommendations: analysis.timeRecommendations,
+            nuclearHexagram: derived.nuclearHexagram,
+            oppositeHexagram: derived.oppositeHexagram,
+            reversedHexagram: derived.reversedHexagram,
+            guaShen: calculateGuaShen(hexagramCode),
+        },
+        hexagramCode,
+        changedCode: resolvedChangedCode,
+    };
+}
+
+export function buildLiuyaoCanonicalJSON(output: LiuyaoOutput): LiuyaoCanonicalJSON {
+    return toLiuyaoCanonicalJson(output);
+}
+
+export function generateLiuyaoChartText(
+    output: LiuyaoOutput,
+    options?: { detailLevel?: ChartTextDetailLevel },
+): string {
+    if (options?.detailLevel === undefined) {
+        return toLiuyaoCanonicalText(output);
+    }
+
+    return toLiuyaoText(output, {
+        detailLevel: resolveChartTextDetailLevel('liuyao', options.detailLevel),
+    });
 }
 
 export function getHexagramBrief(name: string): string {

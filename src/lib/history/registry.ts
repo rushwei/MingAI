@@ -433,12 +433,23 @@ export async function buildHistoryRestorePayload(
   }
 
   if (type === 'qimen') {
+    const { fromStoredQimenZhiFuJiGong } = await import('@/lib/divination/qimen');
     return {
       sessionKey: config.sessionKey,
       detailPath: config.detailPath,
       sessionData: {
-        ...(row.chart_data as Record<string, unknown>),
+        year: row.year,
+        month: row.month,
+        day: row.day,
+        hour: row.hour,
+        minute: row.minute,
+        timezone: row.timezone || defaultTimeZone,
         question: row.question,
+        panType: row.pan_type || 'zhuan',
+        juMethod: row.ju_method || 'chaibu',
+        zhiFuJiGong: fromStoredQimenZhiFuJiGong(
+          typeof row.zhi_fu_ji_gong === 'string' ? row.zhi_fu_ji_gong : null,
+        ),
         createdAt: row.created_at,
         chartId: row.id,
         conversationId: row.conversation_id || null,

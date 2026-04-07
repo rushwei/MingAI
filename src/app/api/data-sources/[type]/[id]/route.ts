@@ -31,7 +31,7 @@ export async function GET(
             id,
             displayName: provider.displayName,
             summary: provider.summarize(data),
-            content: provider.formatForAI(data),
+            content: await provider.formatForAI(data),
             raw: data
         });
     } catch (err) {
