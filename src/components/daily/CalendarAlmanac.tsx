@@ -105,6 +105,14 @@ export function CalendarAlmanac({
                                 <ChevronLeft className="w-5 h-5" />
                             </button>
                             <div className="text-center px-2 min-w-[160px]">
+                                {!isToday && onGoToday && (
+                                    <button
+                                        onClick={onGoToday}
+                                        className="mb-1 inline-flex items-center text-[10px] text-foreground-secondary hover:text-foreground transition-colors"
+                                    >
+                                        返回今日
+                                    </button>
+                                )}
                                 <div className="flex items-baseline justify-center gap-2">
                                     <span className="text-xl font-bold">{data.solarDateChinese}</span>
                                     <span className="text-accent font-medium text-sm">{data.weekday}</span>
@@ -119,14 +127,6 @@ export function CalendarAlmanac({
                             >
                                 <ChevronRight className="w-5 h-5" />
                             </button>
-                            {!isToday && onGoToday && (
-                                <button
-                                    onClick={onGoToday}
-                                    className="px-2.5 py-1 text-xs bg-accent/10 hover:bg-accent/20 text-accent rounded-md transition-colors active:scale-95"
-                                >
-                                    今
-                                </button>
-                            )}
                         </div>
 
                         {/* 第二行：流日/主神 + 命盘选择 */}
@@ -185,6 +185,16 @@ export function CalendarAlmanac({
                                 <ChevronLeft className="w-5 h-5" />
                             </button>
                             <div className="text-center px-2">
+                                {!isToday && onGoToday && (
+                                    <div className="mb-1">
+                                        <button
+                                            onClick={onGoToday}
+                                            className="inline-flex items-center text-[10px] text-foreground-secondary hover:text-foreground transition-colors"
+                                        >
+                                            返回今日
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="flex items-baseline justify-center gap-2">
                                     <span className="text-xl font-bold">{data.solarDateChinese}</span>
                                     <span className="text-accent font-medium">{data.weekday}</span>
@@ -199,15 +209,6 @@ export function CalendarAlmanac({
                             >
                                 <ChevronRight className="w-5 h-5" />
                             </button>
-
-                            {!isToday && onGoToday && (
-                                <button
-                                    onClick={onGoToday}
-                                    className="ml-1 px-2 py-1 text-xs bg-accent/10 hover:bg-accent/20 text-accent rounded-md transition-colors"
-                                >
-                                    今
-                                </button>
-                            )}
                         </div>
 
                         {/* 中间：流日/主神（竖排） */}

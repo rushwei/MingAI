@@ -236,7 +236,7 @@ export default function ResultPage() {
                                 </div>
                                 <YongShenTargetPicker value={pendingYongShenTargets} onChange={setPendingYongShenTargets} variant="block" />
                                 <div className="flex justify-end">
-                                    <button onClick={handleApplyYongShenTargets} disabled={pendingYongShenTargets.length === 0} className="px-4 py-1.5 bg-[#2eaadc] text-white text-sm font-medium rounded-md hover:bg-[#2eaadc]/90 transition-colors disabled:opacity-50">确定并继续</button>
+                                    <button onClick={handleApplyYongShenTargets} disabled={pendingYongShenTargets.length === 0} className="px-4 py-1.5 bg-[#2eaadc] text-white text-sm font-medium rounded-md hover:bg-[#2eaadc]/90 transition-colors disabled:opacity-50">确认</button>
                                 </div>
                             </div>
                         )}

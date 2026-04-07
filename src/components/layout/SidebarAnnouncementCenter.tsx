@@ -396,7 +396,7 @@ export function SidebarAnnouncementCenter({
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between gap-4">
                                     <div className="text-xs text-foreground/40">
-                                        最近 3 天通知，已加载 {notifications.length} 条
+                                        最近 3 天通知
                                     </div>
                                     <button
                                         onClick={handleMarkAllRead}
@@ -413,41 +413,47 @@ export function SidebarAnnouncementCenter({
                                         <button
                                             key={notification.id}
                                             onClick={() => void handleNotificationClick(notification)}
-                                            className={`w-full rounded-xl border px-4 py-4 text-left transition-colors ${
+                                            className={`relative w-full rounded-xl border px-4 py-3 text-left transition-colors flex flex-col gap-1.5 ${
                                                 notification.is_read
                                                     ? 'bg-background border-border hover:bg-background-secondary'
                                                     : 'bg-blue-50/20 border-blue-100 hover:bg-blue-50/30'
                                             }`}
                                         >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 space-y-1">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        {!notification.is_read ? (
-                                                            <span className="w-2 h-2 rounded-full bg-[#2eaadc] flex-shrink-0" />
-                                                        ) : null}
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/30 flex-shrink-0">
-                                                            {notificationTypeLabels[notification.type]}
-                                                        </span>
-                                                        <h3 className={`truncate text-sm font-medium ${notification.is_read ? 'text-foreground/60' : 'text-foreground'}`}>
-                                                            {notification.title}
-                                                        </h3>
-                                                    </div>
-                                                    {notification.content ? (
-                                                        <p className="text-sm leading-relaxed text-foreground/60 whitespace-pre-wrap">
-                                                            {notification.content}
-                                                        </p>
-                                                    ) : null}
+                                            <div className="flex items-center justify-between gap-3 w-full">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    {!notification.is_read ? (
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-[#2eaadc] flex-shrink-0" />
+                                                    ) : (
+                                                        <span className="w-1.5 h-1.5 flex-shrink-0" />
+                                                    )}
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/30 flex-shrink-0">
+                                                        {notificationTypeLabels[notification.type]}
+                                                    </span>
+                                                    <h3 className={`truncate text-sm font-medium ${notification.is_read ? 'text-foreground/60' : 'text-foreground'}`}>
+                                                        {notification.title}
+                                                    </h3>
                                                 </div>
-                                                <div className="text-[11px] font-medium text-foreground/30 whitespace-nowrap">
+                                                <div className="text-[11px] font-medium text-foreground/30 whitespace-nowrap flex-shrink-0">
                                                     {markingId === notification.id ? '处理中' : getRelativeTime(notification.created_at)}
                                                 </div>
                                             </div>
-                                            {notification.link ? (
-                                                <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[#2eaadc]">
-                                                    查看详情
-                                                    <ExternalLink className="w-3 h-3" />
+                                            
+                                            {(notification.content || notification.link) && (
+                                                <div className="flex items-end justify-between gap-4 pl-[14px] w-full">
+                                                    {notification.content ? (
+                                                        <p className="text-[13px] leading-relaxed text-foreground/60 line-clamp-2 break-all text-left">
+                                                            {notification.content}
+                                                        </p>
+                                                    ) : <div />}
+                                                    
+                                                    {notification.link ? (
+                                                        <div className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2eaadc] whitespace-nowrap flex-shrink-0">
+                                                            查看详情
+                                                            <ExternalLink className="w-3 h-3" />
+                                                        </div>
+                                                    ) : null}
                                                 </div>
-                                            ) : null}
+                                            )}
                                         </button>
                                     ))}
                                     {notificationHasMore && (

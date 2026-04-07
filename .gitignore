@@ -60,7 +60,6 @@ supabase/migrations
 
 # docs
 docs/*
-!docs/plan/
 
 # AI
 .claude

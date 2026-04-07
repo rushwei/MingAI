@@ -31,6 +31,10 @@ function isSameTargets(a: LiuQin[], b: LiuQin[]): boolean {
     return a.every((item, index) => item === b[index]);
 }
 
+function renderTargetHint(labels: string[]) {
+    return labels.length > 0 ? `已选：${labels.join('、')}` : '可多选';
+}
+
 export function YongShenTargetPicker({
     value,
     onChange,
@@ -68,7 +72,7 @@ export function YongShenTargetPicker({
     if (variant === 'block') {
         return (
             <div className={`rounded-xl border border-white/10 bg-background/[0.02] p-3 ${className}`}>
-                <div className="text-sm font-medium text-foreground mb-2">请选择分析目标（可多选）</div>
+                <div className="text-sm font-medium text-foreground mb-2">请选择六亲</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                     {YONG_SHEN_TARGET_OPTIONS.map((item) => {
                         const checked = value.includes(item.value);
@@ -83,19 +87,20 @@ export function YongShenTargetPicker({
                                         : 'border-white/10 bg-background/[0.02] text-foreground-secondary hover:border-white/20 hover:text-foreground'
                                 }`}
                             >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="font-medium">{item.label}</span>
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex min-w-0 items-baseline gap-2">
+                                        <span className="font-semibold text-sm">{item.value}</span>
+                                        <span className="text-xs opacity-90">{item.label}</span>
+                                    </div>
                                     {checked && <Check className="w-4 h-4" />}
                                 </div>
-                                <div className="mt-1 text-xs opacity-80">{item.description}</div>
+                                <div className="mt-1 text-xs opacity-70">{item.description}</div>
                             </button>
                         );
                     })}
                 </div>
                 <div className="mt-2 text-xs text-foreground-tertiary">
-                    {selectedLabels.length > 0
-                        ? `已选：${selectedLabels.join('、')}`
-                        : '有明确问题时再选择分析目标并正式解卦；无问题可仅起卦保存。'}
+                    {renderTargetHint(selectedLabels)}
                 </div>
             </div>
         );
@@ -134,8 +139,7 @@ export function YongShenTargetPicker({
                         >
                             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
                                 <div>
-                                    <div className="text-sm font-semibold text-foreground">选择分析目标（可多选）</div>
-                                    <div className="text-xs text-foreground-tertiary">多选不限（最多 5 项）</div>
+                                    <div className="text-sm font-semibold text-foreground">选择六亲</div>
                                 </div>
                                 <button
                                     type="button"
@@ -161,11 +165,14 @@ export function YongShenTargetPicker({
                                                         : 'border-white/10 bg-background/[0.02] text-foreground-secondary hover:border-white/20 hover:text-foreground'
                                                 }`}
                                             >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-base font-medium">{item.label}</span>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex min-w-0 items-baseline gap-2">
+                                                        <span className="text-base font-semibold">{item.value}</span>
+                                                        <span className="text-sm opacity-90">{item.label}</span>
+                                                    </div>
                                                     {checked && <Check className="h-4 w-4" />}
                                                 </div>
-                                                <div className="mt-0.5 text-xs opacity-80">{item.description}</div>
+                                                <div className="mt-1 text-xs opacity-70">{item.description}</div>
                                             </button>
                                         );
                                     })}
@@ -174,7 +181,7 @@ export function YongShenTargetPicker({
 
                             <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-3">
                                 <div className="text-xs text-foreground-tertiary">
-                                    {selectedLabels.length > 0 ? `已选：${selectedLabels.join('、')}` : '有明确问题时再选择分析目标并正式解卦；无问题可仅起卦保存。'}
+                                    {renderTargetHint(selectedLabels)}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
@@ -189,7 +196,7 @@ export function YongShenTargetPicker({
                                         onClick={() => setIsOpen(false)}
                                         className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent/90"
                                     >
-                                        完成选择
+                                        确认
                                     </button>
                                 </div>
                             </div>
