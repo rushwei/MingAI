@@ -69,6 +69,7 @@ mustExist('src/lib/auth.ts', 'browser auth should converge on the unified auth e
 mustNotExist('src/lib/auth-client.ts', 'legacy browser auth client entrypoint should stay removed');
 mustNotExist('src/app/api/supabase/proxy/route.ts', 'legacy supabase proxy route should stay removed');
 mustNotExist('src/lib/data-sources/init.ts', 'data source side-effect init should stay removed');
+mustNotExist('src/lib/divination/qimen-shared.ts', 'legacy qimen shared adapter should stay removed');
 
 mustMatch(
   'src/app/api/auth/route.ts',
@@ -183,28 +184,33 @@ mustNotMatch(
 
 mustMatch(
   'src/lib/divination/tarot.ts',
-  /from ['"]@mingai\/core\/tarot-core['"]/u,
-  'tarot wrapper should import the dedicated tarot-core subpath',
+  /from ['"]@mingai\/core\/tarot['"]/u,
+  'tarot wrapper should import tarot APIs from the tarot domain subpath',
+);
+mustNotMatch(
+  'src/lib/divination/tarot.ts',
+  /from ['"]@mingai\/core['"]/u,
+  'tarot wrapper should not import the root core entry',
 );
 mustMatch(
   'src/app/api/daliuren/route.ts',
-  /from ['"]@mingai\/core\/daliuren-core['"]/u,
-  'daliuren route should import the dedicated daliuren-core subpath',
+  /from ['"]@mingai\/core\/daliuren['"]/u,
+  'daliuren route should import daliuren APIs from the daliuren domain subpath',
 );
 mustNotMatch(
   'src/app/api/daliuren/route.ts',
-  /handleDaliurenCalculate[\s\S]*from ['"]@mingai\/core['"]/u,
-  'daliuren route should not import handleDaliurenCalculate from the root core entry',
+  /from ['"]@mingai\/core\/daliuren-core['"]/u,
+  'daliuren route should not depend on the removed daliuren-core subpath',
 );
 mustMatch(
   'src/lib/divination/qimen.ts',
-  /from ['"]@mingai\/core\/qimen-core['"]/u,
-  'qimen wrapper should import the dedicated qimen-core subpath',
+  /from ['"]@mingai\/core\/qimen['"]/u,
+  'qimen wrapper should import the qimen domain subpath',
 );
 mustNotMatch(
   'src/lib/divination/qimen.ts',
   /from ['"]@mingai\/core['"]/u,
-  'qimen wrapper should not import from the root core entry',
+  'qimen wrapper should not import the root core entry',
 );
 mustMatch(
   'src/app/api/daliuren/route.ts',
@@ -213,13 +219,13 @@ mustMatch(
 );
 mustMatch(
   'src/app/api/daliuren/route.ts',
-  /calculateDaliurenData\(\{[\s\S]*timezone[\s\S]*\}\)/u,
-  'daliuren route should forward timezone into the core calculation API',
+  /calculateDaliuren\(\{[\s\S]*timezone[\s\S]*\}\)/u,
+  'daliuren route should forward timezone into the root core calculation API',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
-  /@mingai\/core\/liuyao-core/u,
-  'liuyao web adapter should import the shared liuyao core module',
+  /from ['"]@mingai\/core\/liuyao['"]/u,
+  'liuyao web adapter should import shared liuyao helpers from the liuyao domain subpath',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
@@ -236,16 +242,81 @@ mustNotMatch(
   /packages\/core\/dist\//u,
   'liuyao web adapter should not import package dist files directly',
 );
+mustMatch(
+  'src/lib/divination/bazi.ts',
+  /from ['"]@mingai\/core\/bazi['"]/u,
+  'bazi wrapper should import bazi APIs from the bazi domain subpath',
+);
+mustMatch(
+  'src/lib/divination/bazi.ts',
+  /from ['"]@mingai\/core\/bazi-dayun['"]/u,
+  'bazi wrapper should import dayun APIs from the bazi-dayun domain subpath',
+);
+mustNotMatch(
+  'src/lib/divination/bazi.ts',
+  /from ['"]@mingai\/core['"]/u,
+  'bazi wrapper should not import the root core entry',
+);
+mustMatch(
+  'src/lib/divination/ziwei.ts',
+  /from ['"]@mingai\/core\/ziwei['"]/u,
+  'ziwei wrapper should import chart APIs from the ziwei domain subpath',
+);
+mustMatch(
+  'src/lib/divination/ziwei.ts',
+  /from ['"]@mingai\/core\/ziwei-horoscope['"]/u,
+  'ziwei wrapper should import horoscope APIs from the ziwei-horoscope subpath',
+);
+mustNotMatch(
+  'src/lib/divination/ziwei.ts',
+  /from ['"]@mingai\/core['"]/u,
+  'ziwei wrapper should not import the root core entry',
+);
+mustMatch(
+  'src/app/qimen/result/page.tsx',
+  /from ['"]@mingai\/core\/qimen['"]/u,
+  'qimen result page should import qimen formatters from the qimen domain subpath',
+);
+mustMatch(
+  'src/app/daliuren/result/page.tsx',
+  /from ['"]@mingai\/core\/daliuren['"]/u,
+  'daliuren result page should import daliuren formatters from the daliuren domain subpath',
+);
 
 mustMatch(
   'src/app/qimen/result/page.tsx',
+  /import\s*\{[\s\S]*toQimenJson[\s\S]*toQimenText[\s\S]*\}\s*from ['"]@mingai\/core\/qimen['"]/u,
+  'qimen result page should use direct core qimen domain renderers',
+);
+mustNotMatch(
+  'src/app/qimen/result/page.tsx',
   /from ['"]@\/lib\/divination\/qimen-shared['"]/u,
-  'qimen result page should import browser-safe qimen helpers from qimen-shared',
+  'qimen result page should not depend on qimen-shared',
 );
 mustNotMatch(
   'src/app/qimen/result/page.tsx',
   /import\s*\{\s*generateQimenResultText[^}]*\}\s*from ['"]@\/lib\/divination\/qimen['"]/u,
   'qimen result page should not import runtime copy helpers from the server-only qimen module',
+);
+mustMatch(
+  'src/app/api/qimen/route.ts',
+  /import\s*\{[\s\S]*toQimenText[\s\S]*\}\s*from ['"]@mingai\/core\/qimen['"]/u,
+  'qimen route should use direct core qimen text renderer',
+);
+mustNotMatch(
+  'src/app/api/qimen/route.ts',
+  /from ['"]@\/lib\/divination\/qimen-shared['"]/u,
+  'qimen route should not depend on qimen-shared',
+);
+mustMatch(
+  'src/lib/data-sources/qimen.ts',
+  /import\s*\{[\s\S]*toQimenText[\s\S]*\}\s*from ['"]@mingai\/core\/qimen['"]/u,
+  'qimen data source should use direct core qimen text renderer',
+);
+mustNotMatch(
+  'src/lib/data-sources/qimen.ts',
+  /from ['"]@\/lib\/divination\/qimen-shared['"]/u,
+  'qimen data source should not depend on qimen-shared',
 );
 
 mustNotMatch(
@@ -429,6 +500,12 @@ mustNotMatch(
   'src/lib/data-sources/index.ts',
   /registerDataSource\(/u,
   'data source registry should remain manifest-driven',
+);
+mustNotMatchInTree(
+  'src',
+  /packages\/core\/src\//u,
+  'web app code should not import internal packages/core/src paths directly',
+  (file) => /\.(?:ts|tsx|mts)$/u.test(file),
 );
 
 if (failures.length > 0) {

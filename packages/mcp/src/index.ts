@@ -11,12 +11,11 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {
-  handleToolCall,
-} from '@mingai/core';
-import {
+  executeTool,
   buildListToolsPayload,
   buildToolSuccessPayload,
-} from '@mingai/core/transport';
+  normalizeTransportDetailLevel,
+} from '@mingai/core/mcp';
 
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -35,15 +34,10 @@ server.server.setRequestHandler(ListToolsRequestSchema, async () => buildListToo
 server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
-    const result = await handleToolCall(name, args || {});
+    const toolArgs = args === undefined ? {} : args;
+    const result = await executeTool(name, toolArgs);
     const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
-    const detailLevel = args?.detailLevel === 'full'
-      ? 'full'
-      : args?.detailLevel === 'more' || args?.detailLevel === 'facts'
-        ? 'more'
-        : args?.detailLevel === 'debug'
-          ? 'full'
-          : 'default';
+    const detailLevel = normalizeTransportDetailLevel(args?.detailLevel);
     return buildToolSuccessPayload(name, result, responseFormat, { detailLevel });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

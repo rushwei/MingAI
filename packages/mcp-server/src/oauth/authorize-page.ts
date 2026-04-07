@@ -2,7 +2,7 @@
  * MCP OAuth 授权页面 HTML 模板
  */
 
-import { toolRegistry } from '@mingai/core';
+import { listToolDefinitions } from '@mingai/core/mcp';
 
 // 工具名到中文显示名的映射
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
@@ -20,8 +20,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 };
 
 function getToolChips(): { count: number; html: string } {
-  const chips = toolRegistry.map((entry) => {
-    const name = entry.definition.name;
+  const chips = listToolDefinitions().map((tool) => {
+    const name = tool.name;
     const label = TOOL_DISPLAY_NAMES[name] || name;
     return `<span class="tool-chip"><span class="tool-dot"></span>${escapeHtml(label)}</span>`;
   });

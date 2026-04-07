@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildListToolsPayload } from '@mingai/core/transport';
+import { buildListToolsPayload } from '@mingai/core/mcp';
 
 test('mcp server runtime place resolution should geocode city-level birthPlace when longitude is absent', async (t) => {
   const originalFetch = global.fetch;
@@ -142,4 +142,12 @@ test('mcp server tool payload should advertise runtime birthPlace resolution wit
   assert.equal(typeof ziweiTool?.outputSchema?.properties?.placeResolutionInfo, 'object');
   assert.equal(typeof baziTool?.inputSchema?.properties?.birthPlace, 'object');
   assert.equal(typeof baziTool?.outputSchema?.properties?.placeResolutionInfo, 'object');
+});
+
+test('mcp server runtime place resolution should preserve invalid non-object args for core validation', async () => {
+  const { preprocessToolArgsForRuntimePlace } = await import('../dist/place-resolution.js');
+  const result = await preprocessToolArgsForRuntimePlace('ziwei_calculate', null);
+
+  assert.equal(result.toolArgs, null);
+  assert.equal(result.placeResolutionInfo, undefined);
 });

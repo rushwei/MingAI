@@ -23,12 +23,11 @@ import {
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 import {
-  handleToolCall,
-} from '@mingai/core';
-import {
+  executeTool,
   buildListToolsPayload,
   buildToolSuccessPayload,
-} from '@mingai/core/transport';
+  normalizeTransportDetailLevel,
+} from '@mingai/core/mcp';
 import { createRequire } from 'node:module';
 
 import {
@@ -340,10 +339,13 @@ const SEED_SCOPED_TOOLS = new Set(['liuyao', 'tarot']);
 
 function withSeedScope(name: string, args: unknown, auth: McpAuthInfo): unknown {
   if (!SEED_SCOPED_TOOLS.has(name)) {
-    return args || {};
+    return args === undefined ? {} : args;
+  }
+  if (args === undefined) {
+    return { seedScope: auth.userId };
   }
   if (!args || typeof args !== 'object' || Array.isArray(args)) {
-    return { seedScope: auth.userId };
+    return args;
   }
   return {
     ...(args as Record<string, unknown>),
@@ -443,16 +445,10 @@ function createMcpServer(auth: McpAuthInfo) {
     const { toolArgs, placeResolutionInfo } = await preprocessToolArgsForRuntimePlace(name, seedScopedArgs);
 
     try {
-      const rawResult = await handleToolCall(name, toolArgs);
+      const rawResult = await executeTool(name, toolArgs);
       const result = attachPlaceResolutionInfoToResult(rawResult, placeResolutionInfo);
       const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
-      const detailLevel = args?.detailLevel === 'full'
-        ? 'full'
-        : args?.detailLevel === 'more' || args?.detailLevel === 'facts'
-          ? 'more'
-          : args?.detailLevel === 'debug'
-            ? 'full'
-            : 'default';
+      const detailLevel = normalizeTransportDetailLevel(args?.detailLevel);
       const payload = buildToolSuccessPayload(name, result, responseFormat, { detailLevel }) as Record<string, unknown>;
       return attachPlaceResolutionNoteToPayload(payload, placeResolutionInfo, responseFormat);
     } catch (error) {

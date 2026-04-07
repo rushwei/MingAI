@@ -1,4 +1,4 @@
-import type { ToolResponseFormat } from '@mingai/core/transport';
+import type { ToolListPayload, ToolResponseFormat } from '@mingai/core/mcp';
 
 const AMAP_GEOCODE_ENDPOINT = 'https://restapi.amap.com/v3/geocode/geo';
 const PLACE_RESOLUTION_TOOLS = new Set([
@@ -7,22 +7,6 @@ const PLACE_RESOLUTION_TOOLS = new Set([
   'ziwei_horoscope',
   'ziwei_flying_star',
 ]);
-
-type RuntimeToolPayload = {
-  tools: Array<{
-    name: string;
-    description?: string;
-    inputSchema?: {
-      properties?: Record<string, unknown>;
-      [key: string]: unknown;
-    };
-    outputSchema?: {
-      properties?: Record<string, unknown>;
-      [key: string]: unknown;
-    };
-    [key: string]: unknown;
-  }>;
-};
 
 export type RuntimePlaceResolutionFallbackReason =
   | 'no_birth_place'
@@ -44,8 +28,8 @@ export type RuntimePlaceResolutionInfo = {
   trueSolarTimeApplied: boolean;
 };
 
-type RuntimeToolArgsResult = {
-  toolArgs: Record<string, unknown>;
+type PreparedToolArgs = {
+  toolArgs: unknown;
   placeResolutionInfo?: RuntimePlaceResolutionInfo;
 };
 
@@ -228,8 +212,12 @@ function appendPlaceResolutionNote(markdown: string, info: RuntimePlaceResolutio
 export async function preprocessToolArgsForRuntimePlace(
   toolName: string,
   args: unknown,
-): Promise<RuntimeToolArgsResult> {
-  const baseArgs = isPlainRecord(args) ? { ...args } : {};
+): Promise<PreparedToolArgs> {
+  if (!isPlainRecord(args)) {
+    return { toolArgs: args };
+  }
+
+  const baseArgs = { ...args };
   if (!isPlaceResolutionTool(toolName)) {
     return { toolArgs: baseArgs };
   }
@@ -276,7 +264,7 @@ export async function preprocessToolArgsForRuntimePlace(
   };
 }
 
-export function decorateToolListPayloadForRuntime(payload: RuntimeToolPayload): RuntimeToolPayload {
+export function decorateToolListPayloadForRuntime(payload: ToolListPayload): ToolListPayload {
   return {
     ...payload,
     tools: payload.tools.map((tool) => {
@@ -284,8 +272,8 @@ export function decorateToolListPayloadForRuntime(payload: RuntimeToolPayload): 
         return tool;
       }
 
-      const inputProperties = { ...(tool.inputSchema?.properties || {}) };
-      const outputProperties = { ...(tool.outputSchema?.properties || {}) };
+      const inputProperties = { ...tool.inputSchema.properties };
+      const outputProperties = { ...tool.outputSchema.properties };
 
       inputProperties.birthPlace = {
         type: 'string',
@@ -325,12 +313,8 @@ export function decorateToolListPayloadForRuntime(payload: RuntimeToolPayload): 
           tool.description,
           '在线 MCP Server 支持仅传 birthPlace；若未显式提供 longitude，会尝试做地理编码并在失败时自动退化。',
         ),
-        inputSchema: tool.inputSchema
-          ? { ...tool.inputSchema, properties: inputProperties }
-          : undefined,
-        outputSchema: tool.outputSchema
-          ? { ...tool.outputSchema, properties: outputProperties }
-          : undefined,
+        inputSchema: { ...tool.inputSchema, properties: inputProperties },
+        outputSchema: { ...tool.outputSchema, properties: outputProperties },
       };
     }),
   };
