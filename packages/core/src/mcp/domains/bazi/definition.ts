@@ -1,7 +1,7 @@
 import type {ToolDefinition } from '../../contract.js';
 
 export const baziCalculateDefinition: ToolDefinition = {
-  name: 'bazi_calculate',
+  name: 'bazi',
   description: '八字计算- 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞（30+种）、分柱空亡、地支刑害合冲关系、天干五合、天干冲克、地支半合、地支三会、胎元、命宫',
   inputSchema: {
     type: 'object',

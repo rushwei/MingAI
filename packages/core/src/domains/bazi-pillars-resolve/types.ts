@@ -17,7 +17,7 @@ export interface BaziPillarsResolveCandidate {
   solarText: string;
   lunarText: string;
   nextCall: {
-    tool: 'bazi_calculate';
+    tool: 'bazi';
     arguments: {
       birthYear: number;
       birthMonth: number;

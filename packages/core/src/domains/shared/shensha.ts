@@ -62,7 +62,7 @@ import {
   YI_MA,
   YIN_CHA_YANG_CUO,
   ZAI_SHA,
-} from '../../data/shensha-data.js';
+} from '../../data/shensha.js';
 
 function addUnique(target: string[], value: string): void {
   if (value && !target.includes(value)) {

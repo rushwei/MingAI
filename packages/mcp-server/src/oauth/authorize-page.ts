@@ -6,16 +6,17 @@ import { listToolDefinitions } from '@mingai/core/mcp';
 
 // 工具名到中文显示名的映射
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  bazi_calculate: '八字排盘',
+  bazi: '八字排盘',
   bazi_pillars_resolve: '四柱反推',
   bazi_dayun: '大运计算',
-  ziwei_calculate: '紫微斗数',
+  ziwei: '紫微斗数',
   ziwei_horoscope: '紫微运限',
   ziwei_flying_star: '紫微飞星',
   liuyao: '六爻分析',
+  meihua: '梅花易数',
   tarot: '塔罗占卜',
   almanac: '每日运势',
-  qimen_calculate: '奇门遁甲',
+  qimen: '奇门遁甲',
   daliuren: '大六壬',
 };
 

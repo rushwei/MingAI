@@ -24,7 +24,7 @@ function createBaziResult() {
 }
 
 test('json response should keep structuredContent aligned with published outputSchema', () => {
-  const payload = buildToolSuccessPayload('bazi_calculate', createBaziResult(), 'json');
+  const payload = buildToolSuccessPayload('bazi', createBaziResult(), 'json');
 
   assert.equal(typeof payload.structuredContent, 'object');
   assert.equal(payload.structuredContent.基本信息.性别, '男');
@@ -35,7 +35,7 @@ test('json response should keep structuredContent aligned with published outputS
 });
 
 test('markdown response should still keep schema-aligned structuredContent', () => {
-  const payload = buildToolSuccessPayload('bazi_calculate', createBaziResult(), 'markdown');
+  const payload = buildToolSuccessPayload('bazi', createBaziResult(), 'markdown');
 
   assert.equal(typeof payload.structuredContent, 'object');
   assert.equal(payload.structuredContent.基本信息.性别, '男');
@@ -176,8 +176,8 @@ test('meihua detailLevel full should reach transport renderers and expose full-o
   assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.变卦, 'string');
 });
 
-test('bazi_calculate tool output should keep chart-only boundaries without implicit dayun summary', async () => {
-  const rawResult = await executeTool('bazi_calculate', {
+test('bazi tool output should keep chart-only boundaries without implicit dayun summary', async () => {
+  const rawResult = await executeTool('bazi', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -187,15 +187,15 @@ test('bazi_calculate tool output should keep chart-only boundaries without impli
     calendarType: 'solar',
   });
 
-  const payload = buildToolSuccessPayload('bazi_calculate', rawResult, 'markdown');
+  const payload = buildToolSuccessPayload('bazi', rawResult, 'markdown');
 
   assert.doesNotMatch(payload.content[0].text, /## 大运轨迹/u);
   assert.equal(typeof payload.structuredContent, 'object');
   assert.equal(payload.structuredContent.大运, undefined);
 });
 
-test('bazi_calculate detailLevel full should restore full metadata while default stays slim', async () => {
-  const rawResult = await executeTool('bazi_calculate', {
+test('bazi detailLevel full should restore full metadata while default stays slim', async () => {
+  const rawResult = await executeTool('bazi', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -205,8 +205,8 @@ test('bazi_calculate detailLevel full should restore full metadata while default
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('bazi_calculate', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('bazi_calculate', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('bazi', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('bazi', rawResult, 'markdown', { detailLevel: 'full' });
 
   assert.doesNotMatch(defaultPayload.content[0].text, /命主五行/u);
   assert.doesNotMatch(defaultPayload.content[0].text, /胎元/u);
@@ -252,8 +252,8 @@ test('bazi_dayun should expose slim default output and detailed full output', as
   assert.ok(fullPayload.structuredContent.大运列表.some((item) => Array.isArray(item.原局关系) && item.原局关系.length > 0));
 });
 
-test('ziwei_calculate should expose compact default output and preserve full detail on demand', async () => {
-  const rawResult = await executeTool('ziwei_calculate', {
+test('ziwei should expose compact default output and preserve full detail on demand', async () => {
+  const rawResult = await executeTool('ziwei', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -263,8 +263,8 @@ test('ziwei_calculate should expose compact default output and preserve full det
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /## 十二宫位全盘/u);
   assert.match(defaultPayload.content[0].text, /生年四化/u);
@@ -299,8 +299,8 @@ test('ziwei_calculate should expose compact default output and preserve full det
   assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].流年虚岁));
 });
 
-test('ziwei_calculate should expose compact default output and keep full board behind detailLevel full', async () => {
-  const rawResult = await executeTool('ziwei_calculate', {
+test('ziwei should expose compact default output and keep full board behind detailLevel full', async () => {
+  const rawResult = await executeTool('ziwei', {
     gender: 'male',
     birthYear: 2003,
     birthMonth: 9,
@@ -310,8 +310,8 @@ test('ziwei_calculate should expose compact default output and keep full board b
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /生年四化/u);
   assert.match(defaultPayload.content[0].text, /主星及四化/u);

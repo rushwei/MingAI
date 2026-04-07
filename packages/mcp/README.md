@@ -28,16 +28,17 @@ MingAI 的本地 `stdio` MCP Server，适合直接接入 Claude Desktop、Cursor
 
 | 工具 | 说明 |
 |------|------|
-| `bazi_calculate` | 八字排盘 |
+| `bazi` | 八字排盘 |
 | `bazi_pillars_resolve` | 四柱反推 |
 | `bazi_dayun` | 大运、小运、流年链路 |
-| `ziwei_calculate` | 紫微斗数排盘 |
+| `ziwei` | 紫微斗数排盘 |
 | `ziwei_horoscope` | 紫微运限 |
 | `ziwei_flying_star` | 紫微飞星 |
 | `liuyao` | 六爻排卦分析 |
+| `meihua` | 梅花易数起卦与断卦 |
 | `tarot` | 塔罗抽牌 |
 | `almanac` | 黄历查询 |
-| `qimen_calculate` | 奇门遁甲排盘 |
+| `qimen` | 奇门遁甲排盘 |
 | `daliuren` | 大六壬排盘 |
 
 所有工具都支持 `responseFormat`：
@@ -106,6 +107,6 @@ node packages/mcp/dist/index.js
 | `2.0.0` | 跟随 core 切换到最终 MCP 契约：`content` 输出规范文本，`structuredContent` 输出 canonical JSON，公开 schema 同步切到 canonical JSON 结构 |
 | `1.5.0` | 同步核心导出面、共享 transport、结构化输出策略与在线服务对齐 |
 | `1.4.0` | 接入 `daliuren` 大六壬工具 |
-| `1.3.0` | 接入 `qimen_calculate` 奇门遁甲工具 |
+| `1.3.0` | 接入 `qimen` 奇门遁甲工具 |
 | `1.2.6` | 延续 `1.2.5` 做补丁发布，集中修复输出契约、鉴权与运行时边界 |
 | `1.2.5` | 旧基线版本，作为本次版本重排的对比起点 |

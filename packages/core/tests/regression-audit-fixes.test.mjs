@@ -107,7 +107,7 @@ test('daliuren should reject invalid timezones instead of silently falling back'
   );
 });
 
-test('ziwei_calculate should derive lifeMasterStar from the birth-year earthly branch', async () => {
+test('ziwei should derive lifeMasterStar from the birth-year earthly branch', async () => {
   const result = await mcpCore.calculateZiwei({
     gender: 'male',
     birthYear: 2003,
@@ -209,7 +209,7 @@ test('bazi_dayun should keep xiaoYun coverage aligned with the upstream startAge
   assert.equal(result.list[0]?.liunianList[0]?.age, 9, 'liunian entries should expose derived age for web adapters');
 });
 
-test('ziwei_calculate should expose structured four pillars for direct consumers', async () => {
+test('ziwei should expose structured four pillars for direct consumers', async () => {
   const result = await mcpCore.calculateZiwei({
     gender: 'male',
     birthYear: 1990,

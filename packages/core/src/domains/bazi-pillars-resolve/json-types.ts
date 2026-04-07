@@ -16,7 +16,7 @@ export interface BaziPillarsResolveCanonicalJSON {
     出生时间: string;
     是否闰月: '是' | '否';
     下一步排盘建议: {
-      工具: 'bazi_calculate';
+      工具: 'bazi';
       参数: {
         出生年: number;
         出生月: number;

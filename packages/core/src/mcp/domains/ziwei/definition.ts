@@ -1,7 +1,7 @@
 import type { ToolDefinition } from '../../contract.js';
 
 export const ziweiCalculateDefinition: ToolDefinition = {
-  name: 'ziwei_calculate',
+  name: 'ziwei',
   description: '紫微斗数排盘 - 根据出生时间计算紫微命盘，包含十二宫位、星曜（含亮度/四化/宫干自化）、大限、流年虚岁、斗君、四化分布、命主星、身主星、小限、博士十二星、三方四正。可选传入经度启用真太阳时校正',
   inputSchema: {
     type: 'object',

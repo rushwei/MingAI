@@ -16,7 +16,7 @@ import {
   SAN_HE,
   XIANG_HAI,
   XIANG_XING,
-} from '../../data/shensha-data.js';
+} from '../../data/shensha.js';
 import { calculateBranchShenSha, type ShenShaContext } from '../shared/shensha.js';
 import type { DayunInput, DayunOutput } from './types.js';
 import type { BranchRelation, LiunianInfo, XiaoyunInfo } from '../shared/types.js';

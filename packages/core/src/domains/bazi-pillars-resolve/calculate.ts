@@ -150,7 +150,7 @@ function reverseDay(year: number, month: number, dayPillar: ParsedPillar): numbe
 
 function buildNextCallArgs(candidate: BaziPillarsResolveCandidate['nextCall']['arguments']) {
   return {
-    tool: 'bazi_calculate' as const,
+    tool: 'bazi' as const,
     arguments: candidate,
     missing: ['gender'] as ['gender'],
   };

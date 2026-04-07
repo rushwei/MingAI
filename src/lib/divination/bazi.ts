@@ -30,7 +30,7 @@ import {
     LIU_HE as CORE_LIU_HE,
     LIU_HE_HUA,
     SAN_HE as CORE_SAN_HE,
-} from '@mingai/core/data/shensha-data';
+} from '@mingai/core/data/shensha';
 import type {
     BaziFormData,
     CalendarType,

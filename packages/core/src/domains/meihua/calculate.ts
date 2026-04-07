@@ -1,7 +1,7 @@
 import { Solar } from 'lunar-javascript';
 import { pinyin as convertToPinyin } from 'pinyin';
 import { MEIHUA_RUSHENG_CHAR_SET } from '../../data/meihua-rusheng.js';
-import { GUA_CI, XIANG_CI } from '../../data/hexagram-texts.js';
+import { GUA_CI, XIANG_CI } from '../../data/hexagrams.js';
 import { calculateDerivedHexagrams, calculateGanZhiTime, findHexagram } from '../liuyao/calculate.js';
 import type {
   MeihuaBodyUseRelation,

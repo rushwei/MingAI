@@ -1,7 +1,7 @@
 import type{ ToolDefinition } from '../../contract.js';
 
 export const qimenCalculateDefinition: ToolDefinition ={
-  name: 'qimen_calculate',
+  name: 'qimen',
   description: '奇门遁甲排盘 - 根据指定时间排出奇门遁甲盘，输出九宫（天盘/地盘天干、九星、八门、八神）、格局判断（吉凶格、伏吟反吟）、空亡、驿马、入墓、旺相休囚死等信息',
   inputSchema: {
     type: 'object',

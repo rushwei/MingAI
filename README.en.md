@@ -22,7 +22,7 @@ Language: [中文](README.md) | **English**
 
 ## Highlights
 
-- **Multiple Metaphysics Systems** - Bazi, Liuyao, Ziwei Doushu, Qimen Dunjia, Da Liu Ren, Tarot, MBTI, Face Reading, Palm Reading, Synastry, Dream Interpretation
+- **Multiple Metaphysics Systems** - Bazi, Liuyao, Ziwei Doushu, Qimen Dunjia, Da Liu Ren, MeiHua, Tarot, MBTI, Face Reading, Palm Reading, Synastry, Dream Interpretation
 - **AI-Powered Analysis** - Export chart/divination text for AI analysis with multi-model support, deep reasoning, and visual recognition
 - **MCP Server** - Supports Model Context Protocol (MCP), allowing direct use of metaphysics tools in MCP-compatible clients
 - **History, Knowledge Base, and @Mentions** - Store records across all systems, add them into your personal knowledge base, and explicitly reference data sources
@@ -41,6 +41,7 @@ Language: [中文](README.md) | **English**
 | **Qimen Dunjia** | · Nine palaces, heaven/earth stems, eight gates, nine stars, eight deities<br/>· Duty star & duty gate, dun type, ju number<br/>· Formation assessment (auspicious/inauspicious), void, post horse, entombment, strength<br/>· Rotating-plate method, chaibu/maoshan ju methods<br/>· Explicit IANA timezone support |
 | **Da Liu Ren** | · Heaven/earth plates, four lessons, three transmissions<br/>· Heavenly generals, hidden stems<br/>· 49 shensha types, lesson-body classification<br/>· Twelve growth phases, five-element strength, jianchu twelve gods<br/>· Explicit timezone, optional natal stem/year support |
 | **Liuyao Divination** | · Coin casting, quick casting, selected-hexagram casting, time-based casting, number-based casting<br/>· Explicit and implicit moving lines<br/>· Hexagram text, line text, image text<br/>· Useful spirit, original spirit, hidden spirit, adversary spirit<br/>· Void branches, self/opponent lines, strength states, clash/combine/harm<br/>· Nuclear/opposite/reversed hexagrams<br/>· Timing prediction |
+| **Meihua Yishu** | · Time casting, count/sound casting, text casting, measure casting, classifier cues<br/>· Extended two-number / three-number casting<br/>· Original, nuclear, changed, opposite, and reversed hexagrams with moving lines<br/>· Body/use trigrams, generating-controlling analysis, seasonal strength, response hierarchy<br/>· Timing clues and qualitative auspicious/inauspicious judgment |
 | **Tarot Reading** | · 9 spreads: single-card, three-card, love, Celtic Cross, horseshoe, decision, mind-body-spirit, situation, yes-no<br/>· Reversed-card judgment, full 78-card interpretation, refined card visuals<br/>· Astrological/elemental correspondences, numerology (personality/soul/yearly cards)<br/>· Daily guidance |
 | **Synastry** | · Couple, business, and parent-child analysis<br/>· Future trend lines<br/>· Communication advice |
 | **Face & Palm Reading** | · Forehead, nose, eyes, mouth analysis<br/>· Life line, wisdom line, career line, relationship line |
@@ -73,16 +74,17 @@ Add to your Claude Desktop / Cherry Studio MCP config — no manual download nee
 
 | Tool | Function | Example Prompt |
 | --- | --- | --- |
-| `bazi_calculate` | Generate a Bazi chart (solar/lunar supported, 51 shensha types, stem combinations, branch half-combinations/three-meetings, Tai Yuan/Ming Gong) | "I was born at 3:00 PM on May 15, 1990. Please generate my chart." |
+| `bazi` | Generate a Bazi chart (solar/lunar supported, 51 shensha types, stem combinations, branch half-combinations/three-meetings, Tai Yuan/Ming Gong) | "I was born at 3:00 PM on May 15, 1990. Please generate my chart." |
 | `bazi_pillars_resolve` | Reverse-lookup birth time from Four Pillars (1900-2100) | "My Bazi is 丙午 庚寅 丙辰 癸巳, please analyze it." |
 | `bazi_dayun` | Compute major luck cycles (10-year periods with annual transits, Tai Sui annotations, minor luck) | AI automatically calls this based on your Bazi |
-| `ziwei_calculate` | Generate a Ziwei Doushu chart (Life/Body Master stars, Small Limit, Scholar Stars, San Fang Si Zheng) | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
+| `ziwei` | Generate a Ziwei Doushu chart (Life/Body Master stars, Small Limit, Scholar Stars, San Fang Si Zheng) | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
 | `ziwei_horoscope` | Ziwei fortune periods (decadal/small limit/yearly/monthly/daily/hourly with transit stars) | "What are my Ziwei fortune periods for 2026?" |
 | `ziwei_flying_star` | Flying star analysis (four transformations, mutagen placements, surrounded palaces) | "Analyze the flying stars of my Life Palace." |
 | `liuyao` | Liuyao divination (auto-casting / custom hexagram / time-based / number-based, with nuclear/opposite/reversed hexagrams) | "I want to divine my career luck this year." |
+| `meihua` | Meihua Yishu divination (time casting, count/sound, text casting, measure casting, classifier cues, modern number casting) | "Cast a Meihua Yishu reading for whether this cooperation will succeed." |
 | `tarot` | Draw Tarot cards (9 spreads, 78 cards with independent reversed keywords, astrological/elemental correspondences) | "Please draw a Tarot card for my recent love fortune." |
 | `almanac` | Daily almanac & calendar query (directions, 12 hourly fortunes, 28 mansions) | "How is today's almanac? Is it suitable for a proposal?" |
-| `qimen_calculate` | Qimen Dunjia charting (palaces, gates, stars, gods, dun type, ju number, explicit timezone) | "Use Qimen Dunjia to see whether today's negotiation is favorable." |
+| `qimen` | Qimen Dunjia charting (palaces, gates, stars, gods, dun type, ju number, explicit timezone) | "Use Qimen Dunjia to see whether today's negotiation is favorable." |
 | `daliuren` | Da Liu Ren charting (four lessons, three transmissions, heavenly plate, generals, explicit timezone) | "Use Da Liu Ren to analyze the outcome of this matter." |
 
 ### SDK
@@ -144,23 +146,6 @@ pnpm dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to view the app.
-
----
-
-## Documentation
-
-| Document | Description |
-| --- | --- |
-| [PRD](docs/plans/PRD-MingAI.md) | Product Requirements Document |
-| [MCP Manual](/docs/manual/MCP-Server-Manual.md) | Detailed MCP operation guide |
-
----
-
-## Planned Major Updates
-
-- Seven Governors and Four Remainders
-- Plum Blossom Numerology
-- Name Study
 
 ---
 

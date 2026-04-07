@@ -152,6 +152,6 @@ Bearer token 的优先级高于 API Key；若 Bearer token 存在但无效，不
 | `2.0.0` | 跟随 core 切换到最终 MCP 契约：`content` 输出规范文本，`structuredContent` 输出 canonical JSON，在线服务保留 runtime `placeResolutionInfo` 扩展 |
 | `1.5.0` | 统一在线服务版本号，收口共享 transport、动态授权页工具展示、会话管理与运行时契约 |
 | `1.4.0` | 跟随核心接入 `daliuren` 大六壬工具 |
-| `1.3.0` | 跟随核心接入 `qimen_calculate` 奇门遁甲工具 |
+| `1.3.0` | 跟随核心接入 `qimen` 奇门遁甲工具 |
 | `1.2.6` | 延续 `1.2.5` 做补丁发布，集中修复缓存回源、鉴权边界、结构化输出与测试覆盖 |
 | `1.2.5` | `core` / `mcp` 的旧基线版本；本次将在线服务也统一收口到同一版本线 |

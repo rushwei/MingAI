@@ -55,8 +55,8 @@ export function calculateTenGod(dayStem: string, targetStem: string): string {
   return tenGodMap[relation][sameYY ? 0 : 1];
 }
 
-// 共享八字规则表（从 shensha-data 导入）
-import { DI_SHI_ORDER, XUN_KONG_TABLE } from '../data/shensha-data.js';
+// 共享八字规则表（从 shensha 导入）
+import { DI_SHI_ORDER, XUN_KONG_TABLE } from '../data/shensha.js';
 
 const DI_SHI_START_BRANCH: Record<string, string> = {
   '甲': '亥',

@@ -33,13 +33,13 @@ Use this skill to deliver consistent,流程化命理解读 for end users.
 ## Tool Selection
 
 - Bazi:
-  - If only四柱 provided: `bazi_pillars_resolve` → (user confirms) → `bazi_calculate`.
-  - If birth datetime provided: `bazi_calculate`.
+  - If only四柱 provided: `bazi_pillars_resolve` → (user confirms) → `bazi`.
+  - If birth datetime provided: `bazi`.
   - If need大运列表: additionally call `dayun_calculate`.
 - Liuyao: `liuyao_analyze`
   - AI must judge `yongShenTargets` from question semantics before calling.
   - Use `method: 'select'` with `hexagramName` when user provides a known hexagram.
-- Ziwei: `ziwei_calculate`
+- Ziwei: `ziwei`
 - Tarot: `tarot_draw`
   - Choose `spreadType` based on question complexity: `single` (quick), `three-card` (standard), `love` (relationships), `celtic-cross` (deep).
 - DaYun (大运):

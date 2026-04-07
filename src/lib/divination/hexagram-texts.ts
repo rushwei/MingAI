@@ -8,7 +8,7 @@ import {
     GUA_CI as HEXAGRAM_GUA_CI_FALLBACK,
     XIANG_CI as HEXAGRAM_XIANG_CI_FALLBACK,
     YAO_CI as HEXAGRAM_YAO_CI_FALLBACK,
-} from '@mingai/core/data/hexagram-texts';
+} from '@mingai/core/data/hexagrams';
 
 export interface YaoText {
     position: number;

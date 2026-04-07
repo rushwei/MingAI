@@ -2,8 +2,8 @@ import type { ToolListPayload, ToolResponseFormat } from '@mingai/core/mcp';
 
 const AMAP_GEOCODE_ENDPOINT = 'https://restapi.amap.com/v3/geocode/geo';
 const PLACE_RESOLUTION_TOOLS = new Set([
-  'bazi_calculate',
-  'ziwei_calculate',
+  'bazi',
+  'ziwei',
   'ziwei_horoscope',
   'ziwei_flying_star',
 ]);

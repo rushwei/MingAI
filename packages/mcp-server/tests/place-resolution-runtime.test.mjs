@@ -33,7 +33,7 @@ test('mcp server runtime place resolution should geocode city-level birthPlace w
   });
 
   const { preprocessToolArgsForRuntimePlace } = await import('../dist/place-resolution.js');
-  const result = await preprocessToolArgsForRuntimePlace('ziwei_calculate', {
+  const result = await preprocessToolArgsForRuntimePlace('ziwei', {
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,
@@ -67,7 +67,7 @@ test('mcp server runtime place resolution should preserve manual longitude and s
   });
 
   const { preprocessToolArgsForRuntimePlace } = await import('../dist/place-resolution.js');
-  const result = await preprocessToolArgsForRuntimePlace('bazi_calculate', {
+  const result = await preprocessToolArgsForRuntimePlace('bazi', {
     gender: 'male',
     birthYear: 1990,
     birthMonth: 1,
@@ -131,12 +131,12 @@ test('mcp server tool payload should advertise runtime birthPlace resolution wit
   const { decorateToolListPayloadForRuntime } = await import('../dist/place-resolution.js');
 
   const corePayload = buildListToolsPayload();
-  const ziweiCore = corePayload.tools.find((tool) => tool.name === 'ziwei_calculate');
+  const ziweiCore = corePayload.tools.find((tool) => tool.name === 'ziwei');
   assert.equal(typeof ziweiCore?.inputSchema?.properties?.birthPlace, 'undefined');
 
   const decorated = decorateToolListPayloadForRuntime(corePayload);
-  const ziweiTool = decorated.tools.find((tool) => tool.name === 'ziwei_calculate');
-  const baziTool = decorated.tools.find((tool) => tool.name === 'bazi_calculate');
+  const ziweiTool = decorated.tools.find((tool) => tool.name === 'ziwei');
+  const baziTool = decorated.tools.find((tool) => tool.name === 'bazi');
 
   assert.equal(typeof ziweiTool?.inputSchema?.properties?.birthPlace, 'object');
   assert.equal(typeof ziweiTool?.outputSchema?.properties?.placeResolutionInfo, 'object');
@@ -146,7 +146,7 @@ test('mcp server tool payload should advertise runtime birthPlace resolution wit
 
 test('mcp server runtime place resolution should preserve invalid non-object args for core validation', async () => {
   const { preprocessToolArgsForRuntimePlace } = await import('../dist/place-resolution.js');
-  const result = await preprocessToolArgsForRuntimePlace('ziwei_calculate', null);
+  const result = await preprocessToolArgsForRuntimePlace('ziwei', null);
 
   assert.equal(result.toolArgs, null);
   assert.equal(result.placeResolutionInfo, undefined);

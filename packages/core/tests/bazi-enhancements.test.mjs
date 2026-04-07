@@ -18,7 +18,7 @@ function toPillarString(pillar) {
   return `${pillar.stem}${pillar.branch}`;
 }
 
-test('bazi_calculate should expose enhanced pillar fields', async () => {
+test('bazi should expose enhanced pillar fields', async () => {
   const result = await mcpCore.calculateBazi(SAMPLE_INPUT);
 
   assert.ok(result.fourPillars, 'missing fourPillars');
@@ -51,7 +51,7 @@ test('bazi_calculate should expose enhanced pillar fields', async () => {
   assert.ok(!('shenSha' in result), 'legacy shenSha should be removed');
 });
 
-test('bazi_calculate should output relation list with type/description/auspiciousness', async () => {
+test('bazi should output relation list with type/description/auspiciousness', async () => {
   const result = await mcpCore.calculateBazi({
     gender: 'male',
     birthYear: 1980,
@@ -85,7 +85,7 @@ test('bazi_calculate should output relation list with type/description/auspiciou
   }
 });
 
-test('bazi_calculate should set consistent pillar kongWang objects', async () => {
+test('bazi should set consistent pillar kongWang objects', async () => {
   const result = await mcpCore.calculateBazi(SAMPLE_INPUT);
   const pillars = ['year', 'month', 'day', 'hour'];
   const globalKong = result.kongWang;
@@ -100,7 +100,7 @@ test('bazi_calculate should set consistent pillar kongWang objects', async () =>
   }
 });
 
-test('bazi_calculate should return consistent chart for equivalent solar and lunar inputs', async () => {
+test('bazi should return consistent chart for equivalent solar and lunar inputs', async () => {
   const solar = Solar.fromYmdHms(1992, 8, 16, 9, 30, 0);
   const lunar = solar.getLunar();
   const lunarMonth = lunar.getMonth();
@@ -133,7 +133,7 @@ test('bazi_calculate should return consistent chart for equivalent solar and lun
   assert.equal(toPillarString(solarResult.fourPillars.hour), toPillarString(lunarResult.fourPillars.hour));
 });
 
-test('bazi_calculate should reject invalid lunar leap month and out-of-range lunar day', async () => {
+test('bazi should reject invalid lunar leap month and out-of-range lunar day', async () => {
   let nonLeapYear = 1900;
   while (LunarYear.fromYear(nonLeapYear).getLeapMonth() !== 0) {
     nonLeapYear += 1;
@@ -187,7 +187,7 @@ test('bazi_calculate should reject invalid lunar leap month and out-of-range lun
   );
 });
 
-test('bazi_calculate should keep bazi-specific shensha after shared refactor', async () => {
+test('bazi should keep bazi-specific shensha after shared refactor', async () => {
   const samples = [
     {
       input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 1, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
@@ -254,7 +254,7 @@ test('bazi_pillars_resolve should return candidates and next call hint', async (
     assert.equal(typeof first.isLeapMonth, 'boolean');
     assert.equal(typeof first.solarText, 'string');
     assert.equal(typeof first.lunarText, 'string');
-    assert.equal(first.nextCall.tool, 'bazi_calculate');
+    assert.equal(first.nextCall.tool, 'bazi');
     assert.equal(first.nextCall.arguments.birthYear, first.birthYear);
     assert.equal(first.nextCall.arguments.calendarType, 'lunar');
     assert.equal(first.nextCall.arguments.isLeapMonth, first.isLeapMonth);

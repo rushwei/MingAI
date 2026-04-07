@@ -28,11 +28,11 @@ const renderToolText = (
       return toZiweiHoroscopeText(result as never, options as never);
     case 'ziwei_flying_star':
       return toZiweiFlyingStarText(result as never, options as never);
-    case 'bazi_calculate':
+    case 'bazi':
       return toBaziText(result as never, options as never);
-    case 'ziwei_calculate':
+    case 'ziwei':
       return toZiweiText(result as never, options as never);
-    case 'qimen_calculate':
+    case 'qimen':
       return toQimenText(result as never, options as never);
     case 'daliuren':
       return toDaliurenText(result as never, options as never);
@@ -68,7 +68,7 @@ test('specialized core canonical text renderers should cover non-mainline tools'
       birthMinute: 30,
       isLeapMonth: false,
       nextCall: {
-        tool: 'bazi_calculate',
+        tool: 'bazi',
         arguments: {
           birthYear: 1990,
           birthMonth: 1,
@@ -161,7 +161,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
     dayOffset: -1,
   };
 
-  const markdown = renderToolText('bazi_calculate', {
+  const markdown = renderToolText('bazi', {
     gender: 'male',
     birthPlace: '新疆',
     dayMaster: '甲',
@@ -201,7 +201,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
 });
 
 test('ziwei full text should keep full age arrays instead of truncating them while default stays compact', () => {
-  const markdown = renderToolText('ziwei_calculate', {
+  const markdown = renderToolText('ziwei', {
     solarDate: '1990-1-1',
     lunarDate: '1989-12-5',
     fourPillars: {
@@ -324,8 +324,8 @@ test('qimen canonical text should keep default compact while full appends supple
     monthPhase: { 甲: '死', 乙: '死', 丙: '囚', 丁: '囚', 戊: '休', 己: '休', 庚: '旺', 辛: '旺', 壬: '相', 癸: '相' },
   };
 
-  const defaultText = renderToolText('qimen_calculate', chart);
-  const fullText = renderToolText('qimen_calculate', chart, { detailLevel: 'full' });
+  const defaultText = renderToolText('qimen', chart);
+  const fullText = renderToolText('qimen', chart, { detailLevel: 'full' });
 
   assert.match(defaultText, /值符 \(大局趋势\): 天芮星/u);
   assert.match(defaultText, /\| 宫位\(五行\) \| 八神 \| 九星\(五行\) \| 八门\(五行\) \| 天盘天干 \| 地盘天干 \| 宫位状态 \|/u);

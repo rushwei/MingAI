@@ -21,7 +21,7 @@ test('core should only expose canonical renamed tool names', async () => {
 
 test('mcp input validation should reject non-object arguments at the protocol boundary', async () => {
   await assert.rejects(
-    () => executeTool('bazi_calculate', null),
+    () => executeTool('bazi', null),
     /输入必须是一个对象/u,
   );
 });

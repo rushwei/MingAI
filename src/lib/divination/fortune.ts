@@ -21,7 +21,7 @@ import {
     LIU_HE,
     TAO_HUA,
     YI_MA,
-} from '@mingai/core/data/shensha-data';
+} from '@mingai/core/data/shensha';
 import { createMemoryCache } from '@/lib/cache/memory';
 import type { HeavenlyStem, FiveElement, FortuneLevel } from '@/types';
 

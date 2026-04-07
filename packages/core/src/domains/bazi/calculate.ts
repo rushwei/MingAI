@@ -75,7 +75,7 @@ import {
   YUE_DE,
   YUE_DE_HE,
   ZAI_SHA,
-} from '../../data/shensha-data.js';
+} from '../../data/shensha.js';
 
 export type {
   BaziFiveElementsStats,

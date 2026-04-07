@@ -1,7 +1,6 @@
 import { Solar } from 'lunar-javascript';
-import { HEXAGRAMS, type Hexagram } from '../../data/hexagram-data.js';
-import { XUN_KONG_TABLE as RAW_XUN_KONG_TABLE } from '../../data/shensha-data.js';
-import { GUA_CI, XIANG_CI, YAO_CI } from '../../data/hexagram-texts.js';
+import { GUA_CI, HEXAGRAMS, XIANG_CI, YAO_CI, type Hexagram } from '../../data/hexagrams.js';
+import { XUN_KONG_TABLE as RAW_XUN_KONG_TABLE } from '../../data/shensha.js';
 import { createSeededRng, resolveSeed } from '../../shared/seeded-rng.js';
 import { calculateBranchShenSha, calculateGlobalShenSha } from '../shared/shensha.js';
 import type {
@@ -19,7 +18,7 @@ import type {
   YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus,
 } from '../shared/types.js';
 import { getKongWang as getKongWangByPillarSource } from '../../shared/utils.js';
-export type { Hexagram } from '../../data/hexagram-data.js';
+export type { Hexagram } from '../../data/hexagrams.js';
 
 // ── 卦象 Map 索引（O(1) 查找） ──
 const HEXAGRAM_BY_CODE = new Map<string, Hexagram>(HEXAGRAMS.map(h => [h.code, h]));

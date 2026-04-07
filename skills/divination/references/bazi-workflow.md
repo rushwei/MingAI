@@ -9,7 +9,7 @@
   - `calendarType` — `solar`(默认) / `lunar`；用户给农历日期时必须设为 `lunar`
   - `isLeapMonth` — 仅 `calendarType=lunar` 有效，工具会校验该年该月是否真为闰月
   - `birthPlace` — 出生地点（可选，记录用途）
-- 若用户只给四柱：先用 `bazi_pillars_resolve` 反查候选时间，经用户确认后再用 `bazi_calculate`（利用候选的 `nextCall` 参数，补充 `gender`）
+- 若用户只给四柱：先用 `bazi_pillars_resolve` 反查候选时间，经用户确认后再用 `bazi`（利用候选的 `nextCall` 参数，补充 `gender`）
 - 缺少关键信息时先补齐，不进入结论阶段
 
 ## 1. 盘面基础层

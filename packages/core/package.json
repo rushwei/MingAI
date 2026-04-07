@@ -88,20 +88,15 @@
       "import": "./dist/domains/almanac/index.js",
       "default": "./dist/domains/almanac/index.js"
     },
-    "./data/hexagram-data": {
-      "types": "./dist/data/hexagram-data.d.ts",
-      "import": "./dist/data/hexagram-data.js",
-      "default": "./dist/data/hexagram-data.js"
+    "./data/hexagrams": {
+      "types": "./dist/data/hexagrams.d.ts",
+      "import": "./dist/data/hexagrams.js",
+      "default": "./dist/data/hexagrams.js"
     },
-    "./data/hexagram-texts": {
-      "types": "./dist/data/hexagram-texts.d.ts",
-      "import": "./dist/data/hexagram-texts.js",
-      "default": "./dist/data/hexagram-texts.js"
-    },
-    "./data/shensha-data": {
-      "types": "./dist/data/shensha-data.d.ts",
-      "import": "./dist/data/shensha-data.js",
-      "default": "./dist/data/shensha-data.js"
+    "./data/shensha": {
+      "types": "./dist/data/shensha.d.ts",
+      "import": "./dist/data/shensha.js",
+      "default": "./dist/data/shensha.js"
     },
     "./utils": {
       "types": "./dist/shared/utils.d.ts",
