@@ -79,31 +79,32 @@ ${conflictsSummary}
         };
         return `${input.result.person1.name} & ${input.result.person2.name} - ${typeNames[input.result.type] || '合盘分析'}`;
     },
-    persistRecord: async (input, userId, conversationId) => {
-        const serviceClient = getSystemAdminClient();
-        const { result, chartId } = input;
-        if (chartId) {
-            await serviceClient
-                .from('hepan_charts')
-                .update({ conversation_id: conversationId })
-                .eq('id', chartId)
-                .eq('user_id', userId);
-        } else {
-            await serviceClient
-                .from('hepan_charts')
-                .insert({
-                    user_id: userId,
-                    type: result.type,
-                    person1_name: result.person1.name,
-                    person1_birth: { year: result.person1.year, month: result.person1.month, day: result.person1.day, hour: result.person1.hour },
-                    person2_name: result.person2.name,
-                    person2_birth: { year: result.person2.year, month: result.person2.month, day: result.person2.day, hour: result.person2.hour },
-                    compatibility_score: result.overallScore,
-                    conversation_id: conversationId,
-                    result_data: result,
-                });
-        }
-    },
+    buildHistoryBinding: (input) => ({
+        type: 'hepan',
+        payload: input.chartId
+            ? {
+                chart_id: input.chartId,
+            }
+            : {
+                type: input.result.type,
+                person1_name: input.result.person1.name,
+                person1_birth: {
+                    year: input.result.person1.year,
+                    month: input.result.person1.month,
+                    day: input.result.person1.day,
+                    hour: input.result.person1.hour,
+                },
+                person2_name: input.result.person2.name,
+                person2_birth: {
+                    year: input.result.person2.year,
+                    month: input.result.person2.month,
+                    day: input.result.person2.day,
+                    hour: input.result.person2.hour,
+                },
+                compatibility_score: input.result.overallScore,
+                result_data: input.result,
+            },
+    }),
 });
 
 export async function POST(request: NextRequest) {

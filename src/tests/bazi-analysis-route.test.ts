@@ -246,7 +246,7 @@ test('bazi analysis route builds prompt from server chart context instead of cli
     assert.match(String(capturedSourceData?.['case_prompt_snapshot'] || ''), /命主反馈/u);
 });
 
-test('bazi analysis route surfaces SSE error when stream persistence fails after content generation', async (t) => {
+test('bazi analysis route surfaces SSE error when stream persistence returns null after content generation', async (t) => {
     const apiUtils = require('../lib/api-utils') as {
         requireUserContext: typeof import('../lib/api-utils').requireUserContext;
         getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
@@ -421,9 +421,7 @@ test('bazi analysis route surfaces SSE error when stream persistence fails after
     });
     rateLimitModule.checkRateLimit = async () => ({ allowed: true });
     rateLimitModule.getClientIP = () => '127.0.0.1';
-    aiAnalysisModule.createAIAnalysisConversation = async () => {
-        throw new Error('persist failed');
-    };
+    aiAnalysisModule.createAIAnalysisConversation = async () => null;
     console.error = () => {};
 
     t.after(() => {

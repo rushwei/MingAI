@@ -77,16 +77,14 @@ const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
         model_id: modelId,
     }),
     generateTitle: (input) => `大六壬 · ${input.resultData.keName}`,
-    persistRecord: async (input, userId, conversationId) => {
-        if (input.divinationId && conversationId) {
-            const serviceClient = getSystemAdminClient();
-            await serviceClient
-                .from('daliuren_divinations')
-                .update({ conversation_id: conversationId })
-                .eq('id', input.divinationId)
-                .eq('user_id', userId);
+    buildHistoryBinding: (input) => input.divinationId
+        ? {
+            type: 'daliuren',
+            payload: {
+                divination_id: input.divinationId,
+            },
         }
-    },
+        : null,
 });
 
 export async function POST(request: NextRequest) {

@@ -4,7 +4,7 @@
  * 提供手相图片分析、历史记录等功能
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk } from '@/lib/api-utils';
+import { jsonError, jsonOk } from '@/lib/api-utils';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import {
     PALM_ANALYSIS_TYPES,
@@ -70,23 +70,13 @@ const handleAnalyze = createInterpretHandler<PalmInterpretInput>({
         reasoning: reasoningEnabled,
     }),
     generateTitle: (input) => generatePalmTitle(input.analysisType, input.handType),
-    persistRecord: async (input, userId, conversationId) => {
-        if (!conversationId) return;
-        const serviceClient = getSystemAdminClient();
-        const { error } = await serviceClient
-            .from('palm_readings')
-            .insert({
-                user_id: userId,
-                analysis_type: input.analysisType,
-                hand_type: input.handType,
-                conversation_id: conversationId,
-            })
-            .select('id')
-            .single();
-        if (error) {
-            console.error('[palm] 保存分析记录失败:', error.message);
-        }
-    },
+    buildHistoryBinding: (input) => ({
+        type: 'palm',
+        payload: {
+            analysis_type: input.analysisType,
+            hand_type: input.handType,
+        },
+    }),
 });
 
 export async function POST(request: NextRequest): Promise<Response> {

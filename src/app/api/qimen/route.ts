@@ -205,21 +205,16 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpr
         }
         return `奇门遁甲 - ${resolvedContext.chart.dunType === 'yang' ? '阳遁' : '阴遁'}${resolvedContext.chart.juNumber}局`;
     },
-    persistRecord: async (input, userId, conversationId, context) => {
+    buildHistoryBinding: (input, userId, context) => {
         const resolvedContext = requireQimenInterpretContext(context);
-        const serviceClient = getSystemAdminClient();
-        if (input.chartId) {
-            await serviceClient
-                .from('qimen_charts')
-                .update({ conversation_id: conversationId })
-                .eq('id', input.chartId)
-                .eq('user_id', userId);
-            return;
-        }
-
-        await serviceClient
-            .from('qimen_charts')
-            .insert(buildInsertPayload(userId, input, resolvedContext.chart, conversationId));
+        return {
+            type: 'qimen',
+            payload: input.chartId
+                ? {
+                    chart_id: input.chartId,
+                }
+                : buildInsertPayload(userId, input, resolvedContext.chart),
+        };
     },
 });
 

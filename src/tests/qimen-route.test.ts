@@ -11,17 +11,14 @@ test('qimen route persists analysis after streaming completes', async (t) => {
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const supabaseModule = require('../lib/auth') as any;
-    const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let createArgs: Record<string, unknown> | null = null;
-    let updated: Record<string, unknown> | null = null;
 
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
@@ -34,42 +31,6 @@ test('qimen route persists analysis after streaming completes', async (t) => {
         data: { user: { id: 'user-1' } },
         error: null,
     });
-    supabaseServerModule.getSystemAdminClient = () => ({
-        from: (table: string) => {
-            if (table === 'users') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
-                                error: null,
-                            }),
-                            maybeSingle: async () => ({
-                                data: { membership: 'pro', membership_expires_at: null },
-                                error: null,
-                            }),
-                        }),
-                    }),
-                };
-            }
-            if (table === 'qimen_charts') {
-                return {
-                    update: (payload: Record<string, unknown>) => {
-                        updated = payload;
-                        return {
-                            eq: () => ({
-                                eq: async () => ({ error: null }),
-                            }),
-                        };
-                    },
-                    insert: async () => ({ error: null }),
-                };
-            }
-            return {
-                insert: async () => ({ error: null }),
-            };
-        },
-    });
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
@@ -77,7 +38,6 @@ test('qimen route persists analysis after streaming completes', async (t) => {
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { POST } = await import('../app/api/qimen/route');
@@ -111,7 +71,8 @@ test('qimen route persists analysis after streaming completes', async (t) => {
     assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
     assert.ok(createArgs);
     assert.equal((createArgs as Record<string, unknown>).sourceType, 'qimen');
-    assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
+    assert.equal((createArgs as Record<string, unknown>).historyBinding?.type, 'qimen');
+    assert.equal((createArgs as Record<string, unknown>).historyBinding?.payload?.chart_id, 'chart-1');
 });
 
 test('qimen route surfaces SSE error when stream persistence fails after content generation', async (t) => {

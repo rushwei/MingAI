@@ -77,28 +77,16 @@ ${basic.description}
         reasoning: reasoningEnabled,
     }),
     generateTitle: (input) => `${input.type} 人格分析`,
-    persistRecord: async (input, userId, conversationId) => {
-        const serviceClient = getSystemAdminClient();
-        if (input.readingId) {
-            const { error } = await serviceClient
-                .from('mbti_readings')
-                .update({ conversation_id: conversationId })
-                .eq('id', input.readingId)
-                .eq('user_id', userId);
-            if (error) console.error('[mbti] 更新测试记录失败:', error.message);
-        } else {
-            const { error } = await serviceClient
-                .from('mbti_readings')
-                .insert({
-                    user_id: userId,
-                    mbti_type: input.type,
-                    scores: input.scores,
-                    percentages: input.percentages,
-                    conversation_id: conversationId,
-                });
-            if (error) console.error('[mbti] 保存测试记录失败:', error.message);
-        }
-    },
+    buildHistoryBinding: (input) => ({
+        type: 'mbti',
+        payload: input.readingId
+            ? { reading_id: input.readingId }
+            : {
+                mbti_type: input.type,
+                scores: input.scores,
+                percentages: input.percentages,
+            },
+    }),
 });
 
 export async function POST(request: NextRequest) {

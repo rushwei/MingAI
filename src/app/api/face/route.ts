@@ -4,7 +4,6 @@
  * 提供面相图片分析、历史记录等功能
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient } from '@/lib/api-utils';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import {
     FACE_ANALYSIS_TYPES,
@@ -68,22 +67,12 @@ const handleAnalyze = createInterpretHandler<FaceInterpretInput>({
         reasoning: reasoningEnabled,
     }),
     generateTitle: (input) => generateFaceTitle(input.analysisType),
-    persistRecord: async (input, userId, conversationId) => {
-        if (!conversationId) return;
-        const serviceClient = getSystemAdminClient();
-        const { error } = await serviceClient
-            .from('face_readings')
-            .insert({
-                user_id: userId,
-                analysis_type: input.analysisType,
-                conversation_id: conversationId,
-            })
-            .select('id')
-            .single();
-        if (error) {
-            console.error('[face] 保存分析记录失败:', error.message);
-        }
-    },
+    buildHistoryBinding: (input) => ({
+        type: 'face',
+        payload: {
+            analysis_type: input.analysisType,
+        },
+    }),
 });
 
 export async function POST(request: NextRequest): Promise<Response> {

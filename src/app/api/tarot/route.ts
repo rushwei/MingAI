@@ -106,20 +106,6 @@ async function insertTarotReading(
     );
 }
 
-async function updateTarotReading(
-    serviceClient: ReturnType<typeof getSystemAdminClient>,
-    filters: { id: string; userId: string },
-    fields: Record<string, unknown>,
-    metadata?: Record<string, unknown>,
-) {
-    const primaryPayload = metadata ? { ...fields, metadata } : fields;
-    return serviceClient
-        .from('tarot_readings')
-        .update(primaryPayload)
-        .eq('id', filters.id)
-        .eq('user_id', filters.userId);
-}
-
 const handleInterpret = createInterpretHandler<TarotInterpretInput>({
     sourceType: 'tarot',
     tag: 'tarot',
@@ -179,32 +165,20 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
         }
         return `塔罗占卜 - ${spreadName}`;
     },
-    persistRecord: async (input, userId, conversationId) => {
-        const serviceClient = getSystemAdminClient();
-        const metadata = buildTarotMetadata(input.birthDate, input.numerology, input.seed);
-        if (input.readingId) {
-            const updateResult = await updateTarotReading(
-                serviceClient,
-                { id: input.readingId, userId },
-                { conversation_id: conversationId },
-                metadata,
-            );
-            if (updateResult.error) {
-                throw new Error(updateResult.error.message || '更新塔罗记录失败');
+    buildHistoryBinding: (input) => ({
+        type: 'tarot',
+        payload: input.readingId
+            ? {
+                reading_id: input.readingId,
+                metadata: buildTarotMetadata(input.birthDate, input.numerology, input.seed) || null,
             }
-        } else {
-            const insertResult = await insertTarotReading(serviceClient, {
-                user_id: userId,
+            : {
                 spread_id: input.spreadId,
                 question: input.question || null,
                 cards: input.cards,
-                conversation_id: conversationId,
-            }, metadata, { selectId: false });
-            if (insertResult.error) {
-                throw new Error(insertResult.error.message || '保存塔罗记录失败');
-            }
-        }
-    },
+                metadata: buildTarotMetadata(input.birthDate, input.numerology, input.seed) || null,
+            },
+    }),
 });
 
 async function buildDailyCardResponse(timezone?: string, seedScope?: string): Promise<NextResponse<TarotResponse>> {

@@ -62,7 +62,9 @@ function setupPipelineMocks(t: TestContext) {
     useCredit: credits.useCredit,
     addCredits: credits.addCredits,
     resolveModelAccessAsync: aiAccess.resolveModelAccessAsync,
+    callAIWithReasoning: aiModule.callAIWithReasoning,
     callAIUIMessageResult: aiModule.callAIUIMessageResult,
+    callAIVision: aiModule.callAIVision,
     createAIAnalysisConversation: aiAnalysisModule.createAIAnalysisConversation,
   };
 
@@ -103,6 +105,11 @@ function setupPipelineMocks(t: TestContext) {
       { type: 'text', text: 'analysis', state: 'done' },
     ],
   });
+  aiModule.callAIWithReasoning = async () => ({
+    content: 'analysis',
+    reasoning: 'reason',
+  });
+  aiModule.callAIVision = async () => 'vision-analysis';
 
   const createCalls: Array<Record<string, unknown>> = [];
   aiAnalysisModule.createAIAnalysisConversation = async (args: Record<string, unknown>) => {
@@ -119,7 +126,9 @@ function setupPipelineMocks(t: TestContext) {
     credits.useCredit = originals.useCredit;
     credits.addCredits = originals.addCredits;
     aiAccess.resolveModelAccessAsync = originals.resolveModelAccessAsync;
+    aiModule.callAIWithReasoning = originals.callAIWithReasoning;
     aiModule.callAIUIMessageResult = originals.callAIUIMessageResult;
+    aiModule.callAIVision = originals.callAIVision;
     aiAnalysisModule.createAIAnalysisConversation = originals.createAIAnalysisConversation;
     delete require.cache[pipelinePath];
   });
@@ -265,6 +274,97 @@ test('divination pipeline surfaces an SSE error when stream persistence fails af
   assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
   assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
   assert.match(body, /\[DONE\]/u);
+});
+
+test('divination pipeline surfaces an SSE error when stream persistence returns null after content generation', async (t) => {
+  const { aiAnalysisModule, loadPipeline } = setupPipelineMocks(t);
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  aiAnalysisModule.createAIAnalysisConversation = async () => null;
+
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+
+  const { createInterpretHandler } = loadPipeline();
+  const handler = createTestHandler(createInterpretHandler);
+
+  const response = await handler(createTestRequest(), { action: 'interpret', stream: true });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
+  assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
+  assert.match(body, /\[DONE\]/u);
+});
+
+test('divination pipeline refunds and returns 500 when non-stream persistence returns null', async (t) => {
+  const { aiAnalysisModule, credits, loadPipeline } = setupPipelineMocks(t);
+  const originalConsoleError = console.error;
+  let refundCalls = 0;
+
+  console.error = () => {};
+  aiAnalysisModule.createAIAnalysisConversation = async () => null;
+  credits.addCredits = async () => {
+    refundCalls += 1;
+    return 1;
+  };
+
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+
+  const { createInterpretHandler } = loadPipeline();
+  const handler = createTestHandler(createInterpretHandler);
+
+  const response = await handler(createTestRequest(), { action: 'interpret' });
+  const payload = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.equal(payload.error, '保存结果失败，请稍后重试');
+  assert.equal(refundCalls, 1);
+});
+
+test('divination vision pipeline refunds and returns 500 when persistence returns null', async (t) => {
+  const { aiAnalysisModule, credits, loadPipeline } = setupPipelineMocks(t);
+  const originalConsoleError = console.error;
+  let refundCalls = 0;
+
+  console.error = () => {};
+  aiAnalysisModule.createAIAnalysisConversation = async () => null;
+  credits.addCredits = async () => {
+    refundCalls += 1;
+    return 1;
+  };
+
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+
+  const { createInterpretHandler } = loadPipeline();
+  const handler = createInterpretHandler<Record<string, unknown>>({
+    sourceType: 'test_divination',
+    tag: 'test-divination',
+    isVision: true,
+    parseInput: (body) => (body ?? {}) as Record<string, unknown>,
+    buildPrompts: () => ({
+      systemPrompt: 'system prompt',
+      userPrompt: 'user prompt',
+    }),
+    buildSourceData: () => ({}),
+    generateTitle: () => 'Vision Pipeline Test',
+    buildVisionOptions: () => ({
+      imageBase64: 'ZmFrZQ==',
+      imageMimeType: 'image/png',
+    }),
+  });
+
+  const response = await handler(createTestRequest(), { action: 'interpret' });
+  const payload = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.equal(payload.error, '保存结果失败，请稍后重试');
+  assert.equal(refundCalls, 1);
 });
 
 test('divination pipeline skips persistence when streamed response is aborted', async (t) => {

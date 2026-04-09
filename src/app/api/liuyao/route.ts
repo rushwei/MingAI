@@ -63,10 +63,6 @@ function parseYongShenTargets(
     return { targets: Array.from(unique) };
 }
 
-function toPersistedYongShenTargets(targets: LiuQin[]): LiuQin[] | null {
-    return targets.length > 0 ? targets : null;
-}
-
 function parseQuestionInput(value: unknown): { question: string; error?: string } {
     if (value == null) return { question: '' };
     if (typeof value !== 'string') return { question: '', error: '问题格式错误' };
@@ -200,32 +196,21 @@ const handleInterpret = createInterpretHandler<LiuyaoInterpretInput, LiuyaoInter
             conversationId,
         },
     }),
-    persistRecord: async (input, userId, conversationId, context) => {
-        const serviceClient = getSystemAdminClient();
-        if (input.divinationId) {
-            await serviceClient
-                .from('liuyao_divinations')
-                .update({
-                    conversation_id: conversationId,
-                    yongshen_targets: toPersistedYongShenTargets(context?.yongShenTargets || []),
-                })
-                .eq('id', input.divinationId)
-                .eq('user_id', userId);
-            return;
-        }
-
-        await serviceClient
-            .from('liuyao_divinations')
-            .insert({
-                user_id: userId,
+    buildHistoryBinding: (input, _userId, context) => ({
+        type: 'liuyao',
+        payload: input.divinationId
+            ? {
+                divination_id: input.divinationId,
+                yongshen_targets: context?.yongShenTargets || [],
+            }
+            : {
                 question: context?.effectiveQuestion || '',
-                yongshen_targets: toPersistedYongShenTargets(context?.yongShenTargets || []),
+                yongshen_targets: context?.yongShenTargets || [],
                 hexagram_code: context?.hexagramCode || '',
                 changed_hexagram_code: context?.changedCode || null,
                 changed_lines: input.changedLines,
-                conversation_id: conversationId,
-            });
-    },
+            },
+    }),
 });
 
 export async function POST(request: NextRequest) {

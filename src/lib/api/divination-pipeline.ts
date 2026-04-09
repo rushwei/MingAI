@@ -19,7 +19,10 @@ import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { callAIWithReasoning, callAIUIMessageResult, callAIVision } from '@/lib/ai/ai';
-import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
+import {
+  AIAnalysisConversationPersistenceError,
+  createAIAnalysisConversation,
+} from '@/lib/ai/ai-analysis';
 import type { AIModelConfig } from '@/types';
 import type { AIPersonality } from '@/types';
 import type { ChartType } from '@/lib/visualization/chart-types';
@@ -98,8 +101,17 @@ export interface DivinationRouteConfig<
     conversationId: string | null;
   }) => Record<string, unknown>;
   /**
+   * Optional transaction payload builder.
+   * When provided, conversation persistence and record binding happen in one DB transaction.
+   */
+  buildHistoryBinding?: (
+    input: T,
+    userId: string,
+    context?: TContext,
+  ) => Parameters<typeof createAIAnalysisConversation>[0]['historyBinding'];
+  /**
    * Optional post-persist hook. Called after conversation is created.
-   * Use for updating reading/divination records with conversation_id.
+   * Keep this only for paths that do not need multi-write transactional persistence.
    */
   persistRecord?: (
     input: T,
@@ -205,6 +217,7 @@ export function createInterpretHandler<
     allowedChartTypes,
     emptyResultMessage = 'AI 分析结果为空，请稍后重试',
     formatSuccessResponse,
+    buildHistoryBinding,
     persistRecord,
   } = config;
 
@@ -297,6 +310,12 @@ export function createInterpretHandler<
         systemPrompt, userPrompt, promptContext,
       );
     } catch (aiError) {
+      if (aiError instanceof AIAnalysisConversationPersistenceError) {
+        await addCredits(user.id, 1);
+        console.error(`[${tag}] 分析结果保存失败:`, aiError);
+        return jsonError('保存结果失败，请稍后重试', 500, { success: false });
+      }
+
       await addCredits(user.id, 1);
       console.error(`[${tag}] AI 调用失败:`, aiError);
       return jsonError('AI 分析失败，请稍后重试', 500, { success: false });
@@ -408,7 +427,7 @@ export function createInterpretHandler<
     input: T, userId: string, resolvedModelId: string,
     reasoningEnabled: boolean, aiResponse: string, reasoningText: string | null,
     promptContext?: TContext,
-  ): Promise<string | null> {
+  ): Promise<string> {
     const sourceData = buildSourceData(input, resolvedModelId, reasoningEnabled, promptContext);
     if (reasoningText) {
       sourceData.reasoning_text = reasoningText;
@@ -416,13 +435,25 @@ export function createInterpretHandler<
     const resolvedSourceType = typeof sourceType === 'function'
       ? sourceType(input, promptContext)
       : sourceType;
-    return createAIAnalysisConversation({
+    const conversationId = await createAIAnalysisConversation({
       userId,
       sourceType: resolvedSourceType as Parameters<typeof createAIAnalysisConversation>[0]['sourceType'],
       sourceData,
       title: generateTitle(input, promptContext),
       aiResponse,
+      historyBinding: buildHistoryBinding
+        ? buildHistoryBinding(input, userId, promptContext)
+        : null,
     });
+
+    if (typeof conversationId !== 'string' || conversationId.trim().length === 0) {
+      throw new AIAnalysisConversationPersistenceError(
+        resolvedSourceType as Parameters<typeof createAIAnalysisConversation>[0]['sourceType'],
+        'createAIAnalysisConversation returned an invalid conversation id',
+      );
+    }
+
+    return conversationId;
   }
 }
 

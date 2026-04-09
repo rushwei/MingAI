@@ -13,7 +13,6 @@ import {
     type AnalysisSourceData,
     type AnalysisSourceType,
 } from '@/lib/source-contracts';
-import { replaceConversationMessages } from '@/lib/server/conversation-messages';
 import type { AIPersonality, ChatMessage } from '@/types';
 
 
@@ -28,6 +27,21 @@ const SOURCE_PERSONALITY_MAP: Partial<Record<AnalysisSourceType, AIPersonality>>
     daliuren: 'daliuren',
 };
 
+export class AIAnalysisConversationPersistenceError extends Error {
+    sourceType: AnalysisSourceType;
+
+    constructor(sourceType: AnalysisSourceType, message: string) {
+        super(message);
+        this.name = 'AIAnalysisConversationPersistenceError';
+        this.sourceType = sourceType;
+    }
+}
+
+function throwPersistenceError(sourceType: AnalysisSourceType, logLabel: string, detail: unknown): never {
+    console.error(`[${sourceType}] ${logLabel}:`, detail);
+    throw new AIAnalysisConversationPersistenceError(sourceType, logLabel);
+}
+
 // 创建 AI 分析对话记录的参数
 export interface CreateAIAnalysisParams {
     userId: string;
@@ -35,13 +49,17 @@ export interface CreateAIAnalysisParams {
     sourceData: AnalysisSourceData;
     title: string;
     aiResponse: string;
+    historyBinding?: {
+        type: 'mbti' | 'tarot' | 'hepan' | 'palm' | 'face' | 'qimen' | 'daliuren' | 'liuyao';
+        payload: Record<string, unknown>;
+    } | null;
 }
 
 /**
  * 创建 AI 分析对话记录（服务端使用）
  * 绕过 RLS，用于 API 路由中保存 AI 分析结果
  */
-export async function createAIAnalysisConversation(params: CreateAIAnalysisParams): Promise<string | null> {
+export async function createAIAnalysisConversation(params: CreateAIAnalysisParams): Promise<string> {
     const serviceClient = getSystemAdminClient();
     const normalizedSourceData = normalizeAnalysisSourceData(params.sourceType, params.sourceData);
 
@@ -60,32 +78,47 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
     ];
 
     const personality = SOURCE_PERSONALITY_MAP[params.sourceType] ?? 'general';
-    const { data, error } = await serviceClient
-        .from('conversations')
-        .insert({
-            user_id: params.userId,
-            source_type: params.sourceType,
-            source_data: normalizedSourceData,
-            title: params.title,
-            personality,
-        })
-        .select('id')
-        .single();
+    if (params.historyBinding) {
+        const { data, error } = await serviceClient.rpc('create_analysis_conversation_with_history_as_service', {
+            p_user_id: params.userId,
+            p_source_type: params.sourceType,
+            p_source_data: normalizedSourceData,
+            p_title: params.title,
+            p_personality: personality,
+            p_messages: messages,
+            p_history_type: params.historyBinding.type,
+            p_history_payload: params.historyBinding.payload,
+        });
 
-    if (error) {
-        console.error(`[${params.sourceType}] 创建 AI 分析对话失败:`, error.message);
-        return null;
-    }
-
-    if (data?.id) {
-        const syncResult = await replaceConversationMessages(serviceClient, data.id, messages);
-        if (syncResult.error) {
-            console.error(`[${params.sourceType}] 同步 AI 分析消息失败:`, syncResult.error.message);
-            return null;
+        if (error || typeof data !== 'string') {
+            throwPersistenceError(
+                params.sourceType,
+                '事务化保存 AI 分析失败',
+                error?.message || data,
+            );
         }
+
+        return data;
     }
 
-    return data?.id || null;
+    const { data, error } = await serviceClient.rpc('create_conversation_with_messages', {
+        p_user_id: params.userId,
+        p_title: params.title,
+        p_personality: personality,
+        p_source_type: params.sourceType,
+        p_source_data: normalizedSourceData,
+        p_messages: messages,
+    });
+
+    if (error || typeof data !== 'string') {
+        throwPersistenceError(
+            params.sourceType,
+            '事务化创建 AI 分析对话失败',
+            error?.message || data,
+        );
+    }
+
+    return data;
 }
 
 // 塔罗牌阵 ID 到中文名称的映射
