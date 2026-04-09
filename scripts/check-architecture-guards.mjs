@@ -71,6 +71,7 @@ mustNotExist('src/app/api/supabase/proxy/route.ts', 'legacy supabase proxy route
 mustNotExist('src/lib/data-sources/init.ts', 'data source side-effect init should stay removed');
 mustNotExist('src/lib/divination/qimen-shared.ts', 'legacy qimen shared adapter should stay removed');
 mustNotExist('src/lib/divination/liuyao-traditional.ts', 'legacy liuyao traditional adapter should stay removed');
+mustNotExist('src/app/api/notifications/launch/route.ts', 'legacy notifications launch route should stay removed after announcement split');
 
 mustMatch(
   'src/app/api/auth/route.ts',
@@ -250,12 +251,12 @@ mustMatch(
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
-  /@mingai\/core\/data\/hexagram-data/u,
+  /@mingai\/core\/data\/hexagrams/u,
   'liuyao web adapter should import shared hexagram data from core',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
-  /@mingai\/core\/data\/shensha-data/u,
+  /@mingai\/core\/data\/shensha/u,
   'liuyao web adapter should import shared shensha data from core',
 );
 mustNotMatch(
@@ -375,9 +376,29 @@ mustNotMatch(
   'community page should not write user_settings directly from the browser',
 );
 mustNotMatch(
+  'src/app/user/notifications/page.tsx',
+  /FeatureGate/u,
+  'user notifications page should remain directly accessible even when entry links are hidden',
+);
+mustNotMatch(
   'src/lib/user/membership.ts',
   /supabase\s*\.\s*from\s*\(/m,
   'browser membership helpers should not write tables directly',
+);
+mustMatch(
+  'src/lib/user/settings.ts',
+  /DEFAULT_NAV_ORDER\s*=\s*\[[^\]]*'qimen'[^\]]*'daliuren'[^\]]*'daily'[^\]]*'monthly'/u,
+  'default nav order should keep qimen, daliuren, daily, and monthly in the main navigation list',
+);
+mustNotMatch(
+  'src/lib/user/settings.ts',
+  /DEFAULT_TOOL_ORDER\s*=\s*\[[^\]]*'daily'/u,
+  'default tool order should not list daily as a tool entry',
+);
+mustNotMatch(
+  'src/lib/user/settings.ts',
+  /DEFAULT_TOOL_ORDER\s*=\s*\[[^\]]*'monthly'/u,
+  'default tool order should not list monthly as a tool entry',
 );
 mustNotMatch(
   'src/lib/auth.ts',
@@ -456,6 +477,46 @@ mustMatch(
   /ALTER TABLE public\.community_posts[\s\S]*DROP COLUMN IF EXISTS anonymous_name/u,
   'community anonymity cleanup migration should drop the obsolete anonymous_name column',
 );
+mustMatch(
+  'supabase/tabel_export_from_supabase.sql',
+  /CREATE TABLE public\.announcements[\s\S]*content text NOT NULL[\s\S]*published_at timestamp with time zone NOT NULL DEFAULT now\(\)/u,
+  'schema snapshot should keep the simplified announcements table',
+);
+mustNotMatch(
+  'supabase/tabel_export_from_supabase.sql',
+  /CREATE TABLE public\.announcement_user_states/u,
+  'schema snapshot should not reintroduce announcement_user_states',
+);
+mustExist(
+  'supabase/migrations/20260328_simplify_announcements_for_unified_center.sql',
+  'announcements simplification migration should stay tracked in repo',
+);
+mustMatch(
+  'supabase/migrations/20260328_simplify_announcements_for_unified_center.sql',
+  /DROP TABLE IF EXISTS public\.announcement_user_states/u,
+  'announcements simplification migration should drop announcement_user_states',
+);
+mustMatch(
+  'supabase/migrations/20260328_simplify_announcements_for_unified_center.sql',
+  /CREATE TABLE public\.announcements[\s\S]*content text NOT NULL[\s\S]*published_at timestamp with time zone NOT NULL DEFAULT now\(\)/u,
+  'announcements simplification migration should define the simplified announcements table',
+);
+mustExist(
+  'supabase/migrations/20260328_fix_announcements_admin_rls.sql',
+  'announcements admin RLS migration should stay tracked in repo',
+);
+for (const policy of [
+  /CREATE POLICY announcements_admin_select/u,
+  /CREATE POLICY announcements_admin_insert/u,
+  /CREATE POLICY announcements_admin_update/u,
+  /CREATE POLICY announcements_admin_delete/u,
+]) {
+  mustMatch(
+    'supabase/migrations/20260328_fix_announcements_admin_rls.sql',
+    policy,
+    'announcements admin RLS migration should define every admin policy',
+  );
+}
 mustMatch(
   'supabase/migrations/20260315_fix_user_oauth_providers_admin_rls.sql',
   /DROP POLICY IF EXISTS "Service role full access on oauth providers"/u,

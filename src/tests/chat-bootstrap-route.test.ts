@@ -269,3 +269,11 @@ test('chat bootstrap route hides prompt knowledge bases when knowledge-base feat
   assert.deepEqual(payload.data.promptKnowledgeBases, []);
   assert.deepEqual(payload.data.promptKnowledgeBaseIds, []);
 });
+
+test('chat bootstrap hook should not seed an empty payload when no cache exists', async () => {
+  const { QueryClient } = await import('@tanstack/react-query');
+  const queryClient = new QueryClient();
+  const { queryKeys } = await import('../lib/query/keys');
+
+  assert.equal(queryClient.getQueryData(queryKeys.chatBootstrap('user-1')), undefined);
+});

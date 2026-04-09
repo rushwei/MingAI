@@ -89,6 +89,12 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
             if (fn === 'replace_conversation_messages') {
                 return { data: null, error: null };
             }
+            if (fn === 'create_analysis_conversation_with_history_as_service') {
+                return { data: 'conv-1', error: null };
+            }
+            if (fn === 'create_conversation_with_messages') {
+                return { data: 'conv-1', error: null };
+            }
             if (fn === 'increment_ai_chat_count') {
                 return { data: 6, error: null };
             }
@@ -288,7 +294,6 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let createArgs: Record<string, unknown> | null = null;
-    let updated: Record<string, unknown> | null = null;
 
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
@@ -369,7 +374,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
                         }),
                     }),
                     update: (payload: Record<string, unknown>) => {
-                        updated = payload;
+                        void payload;
                         return {
                             eq: () => ({
                                 eq: async () => ({ error: null }),
@@ -434,7 +439,8 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
 
     assert.ok(createArgs);
     assert.equal((createArgs as Record<string, unknown>).sourceType, 'liuyao');
-    assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
+    assert.equal((createArgs as Record<string, unknown>).historyBinding?.type, 'liuyao');
+    assert.equal((createArgs as Record<string, unknown>).historyBinding?.payload?.divination_id, 'divination-1');
 });
 
 test('liuyao route surfaces SSE error when stream persistence fails after content generation', async (t) => {

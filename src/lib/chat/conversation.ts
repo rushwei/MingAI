@@ -8,12 +8,6 @@ import { hydrateConversationMessages } from '@/lib/ai/ai-analysis-query';
 import { normalizeConversationSourceType } from '@/lib/source-contracts';
 import type { AIPersonality, ChatMessage, Conversation, ConversationListItem } from '@/types';
 
-export interface PaginatedMessages {
-    messages: ChatMessage[];
-    total: number;
-    hasMore: boolean;
-}
-
 export interface PaginatedConversations {
     conversations: ConversationListItem[];
     pagination: {
@@ -161,39 +155,6 @@ export async function loadConversations(
     };
 }
 
-export async function loadAllConversations(
-    userId: string,
-    options: {
-        pageSize?: number;
-        signal?: AbortSignal;
-    } = {},
-): Promise<ConversationListItem[]> {
-    const { pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
-    const rows: ConversationListItem[] = [];
-    let offset = 0;
-
-    for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
-        const payload = await loadConversations(userId, {
-            limit: pageSize,
-            offset,
-            signal,
-        });
-
-        if (!payload) {
-            return [];
-        }
-
-        rows.push(...payload.conversations);
-        if (!payload.pagination.hasMore || payload.pagination.nextOffset == null) {
-            break;
-        }
-
-        offset = payload.pagination.nextOffset;
-    }
-
-    return rows;
-}
-
 export async function loadConversationWindow(
     userId: string,
     options: {
@@ -314,59 +275,4 @@ export async function renameConversation(
     }
 
     return true;
-}
-
-export async function loadConversationMessages(
-    conversationId: string,
-    options: {
-        limit?: number;
-        offset?: number;
-    } = {}
-): Promise<PaginatedMessages | null> {
-    const { limit = 20, offset = 0 } = options;
-    const params = new URLSearchParams({
-        messageLimit: String(limit),
-        messageOffset: String(offset),
-    });
-
-    const response = await fetch(`/api/conversations/${conversationId}?${params.toString()}`, {
-        credentials: 'include',
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 加载对话消息失败');
-        return null;
-    }
-
-    const payload = await parseJson<{
-        conversation?: ConversationDetailApiRow | null;
-        pagination?: {
-            total?: number;
-            hasMore?: boolean;
-        } | null;
-        messagePage?: {
-            total?: number;
-            hasMore?: boolean;
-        } | null;
-    }>(response);
-
-    if (!payload?.conversation) {
-        return null;
-    }
-
-    return {
-        messages: hydrateConversationMessages(payload.conversation.messages || [], payload.conversation.source_data || undefined),
-        total: payload.pagination?.total ?? payload.messagePage?.total ?? payload.conversation.messages?.length ?? 0,
-        hasMore: payload.pagination?.hasMore ?? payload.messagePage?.hasMore ?? false,
-    };
-}
-
-export async function loadInitialMessages(
-    conversationId: string,
-    initialCount: number = 20
-): Promise<PaginatedMessages | null> {
-    return loadConversationMessages(conversationId, {
-        limit: initialCount,
-        offset: 0,
-    });
 }

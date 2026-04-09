@@ -450,3 +450,50 @@ test('buildPersonalityPrompt composes single and multi roles', () => {
     // 多人格直接拼接，不再包装额外指令
     assert.ok(!multi.includes('你同时具备以下专业能力'));
 });
+
+test('countTokens estimates Chinese heavier than Latin', () => {
+    const utils = require('../lib/token-utils') as any;
+    const cn = '你'.repeat(60);
+    const en = 'a'.repeat(60);
+    assert.ok(utils.countTokens(cn) > utils.countTokens(en));
+});
+
+test('truncateToTokens reduces token count', () => {
+    const utils = require('../lib/token-utils') as any;
+    const text = 'A'.repeat(4000);
+    const before = utils.countTokens(text);
+    const truncated = utils.truncateToTokens(text, 200);
+    const after = utils.countTokens(truncated);
+    assert.ok(before > 200);
+    assert.ok(after <= 260);
+});
+
+test('SourceTracker does not inject empty content', () => {
+    const st = require('../lib/source-tracker') as any;
+    const tracker = st.createSourceTracker();
+    const result = tracker.trackAndInject({ type: 'mention', id: 'x', name: 'X', content: '   ' });
+    assert.equal(result.injected, false);
+    assert.deepEqual(tracker.getSources(), []);
+});
+
+test('SourceTracker truncates when maxTokens is set', () => {
+    const st = require('../lib/source-tracker') as any;
+    const tracker = st.createSourceTracker();
+    const content = '内容'.repeat(500);
+    const result = tracker.trackAndInject({ type: 'mention', id: 'm1', name: 'M1', content, maxTokens: 10 });
+    assert.equal(result.injected, true);
+    const sources = tracker.getSources();
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0].truncated, true);
+    assert.ok(result.content.includes('内容已截断'));
+});
+
+test('SourceTracker de-duplicates sources by type and id', () => {
+    const st = require('../lib/source-tracker') as any;
+    const tracker = st.createSourceTracker();
+    tracker.trackAndInject({ type: 'knowledge_base', id: 'kb1', name: 'KB', content: '第一次' });
+    tracker.trackAndInject({ type: 'knowledge_base', id: 'kb1', name: 'KB', content: '第二次更新' });
+    const sources = tracker.getSources();
+    assert.equal(sources.length, 1);
+    assert.ok(sources[0].preview.includes('第二次更新'));
+});
