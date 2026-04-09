@@ -118,6 +118,10 @@ export interface StoredRefreshToken {
 }
 
 type SupabaseFromOnly = Pick<ReturnType<typeof getSupabaseClient>, 'from'>;
+type SupabaseRpcOnly = Pick<ReturnType<typeof getSupabaseClient>, 'rpc'>;
+
+type TransactionalAuthorizationCodeExchangeStatus = 'ok' | 'invalid_code';
+type TransactionalRefreshRotationStatus = 'ok' | 'invalid_refresh_token';
 
 export async function saveAuthorizationCode(params: {
   clientId: string;
@@ -177,44 +181,42 @@ function toStoredAuthCode(data: {
   };
 }
 
-export async function consumeAuthorizationCodeAtomically(
+export async function getAuthorizationCode(
   code: string,
   supabase: SupabaseFromOnly = getSupabaseClient(),
 ): Promise<StoredAuthCode | null> {
-  oauthDebug('consumeAuthorizationCodeAtomically called');
-  // 单条 UPDATE + 条件过滤，避免并发重放。
+  oauthDebug('getAuthorizationCode called');
   const { data, error } = await supabase
     .from('mcp_oauth_codes')
-    .update({ used: true })
+    .select('*')
     .eq('code', code)
     .eq('used', false)
     .gt('expires_at', new Date().toISOString())
-    .select('*')
     .maybeSingle();
 
   if (error) {
-    oauthError(`consumeAuthorizationCodeAtomically query failed (${error.code ?? 'n/a'})`, error.message);
+    oauthError(`getAuthorizationCode query failed (${error.code ?? 'n/a'})`, error.message);
     return null;
   }
   if (!data) {
-    oauthWarn('consumeAuthorizationCodeAtomically: no matching code');
+    oauthWarn('getAuthorizationCode: no matching code');
     return null;
   }
-  oauthDebug('consumeAuthorizationCodeAtomically succeeded');
+  oauthDebug('getAuthorizationCode succeeded');
   return toStoredAuthCode(data);
 }
 
-export async function getAndConsumeAuthorizationCode(code: string): Promise<StoredAuthCode | null> {
-  return consumeAuthorizationCodeAtomically(code);
+function getRefreshTokenExpiresAt(): string {
+  const ttlMs = getRefreshTokenTTL() * 1000;
+  return new Date(Date.now() + ttlMs).toISOString();
 }
 
 /**
  * 查询授权码对应的 code_challenge（不消费 code）。
  *
- * SDK 流程：先调 challengeForAuthorizationCode 做 PKCE 校验，
- * 再调 exchangeAuthorizationCode 原子消费 code。
- * 此处只读不写是安全的——consumeAuthorizationCodeAtomically 的
- * UPDATE ... WHERE used=false 保证了并发下只有一个请求能成功换码。
+ * SDK 流程：先调 challengeForAuthorizationCode 做 PKCE 校验，再调
+ * exchangeAuthorizationCode。真正的 code 消费和 refresh token 落库
+ * 由 mcp_exchange_authorization_code RPC 在数据库事务里完成。
  */
 export async function getCodeChallenge(code: string): Promise<string | null> {
   const supabase = getSupabaseClient();
@@ -232,26 +234,26 @@ export async function getCodeChallenge(code: string): Promise<string | null> {
 
 // ─── Refresh Token 存储 ───
 
-export async function saveRefreshToken(params: {
+export async function exchangeAuthorizationCodeTransactionally(params: {
+  authorizationCode: string;
   refreshToken: string;
-  clientId: string;
-  userId: string;
-  scope?: string;
-  resource?: string;
-}, supabase: SupabaseFromOnly = getSupabaseClient()): Promise<void> {
-  const ttlMs = getRefreshTokenTTL() * 1000;
-  const expiresAt = new Date(Date.now() + ttlMs);
-
-  const { error } = await supabase.from('mcp_oauth_tokens').insert({
-    refresh_token: params.refreshToken,
-    client_id: params.clientId,
-    user_id: params.userId,
-    scope: params.scope ?? null,
-    resource: params.resource ?? null,
-    expires_at: expiresAt.toISOString(),
+}, supabase: SupabaseRpcOnly = getSupabaseClient()): Promise<TransactionalAuthorizationCodeExchangeStatus> {
+  const { data, error } = await supabase.rpc('mcp_exchange_authorization_code', {
+    p_code: params.authorizationCode,
+    p_refresh_token: params.refreshToken,
+    p_expires_at: getRefreshTokenExpiresAt(),
   });
 
-  if (error) throw new Error(`Failed to save refresh token: ${error.message}`);
+  if (error) {
+    throw new Error(`Failed to exchange authorization code transactionally: ${error.message}`);
+  }
+
+  const status = (data as { status?: string } | null)?.status;
+  if (status === 'ok' || status === 'invalid_code') {
+    return status;
+  }
+
+  throw new Error('Unexpected response from mcp_exchange_authorization_code');
 }
 
 export async function getActiveRefreshToken(
@@ -281,4 +283,70 @@ export async function revokeRefreshToken(refreshToken: string): Promise<void> {
     .from('mcp_oauth_tokens')
     .update({ revoked: true })
     .eq('refresh_token', refreshToken);
+}
+
+export async function cleanupOAuthArtifactsTransactionally(
+  nowIso: string = new Date().toISOString(),
+  supabase: SupabaseRpcOnly = getSupabaseClient(),
+): Promise<{
+  deleted_codes: number;
+  deleted_tokens: number;
+  deleted_clients: number;
+  orphan_clients: number;
+  total_clients: number;
+}> {
+  const { data, error } = await supabase.rpc('mcp_cleanup_oauth_artifacts', {
+    p_now: nowIso,
+  });
+
+  if (error) {
+    throw new Error(`Failed to cleanup oauth artifacts transactionally: ${error.message}`);
+  }
+
+  const result = data as {
+    status?: string;
+    deleted_codes?: number;
+    deleted_tokens?: number;
+    deleted_clients?: number;
+    orphan_clients?: number;
+    total_clients?: number;
+  } | null;
+
+  if (result?.status !== 'ok') {
+    throw new Error('Unexpected response from mcp_cleanup_oauth_artifacts');
+  }
+
+  return {
+    deleted_codes: result.deleted_codes ?? 0,
+    deleted_tokens: result.deleted_tokens ?? 0,
+    deleted_clients: result.deleted_clients ?? 0,
+    orphan_clients: result.orphan_clients ?? 0,
+    total_clients: result.total_clients ?? 0,
+  };
+}
+
+export async function rotateRefreshTokenTransactionally(params: {
+  refreshToken: string;
+  newRefreshToken: string;
+  scope: string;
+  resource?: string;
+}, supabase: SupabaseRpcOnly = getSupabaseClient()): Promise<TransactionalRefreshRotationStatus> {
+  const { data, error } = await supabase.rpc('mcp_rotate_refresh_token', {
+    p_refresh_token: params.refreshToken,
+    p_new_refresh_token: params.newRefreshToken,
+    p_scope: params.scope,
+    p_resource: params.resource ?? null,
+    p_expires_at: getRefreshTokenExpiresAt(),
+  });
+
+  if (error) {
+    throw new Error(`Failed to rotate refresh token transactionally: ${error.message}`);
+  }
+
+  const status = (data as { status?: string } | null)?.status;
+  if (status === 'ok' || status === 'invalid_refresh_token') {
+    return status;
+  }
+
+  throw new Error('Unexpected response from mcp_rotate_refresh_token');
 }

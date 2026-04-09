@@ -226,8 +226,8 @@ test('validateOAuthLoginRequest should fallback to issuer audience when allowedA
   assert.equal(bad.error, 'Invalid resource');
 });
 
-test('consumeAuthorizationCodeAtomically should update with used=false guard and map row', async () => {
-  const { consumeAuthorizationCodeAtomically } = await importDist('oauth/store.js');
+test('getAuthorizationCode should query unused code and map row', async () => {
+  const { getAuthorizationCode } = await importDist('oauth/store.js');
   const calls = [];
 
   const chain = {
@@ -265,26 +265,26 @@ test('consumeAuthorizationCodeAtomically should update with used=false guard and
     from(table) {
       calls.push(['from', table]);
       return {
-        update(payload) {
-          calls.push(['update', payload]);
+        select(columns) {
+          calls.push(['select', columns]);
           return chain;
         },
       };
     },
   };
 
-  const result = await consumeAuthorizationCodeAtomically('code-1', supabase);
+  const result = await getAuthorizationCode('code-1', supabase);
 
   assert.equal(result?.code, 'code-1');
   assert.equal(result?.clientId, 'client-1');
   assert.deepEqual(calls[0], ['from', 'mcp_oauth_codes']);
-  assert.deepEqual(calls[1], ['update', { used: true }]);
+  assert.deepEqual(calls[1], ['select', '*']);
   assert.ok(calls.some((call) => call[0] === 'eq' && call[1] === 'used' && call[2] === false));
   assert.ok(calls.some((call) => call[0] === 'gt' && call[1] === 'expires_at'));
 });
 
-test('consumeAuthorizationCodeAtomically should return null when no row is updated', async () => {
-  const { consumeAuthorizationCodeAtomically } = await importDist('oauth/store.js');
+test('getAuthorizationCode should return null when no row is found', async () => {
+  const { getAuthorizationCode } = await importDist('oauth/store.js');
 
   const chain = {
     eq() {
@@ -304,23 +304,74 @@ test('consumeAuthorizationCodeAtomically should return null when no row is updat
   const supabase = {
     from() {
       return {
-        update() {
+        select() {
           return chain;
         },
       };
     },
   };
 
-  const result = await consumeAuthorizationCodeAtomically('not-found', supabase);
+  const result = await getAuthorizationCode('not-found', supabase);
   assert.equal(result, null);
+});
+
+test('exchangeAuthorizationCodeTransactionally should call rpc with refresh token expiry', async () => {
+  const { exchangeAuthorizationCodeTransactionally } = await importDist('oauth/store.js');
+  const calls = [];
+  const supabase = {
+    rpc(fn, args) {
+      calls.push([fn, args]);
+      return Promise.resolve({ data: { status: 'ok' }, error: null });
+    },
+  };
+
+  const status = await exchangeAuthorizationCodeTransactionally({
+    authorizationCode: 'code-1',
+    refreshToken: 'refresh-1',
+  }, supabase);
+
+  assert.equal(status, 'ok');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], 'mcp_exchange_authorization_code');
+  assert.equal(calls[0][1].p_code, 'code-1');
+  assert.equal(calls[0][1].p_refresh_token, 'refresh-1');
+  assert.equal(typeof calls[0][1].p_expires_at, 'string');
+});
+
+test('rotateRefreshTokenTransactionally should call rpc with scope/resource', async () => {
+  const { rotateRefreshTokenTransactionally } = await importDist('oauth/store.js');
+  const calls = [];
+  const supabase = {
+    rpc(fn, args) {
+      calls.push([fn, args]);
+      return Promise.resolve({ data: { status: 'ok' }, error: null });
+    },
+  };
+
+  const status = await rotateRefreshTokenTransactionally({
+    refreshToken: 'refresh-1',
+    newRefreshToken: 'refresh-2',
+    scope: 'mcp:tools',
+    resource: 'https://mcp.mingai.fun/mcp',
+  }, supabase);
+
+  assert.equal(status, 'ok');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], 'mcp_rotate_refresh_token');
+  assert.equal(calls[0][1].p_refresh_token, 'refresh-1');
+  assert.equal(calls[0][1].p_new_refresh_token, 'refresh-2');
+  assert.equal(calls[0][1].p_scope, 'mcp:tools');
+  assert.equal(calls[0][1].p_resource, 'https://mcp.mingai.fun/mcp');
+  assert.equal(typeof calls[0][1].p_expires_at, 'string');
 });
 
 test('exchangeAuthorizationCode should reject mismatched resource binding', async () => {
   const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
   let signCalls = 0;
+  let exchangeCalls = 0;
 
   const provider = new MingAIOAuthProvider({
-    getAndConsumeAuthorizationCode: async () => ({
+    getAuthorizationCode: async () => ({
       code: 'code-1',
       clientId: 'client-1',
       userId: 'user-1',
@@ -336,7 +387,10 @@ test('exchangeAuthorizationCode should reject mismatched resource binding', asyn
       return { token: 'access-token', expiresIn: 3600 };
     },
     generateRefreshToken: () => 'refresh-token',
-    saveRefreshToken: async () => {},
+    exchangeAuthorizationCodeTransactionally: async () => {
+      exchangeCalls += 1;
+      return 'ok';
+    },
   });
 
   await assert.rejects(
@@ -350,12 +404,88 @@ test('exchangeAuthorizationCode should reject mismatched resource binding', asyn
     /Authorization code resource mismatch/
   );
   assert.equal(signCalls, 0);
+  assert.equal(exchangeCalls, 0);
+});
+
+test('exchangeAuthorizationCode should persist through transactional exchange', async () => {
+  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const steps = [];
+  let savedRefreshToken;
+
+  const provider = new MingAIOAuthProvider({
+    getAuthorizationCode: async () => ({
+      code: 'code-1',
+      clientId: 'client-1',
+      userId: 'user-1',
+      redirectUri: 'https://chat.openai.com/aip/mcp/callback',
+      codeChallenge: 'challenge',
+      codeChallengeMethod: 'S256',
+      scope: 'mcp:tools',
+      resource: 'https://mcp.mingai.fun/mcp',
+      expiresAt: new Date(Date.now() + 10000),
+    }),
+    signAccessToken: async () => {
+      steps.push('sign');
+      return { token: 'access-token', expiresIn: 3600 };
+    },
+    generateRefreshToken: () => 'refresh-token',
+    exchangeAuthorizationCodeTransactionally: async ({ refreshToken }) => {
+      steps.push('persist');
+      savedRefreshToken = refreshToken;
+      return 'ok';
+    },
+  });
+
+  const result = await provider.exchangeAuthorizationCode(
+    { client_id: 'client-1' },
+    'code-1',
+    undefined,
+    'https://chat.openai.com/aip/mcp/callback',
+    new URL('https://mcp.mingai.fun/mcp')
+  );
+
+  assert.deepEqual(steps, ['sign', 'persist']);
+  assert.equal(savedRefreshToken, 'refresh-token');
+  assert.equal(result.access_token, 'access-token');
+  assert.equal(result.refresh_token, 'refresh-token');
+});
+
+test('exchangeAuthorizationCode should fail when transactional exchange loses the race', async () => {
+  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+
+  const provider = new MingAIOAuthProvider({
+    getAuthorizationCode: async () => ({
+      code: 'code-1',
+      clientId: 'client-1',
+      userId: 'user-1',
+      redirectUri: 'https://chat.openai.com/aip/mcp/callback',
+      codeChallenge: 'challenge',
+      codeChallengeMethod: 'S256',
+      scope: 'mcp:tools',
+      resource: 'https://mcp.mingai.fun/mcp',
+      expiresAt: new Date(Date.now() + 10000),
+    }),
+    signAccessToken: async () => ({ token: 'access-token', expiresIn: 3600 }),
+    generateRefreshToken: () => 'refresh-token',
+    exchangeAuthorizationCodeTransactionally: async () => 'invalid_code',
+  });
+
+  await assert.rejects(
+    () => provider.exchangeAuthorizationCode(
+      { client_id: 'client-1' },
+      'code-1',
+      undefined,
+      'https://chat.openai.com/aip/mcp/callback',
+      new URL('https://mcp.mingai.fun/mcp')
+    ),
+    /Invalid or expired authorization code/
+  );
 });
 
 test('exchangeRefreshToken should reject mismatched resource binding', async () => {
   const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
   let signCalls = 0;
-  let revokeCalls = 0;
+  let rotationCalls = 0;
 
   const provider = new MingAIOAuthProvider({
     getActiveRefreshToken: async () => ({
@@ -364,15 +494,15 @@ test('exchangeRefreshToken should reject mismatched resource binding', async () 
       scope: 'mcp:tools',
       resource: 'https://mcp.mingai.fun/mcp',
     }),
-    revokeRefreshToken: async () => {
-      revokeCalls += 1;
-    },
     signAccessToken: async () => {
       signCalls += 1;
       return { token: 'access-token', expiresIn: 3600 };
     },
     generateRefreshToken: () => 'new-refresh-token',
-    saveRefreshToken: async () => {},
+    rotateRefreshTokenTransactionally: async () => {
+      rotationCalls += 1;
+      return 'ok';
+    },
   });
 
   await assert.rejects(
@@ -385,13 +515,13 @@ test('exchangeRefreshToken should reject mismatched resource binding', async () 
     /Refresh token resource mismatch/
   );
   assert.equal(signCalls, 0);
-  assert.equal(revokeCalls, 0, 'should not revoke token before resource validation');
+  assert.equal(rotationCalls, 0, 'should not rotate token before resource validation');
 });
 
 test('exchangeRefreshToken should reject scope escalation and keep token active', async () => {
   const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
   let signCalls = 0;
-  let revokeCalls = 0;
+  let rotationCalls = 0;
 
   const provider = new MingAIOAuthProvider({
     getActiveRefreshToken: async () => ({
@@ -400,15 +530,15 @@ test('exchangeRefreshToken should reject scope escalation and keep token active'
       scope: 'mcp:tools',
       resource: 'https://mcp.mingai.fun/mcp',
     }),
-    revokeRefreshToken: async () => {
-      revokeCalls += 1;
-    },
     signAccessToken: async () => {
       signCalls += 1;
       return { token: 'access-token', expiresIn: 3600 };
     },
     generateRefreshToken: () => 'new-refresh-token',
-    saveRefreshToken: async () => {},
+    rotateRefreshTokenTransactionally: async () => {
+      rotationCalls += 1;
+      return 'ok';
+    },
   });
 
   await assert.rejects(
@@ -422,16 +552,16 @@ test('exchangeRefreshToken should reject scope escalation and keep token active'
   );
 
   assert.equal(signCalls, 0);
-  assert.equal(revokeCalls, 0, 'should not revoke token when scope validation fails');
+  assert.equal(rotationCalls, 0, 'should not rotate token when scope validation fails');
 });
 
 test('exchangeRefreshToken should default scope to mcp:tools when stored scope is empty', async () => {
   const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
-  let revoked = 0;
+  let rotated = 0;
   let signedScope;
-  let savedScope;
   let signedResource;
-  let savedResource;
+  let rotatedScope;
+  let rotatedResource;
 
   const provider = new MingAIOAuthProvider({
     getActiveRefreshToken: async () => ({
@@ -440,18 +570,17 @@ test('exchangeRefreshToken should default scope to mcp:tools when stored scope i
       scope: null,
       resource: 'https://mcp.mingai.fun/mcp',
     }),
-    revokeRefreshToken: async () => {
-      revoked += 1;
-    },
     signAccessToken: async (_userId, _clientId, scope, resource) => {
       signedScope = scope;
       signedResource = resource;
       return { token: 'access-token', expiresIn: 3600 };
     },
     generateRefreshToken: () => 'rotated-refresh-token',
-    saveRefreshToken: async (params) => {
-      savedScope = params.scope;
-      savedResource = params.resource;
+    rotateRefreshTokenTransactionally: async (params) => {
+      rotated += 1;
+      rotatedScope = params.scope;
+      rotatedResource = params.resource;
+      return 'ok';
     },
   });
 
@@ -464,23 +593,43 @@ test('exchangeRefreshToken should default scope to mcp:tools when stored scope i
 
   assert.equal(result.scope, 'mcp:tools');
   assert.equal(signedScope, 'mcp:tools');
-  assert.equal(savedScope, 'mcp:tools');
+  assert.equal(rotatedScope, 'mcp:tools');
   assert.equal(signedResource, 'https://mcp.mingai.fun/mcp');
-  assert.equal(savedResource, 'https://mcp.mingai.fun/mcp');
-  assert.equal(revoked, 1);
+  assert.equal(rotatedResource, 'https://mcp.mingai.fun/mcp');
+  assert.equal(rotated, 1);
 });
 
-test('saveRefreshToken/getActiveRefreshToken should persist and return resource', async () => {
-  const { saveRefreshToken, getActiveRefreshToken } = await importDist('oauth/store.js');
-  const writes = [];
+test('exchangeRefreshToken should fail when transactional rotation loses the race', async () => {
+  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
 
+  const provider = new MingAIOAuthProvider({
+    getActiveRefreshToken: async () => ({
+      userId: 'user-1',
+      clientId: 'client-1',
+      scope: 'mcp:tools',
+      resource: 'https://mcp.mingai.fun/mcp',
+    }),
+    signAccessToken: async () => ({ token: 'access-token', expiresIn: 3600 }),
+    generateRefreshToken: () => 'rotated-refresh-token',
+    rotateRefreshTokenTransactionally: async () => 'invalid_refresh_token',
+  });
+
+  await assert.rejects(
+    () => provider.exchangeRefreshToken(
+      { client_id: 'client-1' },
+      'refresh-token',
+      ['mcp:tools'],
+      new URL('https://mcp.mingai.fun/mcp')
+    ),
+    /Invalid or expired refresh token/
+  );
+});
+
+test('getActiveRefreshToken should return stored resource binding', async () => {
+  const { getActiveRefreshToken } = await importDist('oauth/store.js');
   const supabase = {
     from() {
       return {
-        insert(payload) {
-          writes.push(payload);
-          return Promise.resolve({ error: null });
-        },
         select() {
           return {
             eq() { return this; },
@@ -500,16 +649,42 @@ test('saveRefreshToken/getActiveRefreshToken should persist and return resource'
     },
   };
 
-  await saveRefreshToken({
-    refreshToken: 'refresh-token',
-    clientId: 'client-1',
-    userId: 'user-1',
-    scope: 'mcp:tools',
-    resource: 'https://mcp.mingai.fun/mcp',
-  }, supabase);
-
-  assert.equal(writes[0].resource, 'https://mcp.mingai.fun/mcp');
-
   const active = await getActiveRefreshToken('refresh-token', supabase);
   assert.equal(active?.resource, 'https://mcp.mingai.fun/mcp');
+});
+
+test('cleanupOAuthArtifactsTransactionally should call cleanup rpc with current timestamp', async () => {
+  const { cleanupOAuthArtifactsTransactionally } = await importDist('oauth/store.js');
+  const calls = [];
+  const supabase = {
+    rpc(fn, args) {
+      calls.push([fn, args]);
+      return Promise.resolve({
+        data: {
+          status: 'ok',
+          deleted_codes: 1,
+          deleted_tokens: 2,
+          deleted_clients: 3,
+          orphan_clients: 3,
+          total_clients: 5,
+        },
+        error: null,
+      });
+    },
+  };
+
+  const result = await cleanupOAuthArtifactsTransactionally('2026-04-09T12:00:00.000Z', supabase);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], 'mcp_cleanup_oauth_artifacts');
+  assert.deepEqual(calls[0][1], {
+    p_now: '2026-04-09T12:00:00.000Z',
+  });
+  assert.deepEqual(result, {
+    deleted_codes: 1,
+    deleted_tokens: 2,
+    deleted_clients: 3,
+    orphan_clients: 3,
+    total_clients: 5,
+  });
 });

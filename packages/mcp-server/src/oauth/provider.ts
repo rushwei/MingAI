@@ -13,9 +13,10 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { MingAIClientsStore } from './store.js';
 import {
   getCodeChallenge,
-  getAndConsumeAuthorizationCode,
-  saveRefreshToken,
+  getAuthorizationCode,
+  exchangeAuthorizationCodeTransactionally,
   getActiveRefreshToken,
+  rotateRefreshTokenTransactionally,
   revokeRefreshToken,
   type StoredAuthCode,
   type StoredRefreshToken,
@@ -76,15 +77,18 @@ function resolveBoundResource(
 
 type OAuthProviderDeps = {
   getCodeChallenge: (code: string) => Promise<string | null>;
-  getAndConsumeAuthorizationCode: (code: string) => Promise<StoredAuthCode | null>;
-  saveRefreshToken: (params: {
+  getAuthorizationCode: (code: string) => Promise<StoredAuthCode | null>;
+  exchangeAuthorizationCodeTransactionally: (params: {
+    authorizationCode: string;
     refreshToken: string;
-    clientId: string;
-    userId: string;
-    scope?: string;
-    resource?: string;
-  }) => Promise<void>;
+  }) => Promise<'ok' | 'invalid_code'>;
   getActiveRefreshToken: (refreshToken: string) => Promise<StoredRefreshToken | null>;
+  rotateRefreshTokenTransactionally: (params: {
+    refreshToken: string;
+    newRefreshToken: string;
+    scope: string;
+    resource?: string;
+  }) => Promise<'ok' | 'invalid_refresh_token'>;
   revokeRefreshToken: (refreshToken: string) => Promise<void>;
   signAccessToken: (
     userId: string,
@@ -103,9 +107,10 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
   constructor(deps?: Partial<OAuthProviderDeps>) {
     this.deps = {
       getCodeChallenge,
-      getAndConsumeAuthorizationCode,
-      saveRefreshToken,
+      getAuthorizationCode,
+      exchangeAuthorizationCodeTransactionally,
       getActiveRefreshToken,
+      rotateRefreshTokenTransactionally,
       revokeRefreshToken,
       signAccessToken,
       verifyAccessToken: jwtVerify,
@@ -172,7 +177,7 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
     resource?: URL,
   ): Promise<OAuthTokens> {
     oauthDebug('exchangeAuthorizationCode called');
-    const stored = await this.deps.getAndConsumeAuthorizationCode(authorizationCode);
+    const stored = await this.deps.getAuthorizationCode(authorizationCode);
     if (!stored) {
       oauthError('exchangeAuthorizationCode failed: code not found/expired/used');
       throw new Error('Invalid or expired authorization code');
@@ -196,13 +201,14 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
     );
 
     const refreshToken = this.deps.generateRefreshToken();
-    await this.deps.saveRefreshToken({
+    const exchangeStatus = await this.deps.exchangeAuthorizationCodeTransactionally({
+      authorizationCode,
       refreshToken,
-      clientId: client.client_id,
-      userId: stored.userId,
-      scope,
-      resource: boundResource,
     });
+    if (exchangeStatus !== 'ok') {
+      oauthError('exchangeAuthorizationCode failed: code lost before transactional exchange');
+      throw new Error('Invalid or expired authorization code');
+    }
 
     oauthDebug('exchangeAuthorizationCode succeeded');
     return {
@@ -233,9 +239,6 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
     const scope = resolveRefreshScope(stored.scope, scopes);
     const boundResource = resolveBoundResource(stored.resource, resource, 'Refresh token');
 
-    // 吊销旧 token（rotation）
-    await this.deps.revokeRefreshToken(refreshToken);
-
     const { token: accessToken, expiresIn } = await this.deps.signAccessToken(
       stored.userId,
       client.client_id,
@@ -244,13 +247,15 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
     );
 
     const newRefreshToken = this.deps.generateRefreshToken();
-    await this.deps.saveRefreshToken({
-      refreshToken: newRefreshToken,
-      clientId: client.client_id,
-      userId: stored.userId,
+    const rotationStatus = await this.deps.rotateRefreshTokenTransactionally({
+      refreshToken,
+      newRefreshToken,
       scope,
       resource: boundResource,
     });
+    if (rotationStatus !== 'ok') {
+      throw new Error('Invalid or expired refresh token');
+    }
 
     return {
       access_token: accessToken,

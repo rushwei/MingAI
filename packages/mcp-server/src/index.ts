@@ -42,12 +42,12 @@ import {
 } from './middleware.js';
 
 import { MingAIOAuthProvider } from './oauth/provider.js';
-import { saveAuthorizationCode } from './oauth/store.js';
+import { cleanupOAuthArtifactsTransactionally, saveAuthorizationCode } from './oauth/store.js';
 import { renderAuthorizePage } from './oauth/authorize-page.js';
 import { validateOAuthLoginRequest } from './oauth/login-validation.js';
 import { getAllowedTokenAudiences } from './oauth/jwt.js';
 import { isOAuthDebugEnabled, oauthError } from './oauth/logger.js';
-import { getSupabaseAuthClient, getSupabaseClient } from './supabase.js';
+import { getSupabaseAuthClient } from './supabase.js';
 import {
   attachPlaceResolutionInfoToResult,
   attachPlaceResolutionNoteToPayload,
@@ -386,43 +386,7 @@ sessionCleanupTimer.unref?.();
 // 定期清理 OAuth 过期数据（每6小时）
 const oauthCleanupTimer = setInterval(async () => {
   try {
-    const supabase = getSupabaseClient();
-    const now = new Date().toISOString();
-
-    // 删除已使用或已过期的授权码
-    await supabase.from('mcp_oauth_codes')
-      .delete()
-      .or(`used.eq.true,expires_at.lt.${now}`);
-
-    // 删除已撤销或已过期的 refresh token
-    await supabase.from('mcp_oauth_tokens')
-      .delete()
-      .or(`revoked.eq.true,expires_at.lt.${now}`);
-
-    // 删除没有活跃 token 的孤儿客户端（保留安全检查）
-    const { data: activeClientIds } = await supabase
-      .from('mcp_oauth_tokens')
-      .select('client_id');
-    if (activeClientIds) {
-      const ids = [...new Set(activeClientIds.map((r: { client_id: string }) => r.client_id))];
-      if (ids.length > 0) {
-        // 先检查将要删除的数量，防止误删全部
-        const { count: orphanCount } = await supabase
-          .from('mcp_oauth_clients')
-          .select('client_id', { count: 'exact', head: true })
-          .not('client_id', 'in', `(${ids.join(',')})`);
-        const { count: totalCount } = await supabase
-          .from('mcp_oauth_clients')
-          .select('client_id', { count: 'exact', head: true });
-        // 安全阈值：不删除超过总数 50% 的客户端
-        if (orphanCount != null && totalCount != null && totalCount > 0 && orphanCount / totalCount <= 0.5) {
-          await supabase.from('mcp_oauth_clients')
-            .delete()
-            .not('client_id', 'in', `(${ids.join(',')})`);
-        }
-      }
-      // 当没有活跃 token 时不再删除所有客户端（避免误清）
-    }
+    await cleanupOAuthArtifactsTransactionally();
   } catch (err) {
     console.error('[OAuth cleanup] failed:', err instanceof Error ? err.message : err);
   }
