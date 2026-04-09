@@ -60,7 +60,7 @@ export async function PUT(
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { user } = auth;
+        const { supabase, user } = auth;
 
         const { id } = await params;
         const body = await request.json();
@@ -69,36 +69,18 @@ export async function PUT(
             return jsonError('内容不能为空', 400);
         }
 
-        // 使用 serviceClient 绕过 RLS
-        const serviceClient = getSystemAdminClient();
-
-        // 先验证用户是否是评论作者
-        const checkResult = await withRetry(async () => {
-            const response = await serviceClient
-                .from('community_comments')
-                .select('user_id')
-                .eq('id', id)
-                .single();
-            if (response.error) {
-                throw response.error;
-            }
-            return response;
-        });
-
-        if (checkResult.error || checkResult.data?.user_id !== user.id) {
-            return jsonError('无权限编辑此评论', 403);
-        }
-
         const updateResult = await withRetry(async () => {
-            const response = await serviceClient
+            const response = await supabase
                 .from('community_comments')
                 .update({
                     content: body.content,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', id)
+                .eq('user_id', user.id)
+                .eq('is_deleted', false)
                 .select()
-                .single();
+                .maybeSingle();
             if (response.error) {
                 throw response.error;
             }
@@ -111,6 +93,9 @@ export async function PUT(
         }
 
         const data = updateResult.data as Record<string, unknown> | null;
+        if (!data) {
+            return jsonError('无权限编辑此评论', 403);
+        }
         const safeComment = { ...(data || {}) } as Record<string, unknown>;
         delete (safeComment as { user_id?: unknown }).user_id;
         return jsonOk(safeComment);
@@ -129,35 +114,19 @@ export async function DELETE(
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { user } = auth;
+        const { supabase, user } = auth;
 
         const { id } = await params;
 
-        // 使用 serviceClient 绕过 RLS
-        const serviceClient = getSystemAdminClient();
-
-        // 先验证用户是否是评论作者
-        const checkResult = await withRetry(async () => {
-            const response = await serviceClient
-                .from('community_comments')
-                .select('user_id')
-                .eq('id', id)
-                .single();
-            if (response.error) {
-                throw response.error;
-            }
-            return response;
-        });
-
-        if (checkResult.error || checkResult.data?.user_id !== user.id) {
-            return jsonError('无权限删除此评论', 403);
-        }
-
         const deleteResult = await withRetry(async () => {
-            const response = await serviceClient
+            const response = await supabase
                 .from('community_comments')
                 .update({ is_deleted: true, updated_at: new Date().toISOString() })
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', user.id)
+                .eq('is_deleted', false)
+                .select('id')
+                .maybeSingle();
             if (response.error) {
                 throw response.error;
             }
@@ -167,6 +136,10 @@ export async function DELETE(
         if (deleteResult.error) {
             console.error('删除评论失败:', deleteResult.error);
             return jsonError('删除评论失败', 500);
+        }
+
+        if (!deleteResult.data) {
+            return jsonError('无权限删除此评论', 403);
         }
 
         return jsonOk({ success: true });

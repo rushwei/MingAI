@@ -1,22 +1,10 @@
 type QueryError = { message?: string } | null;
 
-type UpdateQuery = {
-  eq: (field: string, value: string) => {
-    eq: (nextField: string, nextValue: string) => Promise<{ error: QueryError }>;
-  };
-};
-
-type DeleteQuery = {
-  eq: (field: string, value: string) => {
-    eq: (nextField: string, nextValue: string) => Promise<{ error: QueryError }>;
-  };
-};
-
 type ConversationDeleteClient = {
-  from: (table: string) => {
-    update?: (payload: Record<string, unknown>) => UpdateQuery;
-    delete: () => DeleteQuery;
-  };
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: boolean | null; error: QueryError }>;
 };
 
 function normalizeError(error: QueryError) {
@@ -26,37 +14,16 @@ function normalizeError(error: QueryError) {
 
 export async function deleteConversationGraph(
   supabase: ConversationDeleteClient,
-  userId: string,
+  _userId: string,
   conversationId: string,
 ) {
-  const { error: knowledgeEntriesError } = await supabase
-    .from('knowledge_entries')
-    .delete()
-    .eq('source_type', 'conversation')
-    .eq('source_id', conversationId);
+  const { data, error } = await supabase.rpc('delete_conversation_graph', {
+    p_conversation_id: conversationId,
+  });
 
-  if (knowledgeEntriesError) {
-    return { error: normalizeError(knowledgeEntriesError) };
+  if (error) {
+    return { error: normalizeError(error), notFound: false };
   }
 
-  const { error: archivedSourcesError } = await supabase
-    .from('archived_sources')
-    .delete()
-    .eq('source_type', 'conversation')
-    .eq('source_id', conversationId);
-
-  if (archivedSourcesError) {
-    return { error: normalizeError(archivedSourcesError) };
-  }
-
-  const { error: conversationError } = await supabase
-    .from('conversations')
-    .delete()
-    .eq('id', conversationId)
-    .eq('user_id', userId);
-  if (conversationError) {
-    return { error: normalizeError(conversationError) };
-  }
-
-  return { error: null };
+  return { error: null, notFound: data === false };
 }

@@ -44,33 +44,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     const serviceClient = getSystemAdminClient();
-    const { data: row, error: fetchError } = await serviceClient
-        .from('mbti_readings')
-        .select('id, conversation_id')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
+    const { data, error } = await serviceClient.rpc('delete_mbti_history_item_and_conversation_as_service', {
+        p_history_id: id,
+        p_user_id: user.id,
+    });
 
-    if (fetchError || !row) {
-        return jsonError('记录不存在', 404, { success: false });
-    }
-
-    const { error: deleteError } = await serviceClient
-        .from('mbti_readings')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-    if (deleteError) {
+    if (error) {
         return jsonError('删除失败', 500, { success: false });
     }
-
-    if (row.conversation_id) {
-        await serviceClient
-            .from('conversations')
-            .delete()
-            .eq('id', row.conversation_id)
-            .eq('user_id', user.id);
+    if (data !== true) {
+        return jsonError('记录不存在', 404, { success: false });
     }
 
     return jsonOk({ success: true });

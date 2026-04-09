@@ -118,55 +118,28 @@ export async function saveBaziCaseProfile(args: {
     events: BaziCaseEvent[];
 }): Promise<BaziCaseProfile> {
     const { supabase, userId, chartId, masterReview, ownerFeedback, events } = args;
-    const now = new Date().toISOString();
+    const { data, error } = await supabase.rpc('save_bazi_case_profile_as_service', {
+        p_user_id: userId,
+        p_chart_id: chartId,
+        p_master_review: masterReview,
+        p_owner_feedback: ownerFeedback,
+        p_events: events.map((event) => ({
+            event_date: event.eventDate,
+            category: event.category,
+            title: event.title,
+            detail: event.detail || null,
+        })),
+    });
 
-    const { data: profileRow, error: profileError } = await supabase
-        .from('bazi_case_profiles')
-        .upsert({
-            user_id: userId,
-            bazi_chart_id: chartId,
-            master_review: masterReview,
-            owner_feedback: ownerFeedback,
-            updated_at: now,
-        }, { onConflict: 'bazi_chart_id' })
-        .select('id, user_id, bazi_chart_id, master_review, owner_feedback, created_at, updated_at')
-        .single();
-
-    if (profileError || !profileRow) {
-        throw new Error(profileError?.message || '保存断事笔记失败');
-    }
-
-    const profileId = profileRow.id;
-    const deleteResult = await supabase
-        .from('bazi_case_events')
-        .delete()
-        .eq('profile_id', profileId)
-        .eq('user_id', userId);
-    if (deleteResult.error) {
-        throw new Error(deleteResult.error.message);
-    }
-
-    if (events.length > 0) {
-        const { error: insertError } = await supabase
-            .from('bazi_case_events')
-            .insert(events.map((event) => ({
-                profile_id: profileId,
-                user_id: userId,
-                bazi_chart_id: chartId,
-                event_date: event.eventDate,
-                category: event.category,
-                title: event.title,
-                detail: event.detail || null,
-            })));
-        if (insertError) {
-            throw new Error(insertError.message);
-        }
+    const result = (data || {}) as { status?: string; profile_id?: string };
+    if (error || result.status !== 'ok' || !result.profile_id) {
+        throw new Error(error?.message || '保存断事笔记失败');
     }
 
     return (await getBaziCaseProfileByChartId(supabase, chartId, userId))
         || {
             ...createEmptyBaziCaseProfile(),
-            id: profileId,
+            id: result.profile_id,
             userId,
             chartId,
             masterReview,

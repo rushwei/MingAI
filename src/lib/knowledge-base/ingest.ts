@@ -31,6 +31,17 @@ interface ChunkData {
     metadata: Record<string, unknown>;
 }
 
+type SourceReplaceRef = {
+    sourceType: ChunkData['sourceType'];
+    sourceId: string;
+    archive?: boolean;
+};
+
+type UpsertEntriesOptions = {
+    userId?: string;
+    source?: SourceReplaceRef;
+};
+
 interface VectorBackfillResult extends IngestResult {
     processed?: number;
     skipped?: number;
@@ -95,7 +106,13 @@ export async function ingestConversation(
         })));
     }
 
-    return await upsertEntries(kbId, chunks);
+    return await upsertEntries(kbId, chunks, {
+        userId: user.id,
+        source: {
+            sourceType: 'conversation',
+            sourceId: conversationId,
+        },
+    });
 }
 
 export async function ingestRecord(
@@ -138,7 +155,13 @@ export async function ingestRecord(
         }
     }));
 
-    return await upsertEntries(kbId, chunks);
+    return await upsertEntries(kbId, chunks, {
+        userId: user.id,
+        source: {
+            sourceType: 'record',
+            sourceId: recordId,
+        },
+    });
 }
 
 export async function ingestFile(_kbId: string, _file: File, _options?: IngestOptions): Promise<IngestResult> {
@@ -167,7 +190,13 @@ export async function ingestFile(_kbId: string, _file: File, _options?: IngestOp
         }
     }));
 
-    return await upsertEntries(_kbId, chunks);
+    return await upsertEntries(_kbId, chunks, {
+        userId: user.id,
+        source: {
+            sourceType: 'file',
+            sourceId: _file.name,
+        },
+    });
 }
 
 export async function ingestConversationAsService(
@@ -207,7 +236,14 @@ export async function ingestConversationAsService(
         })));
     }
 
-    return await upsertEntriesAsService(kbId, chunks);
+    return await upsertEntriesAsService(kbId, chunks, {
+        userId,
+        source: {
+            sourceType: 'conversation',
+            sourceId: conversationId,
+            archive: true,
+        },
+    });
 }
 
 export async function ingestChatMessageAsService(
@@ -288,34 +324,35 @@ export async function ingestChatMessageAsService(
         }
     }
 
-    if (!target.content?.trim()) {
-        return { entriesCreated: 0, chunks: 0 };
-    }
+    const chunks: ChunkData[] = !target.content?.trim()
+        ? []
+        : chunkText([
+            previousUser ? `用户：${previousUser.content}` : '',
+            `${target.role === 'assistant' ? 'AI' : '用户'}：${target.content}`
+        ].filter(Boolean).join('\n\n'), {
+            ...DEFAULT_CHUNK_CONFIG,
+            ...(options?.chunkConfig || {})
+        }).map((c, i) => ({
+            content: c,
+            sourceType: 'chat_message',
+            sourceId: messageId,
+            chunkIndex: i,
+            metadata: {
+                conversation_id: conversationId,
+                message_id: messageId,
+                user_message_id: previousUser?.id || null,
+                role: target.role
+            }
+        }));
 
-    const content = [
-        previousUser ? `用户：${previousUser.content}` : '',
-        `${target.role === 'assistant' ? 'AI' : '用户'}：${target.content}`
-    ].filter(Boolean).join('\n\n');
-
-    const textChunks = chunkText(content, {
-        ...DEFAULT_CHUNK_CONFIG,
-        ...(options?.chunkConfig || {})
+    return await upsertEntriesAsService(kbId, chunks, {
+        userId,
+        source: {
+            sourceType: 'chat_message',
+            sourceId: messageId,
+            archive: true,
+        },
     });
-
-    const chunks: ChunkData[] = textChunks.map((c, i) => ({
-        content: c,
-        sourceType: 'chat_message',
-        sourceId: messageId,
-        chunkIndex: i,
-        metadata: {
-            conversation_id: conversationId,
-            message_id: messageId,
-            user_message_id: previousUser?.id || null,
-            role: target.role
-        }
-    }));
-
-    return await upsertEntriesAsService(kbId, chunks);
 }
 
 export async function ingestRecordAsService(
@@ -356,13 +393,20 @@ export async function ingestRecordAsService(
         }
     }));
 
-    return await upsertEntriesAsService(kbId, chunks);
+    return await upsertEntriesAsService(kbId, chunks, {
+        userId,
+        source: {
+            sourceType: 'record',
+            sourceId: recordId,
+            archive: true,
+        },
+    });
 }
 
 export async function ingestFileAsService(
     kbId: string,
     file: { name: string; type: string | null; content: string },
-    _userId: string,
+    userId: string,
     options?: IngestOptions
 ): Promise<IngestResult> {
     const text = file.content || '';
@@ -386,7 +430,13 @@ export async function ingestFileAsService(
         }
     }));
 
-    return await upsertEntriesAsService(kbId, chunks);
+    return await upsertEntriesAsService(kbId, chunks, {
+        userId,
+        source: {
+            sourceType: 'file',
+            sourceId: file.name,
+        },
+    });
 }
 
 export async function ingestDataSourceAsService(
@@ -413,7 +463,14 @@ export async function ingestDataSourceAsService(
         metadata: {}
     }));
 
-    return await upsertEntriesAsService(kbId, chunks);
+    return await upsertEntriesAsService(kbId, chunks, {
+        userId,
+        source: {
+            sourceType: ref.type,
+            sourceId: ref.id,
+            archive: true,
+        },
+    });
 }
 
 export function chunkText(text: string, config: ChunkConfig = DEFAULT_CHUNK_CONFIG): string[] {
@@ -503,58 +560,70 @@ type SupabaseClientLike = ReturnType<typeof getSystemAdminClient>;
 async function upsertEntriesWithClient(
     supabase: SupabaseClientLike,
     kbId: string,
-    chunks: ChunkData[]
+    chunks: ChunkData[],
+    options?: UpsertEntriesOptions,
 ): Promise<IngestResult> {
-    if (chunks.length > 0) {
-        const { sourceType, sourceId } = chunks[0];
-        const sameSource = chunks.every(c => c.sourceType === sourceType && c.sourceId === sourceId);
-        const contiguous = sameSource && chunks.every((c, i) => c.chunkIndex === i);
-        if (contiguous) {
-            const { error: cleanupError } = await supabase
-                .from('knowledge_entries')
-                .delete()
-                .eq('kb_id', kbId)
-                .eq('source_type', sourceType)
-                .eq('source_id', sourceId)
-                .gte('chunk_index', chunks.length);
-            if (cleanupError) throw cleanupError;
+    const source = options?.source || (chunks[0]
+        ? {
+            sourceType: chunks[0].sourceType,
+            sourceId: chunks[0].sourceId,
+            archive: false,
         }
+        : null);
+
+    if (!source) {
+        throw new Error('缺少知识库来源信息');
+    }
+
+    const sameSource = chunks.every(c => c.sourceType === source.sourceType && c.sourceId === source.sourceId);
+    const contiguous = chunks.every((c, i) => c.chunkIndex === i);
+    if (!sameSource || !contiguous) {
+        throw new Error('知识库条目必须按单一来源顺序写入');
     }
 
     const entries = chunks.map(chunk => ({
-        kb_id: kbId,
         content: chunk.content,
-        content_vector: null,
-        source_type: chunk.sourceType,
-        source_id: chunk.sourceId,
         chunk_index: chunk.chunkIndex,
         metadata: chunk.metadata
     }));
 
-    const { data, error } = await supabase
-        .from('knowledge_entries')
-        .upsert(entries, {
-            onConflict: 'kb_id,source_type,source_id,chunk_index'
-        })
-        .select('id');
+    const { data, error } = await supabase.rpc('kb_replace_source_entries', {
+        p_kb_id: kbId,
+        p_source_type: source.sourceType,
+        p_source_id: source.sourceId,
+        p_entries: entries,
+        p_archive: source.archive === true,
+        p_user_id: options?.userId || null,
+    });
 
     if (error) throw error;
 
     return {
-        entriesCreated: (data || []).length,
+        entriesCreated: typeof data === 'number' ? data : chunks.length,
         chunks: chunks.length
     };
 }
 
-export async function upsertEntries(kbId: string, chunks: ChunkData[]): Promise<IngestResult> {
+export async function upsertEntries(
+    kbId: string,
+    chunks: ChunkData[],
+    options?: Omit<UpsertEntriesOptions, 'userId'> & { userId?: string },
+): Promise<IngestResult> {
     const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    return upsertEntriesWithClient(supabase, kbId, chunks);
+    return upsertEntriesWithClient(supabase, kbId, chunks, {
+        ...options,
+        userId: user.id,
+    });
 }
 
-export async function upsertEntriesAsService(kbId: string, chunks: ChunkData[]): Promise<IngestResult> {
-    return upsertEntriesWithClient(getSystemAdminClient(), kbId, chunks);
+export async function upsertEntriesAsService(
+    kbId: string,
+    chunks: ChunkData[],
+    options?: UpsertEntriesOptions,
+): Promise<IngestResult> {
+    return upsertEntriesWithClient(getSystemAdminClient(), kbId, chunks, options);
 }
 
 export async function backfillVectors(

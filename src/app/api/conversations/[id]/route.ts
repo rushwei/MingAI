@@ -1,8 +1,9 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
-import { loadAllConversationMessages, loadConversationAnalysisMessage, loadConversationMessagePage, replaceConversationMessages } from '@/lib/server/conversation-messages';
+import { isValidChatMessagePayload, loadAllConversationMessages, loadConversationAnalysisMessage, loadConversationMessagePage } from '@/lib/server/conversation-messages';
 import { deleteConversationGraph } from '@/lib/chat/conversation-delete';
+import { isValidUUID } from '@/lib/validation';
 import type { ChatMessage } from '@/types';
 
 type ConversationPatchBody = {
@@ -10,6 +11,18 @@ type ConversationPatchBody = {
     messages?: unknown[];
     personality?: string;
 };
+
+function hasOwn(body: object, key: string) {
+    return Object.prototype.hasOwnProperty.call(body, key);
+}
+
+function isObjectBody(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null | undefined {
+    return value === undefined || value === null || typeof value === 'string';
+}
 
 type ConversationDetailRow = {
     id: string;
@@ -61,6 +74,9 @@ export async function GET(
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
     const { id } = await params;
+    if (!isValidUUID(id)) {
+        return jsonError('对话ID格式不合法', 400);
+    }
     const { searchParams } = new URL(request.url);
     const includeContext = searchParams.get('includeContext') === '1';
     const snapshotMode = searchParams.get('snapshot');
@@ -172,48 +188,68 @@ export async function PATCH(
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
     const { id } = await params;
+    if (!isValidUUID(id)) {
+        return jsonError('对话ID格式不合法', 400);
+    }
     let body: ConversationPatchBody;
 
     try {
-        body = await request.json() as ConversationPatchBody;
+        const parsed = await request.json();
+        if (!isObjectBody(parsed)) {
+            return jsonError('请求体必须是对象', 400);
+        }
+        body = parsed as ConversationPatchBody;
     } catch {
         return jsonError('请求体不是合法 JSON', 400);
     }
 
-    const updatePayload: Record<string, unknown> = {
-        updated_at: new Date().toISOString(),
-    };
-
-    if (body.title !== undefined) updatePayload.title = body.title;
-    const shouldSyncMessages = body.messages !== undefined;
-    const nextMessages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : [];
-    if (body.personality !== undefined) updatePayload.personality = body.personality;
-
-    const { data, error } = await auth.supabase
-        .from('conversations')
-        .update(updatePayload)
-        .eq('id', id)
-        .eq('user_id', auth.user.id)
-        .select('id')
-        .maybeSingle();
-
-    if (error) {
-        console.error('[conversations] failed to update conversation:', error);
-        return jsonError('更新对话失败', 500);
+    if (!isNullableString(body.title)) {
+        return jsonError('title 必须是字符串或 null', 400);
     }
-    if (!data) {
-        return jsonError('对话不存在', 404);
+    if (!isNullableString(body.personality)) {
+        return jsonError('personality 必须是字符串或 null', 400);
     }
 
-    if (shouldSyncMessages) {
-        const syncResult = await replaceConversationMessages(auth.supabase, id, nextMessages);
-        if (syncResult.error) {
-            console.error('[conversations] failed to sync message rows:', syncResult.error);
-            return jsonError('更新对话失败', 500);
+    const hasMessagesField = hasOwn(body as object, 'messages');
+    let nextMessages: ChatMessage[] | null = null;
+    if (hasMessagesField) {
+        if (body.messages === null) {
+            nextMessages = [];
+        } else if (Array.isArray(body.messages)) {
+            if (!body.messages.every(isValidChatMessagePayload)) {
+                return jsonError('messages 包含非法消息项', 400);
+            }
+            nextMessages = body.messages as ChatMessage[];
+        } else {
+            return jsonError('messages 必须是数组或 null', 400);
         }
     }
 
-    return jsonOk({ success: true, id: data.id });
+    const { data, error } = await auth.supabase.rpc('update_conversation_with_messages', {
+        p_conversation_id: id,
+        p_title: body.title ?? null,
+        p_title_present: body.title !== undefined,
+        p_personality: body.personality ?? null,
+        p_personality_present: body.personality !== undefined,
+        p_messages: nextMessages,
+        p_messages_present: hasMessagesField,
+    });
+
+    if (error) {
+        console.error('[conversations] failed to update conversation transactionally:', error);
+        return jsonError('更新对话失败', 500);
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+    if (result?.status === 'not_found') {
+        return jsonError('对话不存在', 404);
+    }
+    if (result?.status !== 'ok') {
+        console.error('[conversations] unexpected update rpc result:', result);
+        return jsonError('更新对话失败', 500);
+    }
+
+    return jsonOk({ success: true, id });
 }
 
 export async function DELETE(
@@ -224,6 +260,9 @@ export async function DELETE(
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
     const { id } = await params;
+    if (!isValidUUID(id)) {
+        return jsonError('对话ID格式不合法', 400);
+    }
     const result = await deleteConversationGraph(
         auth.supabase as never,
         auth.user.id,
@@ -232,6 +271,9 @@ export async function DELETE(
     if (result.error) {
         console.error('[conversations] failed to delete conversation:', result.error);
         return jsonError('删除对话失败', 500);
+    }
+    if (result.notFound) {
+        return jsonError('对话不存在', 404);
     }
 
     return jsonOk({ success: true });

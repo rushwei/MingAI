@@ -63,23 +63,12 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     const aiAnalysisPath = require.resolve('../lib/ai/ai-analysis');
     const supabaseServerModule = require('../lib/supabase-server');
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-    let capturedPayload: Record<string, unknown> | null = null;
     let capturedRpc: { fn: string; args: Record<string, unknown> } | null = null;
 
     supabaseServerModule.getSystemAdminClient = () => ({
-        from: () => ({
-            insert: (payload: Record<string, unknown>) => {
-                capturedPayload = payload;
-                return {
-                    select: () => ({
-                        single: async () => ({ data: { id: 'conv-1' }, error: null }),
-                    }),
-                };
-            },
-        }),
         rpc: async (fn: string, args: Record<string, unknown>) => {
             capturedRpc = { fn, args };
-            return { data: null, error: null };
+            return { data: 'conv-1', error: null };
         },
     });
 
@@ -92,7 +81,7 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     delete require.cache[aiAnalysisPath];
     const { createAIAnalysisConversation } = require('../lib/ai/ai-analysis') as typeof import('../lib/ai/ai-analysis');
 
-    await createAIAnalysisConversation({
+    const conversationId = await createAIAnalysisConversation({
         userId: 'user-1',
         sourceType: 'tarot',
         sourceData: {
@@ -103,17 +92,71 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
         aiResponse: 'analysis',
     });
 
-    assert.equal((capturedPayload as Record<string, unknown> | null)?.messages, undefined);
+    assert.equal(conversationId, 'conv-1');
     const rpcCall = capturedRpc as { fn: string; args: Record<string, unknown> } | null;
     assert.ok(rpcCall);
-    assert.equal(rpcCall.fn, 'replace_conversation_messages');
-    assert.equal(rpcCall.args.p_conversation_id, 'conv-1');
+    assert.equal(rpcCall.fn, 'create_conversation_with_messages');
+    assert.equal(rpcCall.args.p_user_id, 'user-1');
+    assert.equal(rpcCall.args.p_source_type, 'tarot');
+    assert.equal(rpcCall.args.p_title, 'Test');
     const rpcMessages = (rpcCall.args.p_messages as ChatMessage[]) || [];
     assert.equal(rpcMessages[0]?.model, 'glm-4');
     assert.equal(rpcMessages[0]?.reasoning, 'fallback');
 });
 
-test('replaceConversationMessages should no-op safely when rpc is unavailable', async () => {
+test('createAIAnalysisConversation should use transactional history rpc when history binding is provided', async (t) => {
+    const apiUtilsPath = require.resolve('../lib/api-utils');
+    const aiAnalysisPath = require.resolve('../lib/ai/ai-analysis');
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
+    let capturedRpc: { fn: string; args: Record<string, unknown> } | null = null;
+
+    (apiUtilsModule as typeof import('../lib/api-utils') & {
+        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
+    }).getSystemAdminClient = (() => ({
+        rpc: async (fn: string, args: Record<string, unknown>) => {
+            capturedRpc = { fn, args };
+            return { data: 'conv-2', error: null };
+        },
+    })) as typeof import('../lib/api-utils').getSystemAdminClient;
+
+    t.after(() => {
+        (apiUtilsModule as typeof import('../lib/api-utils') & {
+            getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
+        }).getSystemAdminClient = originalGetServiceClient;
+        delete require.cache[aiAnalysisPath];
+        delete require.cache[apiUtilsPath];
+    });
+
+    delete require.cache[aiAnalysisPath];
+    const { createAIAnalysisConversation } = require('../lib/ai/ai-analysis') as typeof import('../lib/ai/ai-analysis');
+    const conversationId = await createAIAnalysisConversation({
+        userId: 'user-1',
+        sourceType: 'mbti',
+        sourceData: {
+            model_id: 'glm-4',
+            reasoning_text: 'fallback',
+        },
+        title: 'Test',
+        aiResponse: 'analysis',
+        historyBinding: {
+            type: 'mbti',
+            payload: {
+                reading_id: 'reading-1',
+            },
+        },
+    });
+
+    assert.equal(conversationId, 'conv-2');
+    assert.equal(capturedRpc?.fn, 'create_analysis_conversation_with_history_as_service');
+    assert.equal(capturedRpc?.args.p_history_type, 'mbti');
+    const rpcMessages = (capturedRpc?.args.p_messages as ChatMessage[]) || [];
+    assert.equal(rpcMessages[0]?.content, 'analysis');
+    assert.equal(rpcMessages[0]?.model, 'glm-4');
+    assert.equal((capturedRpc?.args.p_history_payload as Record<string, unknown>)?.reading_id, 'reading-1');
+});
+
+test('replaceConversationMessages should return an infra error when rpc is unavailable', async () => {
     const { replaceConversationMessages } = require('../lib/server/conversation-messages') as typeof import('../lib/server/conversation-messages');
     const result = await replaceConversationMessages({} as never, 'conv-1', [
         {
@@ -124,7 +167,7 @@ test('replaceConversationMessages should no-op safely when rpc is unavailable', 
         },
     ]);
 
-    assert.equal(result.error, null);
+    assert.equal(result.error?.message, 'replace_conversation_messages RPC unavailable');
 });
 
 test('loadConversationAnalysisSnapshot reads lightweight snapshot payload', async (t) => {

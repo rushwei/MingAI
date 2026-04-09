@@ -8,7 +8,6 @@
 import { NextRequest } from 'next/server';
 import { getPaymentsPaused } from '@/lib/app-settings';
 import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { addCredits } from '@/lib/user/credits';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
 // 按量付费套餐配置
@@ -54,43 +53,21 @@ export async function POST(request: NextRequest) {
         const userId = user.id;
 
         const supabase = getSystemAdminClient();
+        const { data, error } = await supabase.rpc('complete_credit_purchase_as_service', {
+            p_user_id: userId,
+            p_amount: amount,
+            p_credit_count: count,
+        });
 
-        // [MVP] 模拟支付：创建已支付订单
-        // 生产环境应创建 pending 订单，等待支付回调确认
-        const { data: orderRow, error: orderError } = await supabase
-            .from('orders')
-            .insert({
-                user_id: userId,
-                product_type: 'pay_per_use',
-                amount: amount,
-                status: 'paid', // MVP: 模拟支付直接标记为已支付
-                payment_method: 'simulated',
-                paid_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single();
-
-        if (orderError) {
-            console.error('Error creating pay_per_use order:', orderError);
-            return jsonError('创建订单失败', 500);
-        }
-
-        // 使用原子增量避免并发覆盖
-        const newCredits = await addCredits(userId, count);
-        if (newCredits === null) {
-            if (orderRow?.id) {
-                await supabase
-                    .from('orders')
-                    .delete()
-                    .eq('id', orderRow.id)
-                    .eq('user_id', userId);
-            }
-            return jsonError('更新积分失败', 500);
+        const result = (data || {}) as { status?: string; credits?: number };
+        if (error || result.status !== 'ok') {
+            console.error('Error creating pay_per_use order:', error || result);
+            return jsonError(result.status === 'user_not_found' ? '用户不存在' : '更新积分失败', 500);
         }
 
         return jsonOk({
             success: true,
-            credits: newCredits,
+            credits: result.credits ?? 0,
             purchased: count,
         });
     } catch (error) {

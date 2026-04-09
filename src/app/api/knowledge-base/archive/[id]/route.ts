@@ -21,24 +21,14 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
             .maybeSingle();
         if (!kb) return jsonError('取消归档失败', 403);
 
-        const { error: deleteEntriesError } = await service
-            .from('knowledge_entries')
-            .delete()
-            .eq('kb_id', kbId)
-            .eq('source_type', 'chat_message')
-            .eq('source_id', sourceId);
+        const { data, error } = await service.rpc('kb_unarchive_source_as_service', {
+            p_user_id: user.id,
+            p_kb_id: kbId,
+            p_source_type: 'chat_message',
+            p_source_id: sourceId,
+        });
 
-        if (deleteEntriesError) return jsonError('取消归档失败', 500);
-
-        const { error: deleteArchiveError } = await service
-            .from('archived_sources')
-            .delete()
-            .eq('kb_id', kbId)
-            .eq('source_type', 'chat_message')
-            .eq('source_id', sourceId)
-            .eq('user_id', user.id);
-
-        if (deleteArchiveError) return jsonError('取消归档失败', 500);
+        if (error || data !== true) return jsonError('取消归档失败', 500);
         return jsonOk({ success: true });
     }
 
@@ -49,23 +39,16 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
         .eq('user_id', user.id)
         .maybeSingle();
 
-    if (fetchError || !archived) return jsonError('取消归档失败', 500);
+    if (fetchError) return jsonError('取消归档失败', 500);
+    if (!archived) return jsonError('归档记录不存在', 404);
 
-    const { error: deleteEntriesError } = await service
-        .from('knowledge_entries')
-        .delete()
-        .eq('kb_id', archived.kb_id)
-        .eq('source_type', archived.source_type)
-        .eq('source_id', archived.source_id);
+    const { data, error } = await service.rpc('kb_unarchive_source_as_service', {
+        p_user_id: user.id,
+        p_kb_id: archived.kb_id,
+        p_source_type: archived.source_type,
+        p_source_id: archived.source_id,
+    });
 
-    if (deleteEntriesError) return jsonError('取消归档失败', 500);
-
-    const { error: deleteArchiveError } = await service
-        .from('archived_sources')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-    if (deleteArchiveError) return jsonError('取消归档失败', 500);
+    if (error || data !== true) return jsonError('取消归档失败', 500);
     return jsonOk({ success: true });
 }

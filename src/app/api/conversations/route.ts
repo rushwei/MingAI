@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { replaceConversationMessages } from '@/lib/server/conversation-messages';
+import { isValidChatMessagePayload } from '@/lib/server/conversation-messages';
 import type { ChatMessage } from '@/types';
 
 const CONVERSATION_LIST_SELECT = [
@@ -15,6 +15,14 @@ const CONVERSATION_LIST_SELECT = [
     'is_archived',
     'archived_kb_ids',
 ].join(', ');
+
+function isObjectBody(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null | undefined {
+    return value === undefined || value === null || typeof value === 'string';
+}
 
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
@@ -69,38 +77,53 @@ export async function POST(request: NextRequest) {
     let body: {
         personality?: string;
         title?: string;
-        messages?: unknown[];
+        messages?: unknown[] | null;
     };
 
     try {
-        body = await request.json() as typeof body;
+        const parsed = await request.json();
+        if (!isObjectBody(parsed)) {
+            return jsonError('请求体必须是对象', 400);
+        }
+        body = parsed as typeof body;
     } catch {
         return jsonError('请求体不是合法 JSON', 400);
     }
 
-    const initialMessages = Array.isArray(body.messages) ? body.messages : [];
-    const { data, error } = await auth.supabase
-        .from('conversations')
-        .insert({
-            user_id: auth.user.id,
-            personality: body.personality || 'general',
-            title: body.title || '新对话',
-        })
-        .select('id')
-        .single();
-
-    if (error) {
-        console.error('[conversations] failed to create conversation:', error);
-        return jsonError('创建对话失败', 500);
+    if (!isNullableString(body.title)) {
+        return jsonError('title 必须是字符串或 null', 400);
+    }
+    if (!isNullableString(body.personality)) {
+        return jsonError('personality 必须是字符串或 null', 400);
     }
 
-    if (data?.id && initialMessages.length > 0) {
-        const syncResult = await replaceConversationMessages(auth.supabase, data.id, initialMessages as ChatMessage[]);
-        if (syncResult.error) {
-            console.error('[conversations] failed to sync message rows:', syncResult.error);
-            return jsonError('创建对话失败', 500);
+    let initialMessages: ChatMessage[] = [];
+    if (Object.prototype.hasOwnProperty.call(body, 'messages')) {
+        if (body.messages === null) {
+            initialMessages = [];
+        } else if (Array.isArray(body.messages)) {
+            if (!body.messages.every(isValidChatMessagePayload)) {
+                return jsonError('messages 包含非法消息项', 400);
+            }
+            initialMessages = body.messages as ChatMessage[];
+        } else {
+            return jsonError('messages 必须是数组或 null', 400);
         }
     }
 
-    return jsonOk({ id: data?.id ?? null }, 201);
+    const { data, error } = await auth.supabase.rpc('create_conversation_with_messages', {
+        p_user_id: auth.user.id,
+        p_title: body.title || '新对话',
+        p_personality: body.personality || 'general',
+        p_source_type: null,
+        p_source_data: null,
+        p_messages: initialMessages as ChatMessage[],
+    });
+
+    if (error || typeof data !== 'string') {
+        console.error('[conversations] failed to create conversation transactionally:', error || data);
+        return jsonError('创建对话失败', 500);
+    }
+
+    return jsonOk({ id: data }, 201);
 }

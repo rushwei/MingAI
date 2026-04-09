@@ -55,31 +55,28 @@ export async function PUT(
 
         // 处理置顶切换
         if (body.togglePin) {
-            const { data: record, error: fetchError } = await supabase
-                .from('ming_records')
-                .select('is_pinned')
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .single();
-
-            if (fetchError || !record) {
-                return jsonError('记录不存在', 404);
-            }
-
-            const { data, error } = await supabase
-                .from('ming_records')
-                .update({ is_pinned: !record.is_pinned, updated_at: new Date().toISOString() })
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .select()
-                .single();
+            const { data, error } = await supabase.rpc('toggle_ming_record_pin', {
+                p_record_id: id,
+            });
 
             if (error) {
-                console.error('更新记录失败:', error);
+                console.error('切换置顶失败:', error);
                 return jsonError('更新记录失败', 500);
             }
 
-            return jsonOk(data as Record<string, unknown>);
+            const result = (Array.isArray(data) ? data[0] : data) as {
+                status?: string;
+                record?: Record<string, unknown> | null;
+            } | null;
+            if (result?.status === 'not_found') {
+                return jsonError('记录不存在', 404);
+            }
+            if (result?.status !== 'ok' || !result.record) {
+                console.error('切换置顶失败: invalid rpc result', data);
+                return jsonError('更新记录失败', 500);
+            }
+
+            return jsonOk(result.record);
         }
 
         // 常规更新

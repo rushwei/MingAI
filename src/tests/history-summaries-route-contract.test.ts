@@ -307,3 +307,97 @@ test('history summaries route should restore tarot birthDate and numerology meta
   assert.equal(payload.item.sessionData.numerology.personalityCard.nameChinese, '魔术师');
   assert.equal(payload.item.sessionData.conversationId, 'conv-1');
 });
+
+test('history summaries DELETE should call transactional RPC and return success', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  let rpcArgs: Record<string, unknown> | null = null;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    supabase: {
+      rpc: async (fn: string, args: Record<string, unknown>) => {
+        assert.equal(fn, 'delete_history_item_and_conversation');
+        rpcArgs = args;
+        return { data: true, error: null };
+      },
+    },
+    user: { id: 'user-1' },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { DELETE } = await import('../app/api/history-summaries/route');
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/history-summaries?type=qimen&id=qm-1', {
+      method: 'DELETE',
+    }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(rpcArgs, {
+    p_history_type: 'qimen',
+    p_history_id: 'qm-1',
+  });
+  assert.equal(body.success, true);
+});
+
+test('history summaries DELETE should return 404 when transactional RPC reports missing row', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    supabase: {
+      rpc: async () => ({ data: false, error: null }),
+    },
+    user: { id: 'user-1' },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { DELETE } = await import('../app/api/history-summaries/route');
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/history-summaries?type=tarot&id=tarot-1', {
+      method: 'DELETE',
+    }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(body.error, '未找到历史记录');
+});
+
+test('history summaries DELETE should return 500 when transactional RPC fails', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    supabase: {
+      rpc: async () => ({
+        data: null,
+        error: { message: 'transaction failed' },
+      }),
+    },
+    user: { id: 'user-1' },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { DELETE } = await import('../app/api/history-summaries/route');
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/history-summaries?type=liuyao&id=ly-1', {
+      method: 'DELETE',
+    }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.equal(body.error, '删除历史记录失败');
+});

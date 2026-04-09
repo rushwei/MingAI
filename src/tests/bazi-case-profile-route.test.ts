@@ -19,6 +19,17 @@ test('bazi case profile GET returns current profile with events for owned chart'
     })) as unknown as typeof apiUtils.requireUserContext;
 
     apiUtils.getSystemAdminClient = (() => ({
+        rpc(fn: string, args: Record<string, unknown>) {
+            assert.equal(fn, 'save_bazi_case_profile_as_service');
+            savedOwnerFeedback = args.p_owner_feedback as Record<string, unknown>;
+            return Promise.resolve({
+                data: {
+                    status: 'ok',
+                    profile_id: 'profile-1',
+                },
+                error: null,
+            });
+        },
         from(table: string) {
             if (table === 'bazi_charts') {
                 return {
@@ -224,7 +235,7 @@ test('bazi case profile PUT accepts custom family and temperament tags', async (
     const originalRequireUserContext = apiUtils.requireUserContext;
     const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
 
-    let savedOwnerFeedback: Record<string, unknown> | null = null;
+    const savedOwnerFeedback = { current: null as Record<string, unknown> | null };
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
@@ -232,6 +243,17 @@ test('bazi case profile PUT accepts custom family and temperament tags', async (
     })) as unknown as typeof apiUtils.requireUserContext;
 
     apiUtils.getSystemAdminClient = (() => ({
+        rpc(fn: string, args: Record<string, unknown>) {
+            assert.equal(fn, 'save_bazi_case_profile_as_service');
+            savedOwnerFeedback.current = args.p_owner_feedback as Record<string, unknown>;
+            return Promise.resolve({
+                data: {
+                    status: 'ok',
+                    profile_id: 'profile-1',
+                },
+                error: null,
+            });
+        },
         from(table: string) {
             if (table === 'bazi_charts') {
                 return {
@@ -256,27 +278,6 @@ test('bazi case profile PUT accepts custom family and temperament tags', async (
 
             if (table === 'bazi_case_profiles') {
                 return {
-                    upsert(payload: Record<string, unknown>) {
-                        savedOwnerFeedback = payload.owner_feedback as Record<string, unknown>;
-                        return {
-                            select() {
-                                return {
-                                    single: async () => ({
-                                        data: {
-                                            id: 'profile-1',
-                                            user_id: 'user-1',
-                                            bazi_chart_id: '11111111-1111-1111-1111-111111111111',
-                                            master_review: payload.master_review,
-                                            owner_feedback: payload.owner_feedback,
-                                            created_at: '2026-03-20T00:00:00.000Z',
-                                            updated_at: '2026-03-20T00:00:00.000Z',
-                                        },
-                                        error: null,
-                                    }),
-                                };
-                            },
-                        };
-                    },
                     select() {
                         return {
                             eq() {
@@ -297,7 +298,7 @@ test('bazi case profile PUT accepts custom family and temperament tags', async (
                                                         xianShen: { basic: [], advanced: [] },
                                                         summary: '测试',
                                                     },
-                                                    owner_feedback: savedOwnerFeedback,
+                                                    owner_feedback: savedOwnerFeedback.current,
                                                     created_at: '2026-03-20T00:00:00.000Z',
                                                     updated_at: '2026-03-20T00:00:00.000Z',
                                                 },
@@ -314,17 +315,6 @@ test('bazi case profile PUT accepts custom family and temperament tags', async (
 
             if (table === 'bazi_case_events') {
                 return {
-                    delete() {
-                        return {
-                            eq() {
-                                return {
-                                    eq() {
-                                        return { error: null };
-                                    },
-                                };
-                            },
-                        };
-                    },
                     select() {
                         return {
                             eq() {

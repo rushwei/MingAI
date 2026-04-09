@@ -6,9 +6,13 @@ const apiUtilsModule = require('../lib/api-utils') as any;
 
 test('ingestChatMessageAsService stores chat_message entries with metadata', async () => {
     const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
-    const inserted: Array<{ source_type: string; source_id: string; metadata: Record<string, unknown> }> = [];
+    let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
 
     apiUtilsModule.getSystemAdminClient = () => ({
+        rpc: (fn: string, args: Record<string, unknown>) => {
+            rpcCall = { fn, args };
+            return Promise.resolve({ data: 1, error: null });
+        },
         from: (table: string) => {
             if (table === 'conversations') {
                 return {
@@ -79,25 +83,6 @@ test('ingestChatMessageAsService stores chat_message entries with metadata', asy
                     }),
                 };
             }
-            if (table === 'knowledge_entries') {
-                return {
-                    delete: () => ({
-                        eq: () => ({
-                            eq: () => ({
-                                eq: () => ({
-                                    gte: async () => ({ error: null })
-                                })
-                            })
-                        })
-                    }),
-                    upsert: (entries: Array<{ source_type: string; source_id: string; metadata: Record<string, unknown> }>) => ({
-                        select: async () => {
-                            inserted.push(...entries);
-                            return { data: entries.map((_, i) => ({ id: `entry-${i}` })), error: null };
-                        }
-                    })
-                };
-            }
             return {};
         }
     });
@@ -105,11 +90,14 @@ test('ingestChatMessageAsService stores chat_message entries with metadata', asy
     try {
         const result = await ingestModule.ingestChatMessageAsService('kb-1', 'conv-1', 'a1', 'user-1');
         assert.equal(result.chunks > 0, true);
-        assert.equal(inserted[0]?.source_type, 'chat_message');
-        assert.equal(inserted[0]?.source_id, 'a1');
-        assert.equal(inserted[0]?.metadata?.conversation_id, 'conv-1');
-        assert.equal(inserted[0]?.metadata?.message_id, 'a1');
-        assert.equal(inserted[0]?.metadata?.user_message_id, 'u1');
+        assert.equal(rpcCall?.fn, 'kb_replace_source_entries');
+        assert.equal(rpcCall?.args.p_source_type, 'chat_message');
+        assert.equal(rpcCall?.args.p_source_id, 'a1');
+        assert.equal(rpcCall?.args.p_archive, true);
+        const entries = (rpcCall?.args.p_entries as Array<Record<string, unknown>>) || [];
+        assert.equal(entries[0]?.metadata?.conversation_id, 'conv-1');
+        assert.equal(entries[0]?.metadata?.message_id, 'a1');
+        assert.equal(entries[0]?.metadata?.user_message_id, 'u1');
     } finally {
         apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
     }

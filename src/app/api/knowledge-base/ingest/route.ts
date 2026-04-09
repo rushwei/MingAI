@@ -2,7 +2,6 @@
 import { NextRequest } from 'next/server';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { getSystemAdminClient } from '@/lib/api-utils';
 import {
     ingestConversationAsService,
     ingestChatMessageAsService,
@@ -35,8 +34,7 @@ export async function POST(request: NextRequest) {
         return jsonError('缺少对话信息', 400);
     }
 
-    const service = getSystemAdminClient();
-    const { data: kb } = await service
+    const { data: kb } = await auth.supabase
         .from('knowledge_bases')
         .select('id, user_id')
         .eq('id', body.kbId)
@@ -48,18 +46,6 @@ export async function POST(request: NextRequest) {
     const membership = await getEffectiveMembershipType(user.id);
     if (membership === 'free') {
         return jsonError('当前会员等级无法使用知识库', 403);
-    }
-
-    try {
-        await service
-            .from('archived_sources')
-            .upsert({
-                user_id: user.id,
-                kb_id: body.kbId,
-                source_type: body.sourceType,
-                source_id: body.sourceId
-            }, { onConflict: 'source_type,source_id,kb_id' });
-    } catch {
     }
 
     const ingestResult = body.sourceType === 'conversation'

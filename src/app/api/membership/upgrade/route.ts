@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
         const { user } = auth;
         const userId = user.id;
 
-        const supabase = getSystemAdminClient();
-
         // 计算过期时间
         let expiresAt: Date | null = null;
         if (planId === 'plus') {
@@ -48,72 +46,27 @@ export async function POST(request: NextRequest) {
             expiresAt.setMonth(expiresAt.getMonth() + 1);
         }
 
-        // [MVP] 模拟支付：创建已支付订单
-        // 生产环境应创建 pending 订单，等待支付回调确认
-        const { data: orderRow, error: orderError } = await supabase
-            .from('orders')
-            .insert({
-                user_id: userId,
-                product_type: planId,
-                amount: plan.price,
-                status: 'paid', // MVP: 模拟支付直接标记为已支付
-                payment_method: 'simulated',
-                paid_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single();
+        const supabase = getSystemAdminClient();
+        const { data, error } = await supabase.rpc('complete_membership_upgrade_as_service', {
+            p_user_id: userId,
+            p_plan_id: planId,
+            p_amount: plan.price,
+            p_initial_credits: plan.initialCredits,
+            p_credit_limit: plan.creditLimit,
+            p_expires_at: expiresAt?.toISOString() || null,
+        });
 
-        if (orderError) {
-            console.error('Error creating order:', orderError);
-            return jsonError('创建订单失败', 500);
-        }
-
-        // 使用服务端客户端获取当前积分（避免RLS问题）
-        const { data: userData } = await supabase
-            .from('users')
-            .select('ai_chat_count')
-            .eq('id', userId)
-            .single();
-        const currentCredits = userData?.ai_chat_count || 0;
-
-        const boostedCredits = Math.min(currentCredits + plan.initialCredits, plan.creditLimit);
-        const nextCredits = Math.max(currentCredits, boostedCredits);
-
-        // 更新用户会员状态
-        const updateData: Record<string, unknown> = {
-            membership: planId,
-            updated_at: new Date().toISOString(),
-            // 叠加初始积分，但不超过上限
-            ai_chat_count: nextCredits,
-            last_credit_restore_at: new Date().toISOString(),
-        };
-
-        if (expiresAt) {
-            updateData.membership_expires_at = expiresAt.toISOString();
-        }
-
-        const { error: updateError } = await supabase
-            .from('users')
-            .update(updateData)
-            .eq('id', userId);
-
-        if (updateError) {
-            console.error('Error updating membership:', updateError);
-            if (orderRow?.id) {
-                await supabase
-                    .from('orders')
-                    .delete()
-                    .eq('id', orderRow.id)
-                    .eq('user_id', userId);
-            }
-            return jsonError('更新会员状态失败', 500);
+        const result = (data || {}) as { status?: string; credits?: number; expires_at?: string | null };
+        if (error || result.status !== 'ok') {
+            console.error('Error updating membership:', error || result);
+            return jsonError(result.status === 'user_not_found' ? '用户不存在' : '更新会员状态失败', 500);
         }
 
         return jsonOk({
             success: true,
             membership: planId,
-            credits: updateData.ai_chat_count,
-            expiresAt: expiresAt?.toISOString() || null,
+            credits: result.credits ?? 0,
+            expiresAt: result.expires_at ?? null,
         });
     } catch (error) {
         console.error('[membership/upgrade] Error:', error);

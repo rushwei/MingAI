@@ -6,13 +6,13 @@
 
 import { NextRequest } from 'next/server';
 import { TargetType, VoteType } from '@/lib/community';
-import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { missingFields, missingSearchParams } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
     try {
-        const { user } = await getAuthContext(request);
+        const { supabase, user } = await getAuthContext(request);
         if (!user) {
             return jsonOk({ vote: null });
         }
@@ -24,10 +24,8 @@ export async function GET(request: NextRequest) {
         if (missingSearchParams(searchParams, ['targetType', 'targetId']).length > 0) {
             return jsonError('缺少参数', 400);
         }
-        // 使用 serviceClient 和重试逻辑获取投票状态
-        const serviceClient = getSystemAdminClient();
         const voteResult = await withRetry(async () => {
-            const response = await serviceClient
+            const response = await supabase
                 .from('community_votes')
                 .select('vote_type')
                 .eq('user_id', user.id)
@@ -53,7 +51,7 @@ export async function POST(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { user } = auth;
+        const { supabase } = auth;
 
         const body = await request.json();
         const { targetType, targetId, voteType } = body as {
@@ -73,108 +71,24 @@ export async function POST(request: NextRequest) {
         if (!['up', 'down'].includes(voteType)) {
             return jsonError('无效的投票类型', 400);
         }
-        // 使用 serviceClient 和重试逻辑
-        const serviceClient = getSystemAdminClient();
-
-        // 获取现有投票
-        const existingResult = await withRetry(async () => {
-            const response = await serviceClient
-                .from('community_votes')
-                .select('*')
-                .eq('user_id', user.id)
-                .eq('target_type', targetType)
-                .eq('target_id', targetId)
-                .maybeSingle();
-            if (response.error) {
-                throw response.error;
-            }
-            return response;
+        const { data, error } = await supabase.rpc('toggle_community_vote', {
+            p_target_type: targetType,
+            p_target_id: targetId,
+            p_vote_type: voteType,
         });
-        const existing = existingResult.data;
 
-        let newVote: VoteType | null = null;
-
-        if (existing) {
-            if (existing.vote_type === voteType) {
-                // 取消投票
-                const deleteResult = await withRetry(async () => {
-                    const response = await serviceClient
-                        .from('community_votes')
-                        .delete()
-                        .eq('id', existing.id);
-                    if (response.error) {
-                        throw response.error;
-                    }
-                    return response;
-                });
-
-                if (deleteResult.error) {
-                    console.error('取消投票失败:', deleteResult.error);
-                    return jsonError('取消投票失败', 500);
-                }
-                newVote = null;
-            } else {
-                // 切换投票类型
-                const updateResult = await withRetry(async () => {
-                    const response = await serviceClient
-                        .from('community_votes')
-                        .update({ vote_type: voteType })
-                        .eq('id', existing.id);
-                    if (response.error) {
-                        throw response.error;
-                    }
-                    return response;
-                });
-
-                if (updateResult.error) {
-                    console.error('切换投票失败:', updateResult.error);
-                    return jsonError('切换投票失败', 500);
-                }
-                newVote = voteType;
-            }
-        } else {
-            // 新增投票（先清理可能的重复数据）
-            const cleanupResult = await withRetry(async () => {
-                const response = await serviceClient
-                    .from('community_votes')
-                    .delete()
-                    .eq('user_id', user.id)
-                    .eq('target_type', targetType)
-                    .eq('target_id', targetId);
-                if (response.error) {
-                    throw response.error;
-                }
-                return response;
-            });
-
-            if (cleanupResult.error) {
-                console.error('清理投票失败:', cleanupResult.error);
-                return jsonError('投票失败', 500);
-            }
-
-            const insertResult = await withRetry(async () => {
-                const response = await serviceClient
-                    .from('community_votes')
-                    .insert({
-                        user_id: user.id,
-                        target_type: targetType,
-                        target_id: targetId,
-                        vote_type: voteType,
-                    });
-                if (response.error) {
-                    throw response.error;
-                }
-                return response;
-            });
-
-            if (insertResult.error) {
-                console.error('投票失败:', insertResult.error);
-                return jsonError('投票失败', 500);
-            }
-            newVote = voteType;
+        if (error) {
+            console.error('投票失败:', error);
+            return jsonError('投票失败', 500);
         }
 
-        return jsonOk({ vote: newVote });
+        const result = (Array.isArray(data) ? data[0] : data) as { status?: string; vote?: VoteType | null } | null;
+        if (result?.status !== 'ok') {
+            console.error('投票失败: invalid rpc result', data);
+            return jsonError('投票失败', 500);
+        }
+
+        return jsonOk({ vote: result.vote ?? null });
     } catch (error) {
         console.error('投票失败:', error);
         return jsonError('投票失败', 500);

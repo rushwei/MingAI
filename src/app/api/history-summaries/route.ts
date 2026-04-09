@@ -1,6 +1,5 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { deleteConversationGraph } from '@/lib/chat/conversation-delete';
 import {
     buildHistoryRestorePayload,
     buildHistorySummary,
@@ -131,43 +130,18 @@ export async function DELETE(request: NextRequest) {
         return jsonError('缺少有效的历史记录类型或 ID', 400);
     }
 
-    const config = HISTORY_CONFIG[type];
-    const { data, error } = await auth.supabase
-        .from(config.tableName)
-        .select('conversation_id')
-        .eq('id', id)
-        .eq('user_id', auth.user.id)
-        .maybeSingle();
+    const { data, error } = await auth.supabase.rpc('delete_history_item_and_conversation', {
+        p_history_type: type,
+        p_history_id: id,
+    });
 
     if (error) {
-        console.error('[history-summaries] failed to load delete target:', error);
+        console.error('[history-summaries] failed to delete history transaction:', error);
         return jsonError('删除历史记录失败', 500);
     }
 
-    if (!data) {
+    if (data !== true) {
         return jsonError('未找到历史记录', 404);
-    }
-
-    const { error: deleteError } = await auth.supabase
-        .from(config.tableName)
-        .delete()
-        .eq('id', id)
-        .eq('user_id', auth.user.id);
-
-    if (deleteError) {
-        console.error('[history-summaries] failed to delete item:', deleteError);
-        return jsonError('删除历史记录失败', 500);
-    }
-
-    if (typeof data.conversation_id === 'string' && data.conversation_id.trim()) {
-        const result = await deleteConversationGraph(
-            auth.supabase as never,
-            auth.user.id,
-            data.conversation_id,
-        );
-        if (result.error) {
-            console.error('[history-summaries] failed to delete linked conversation:', result.error);
-        }
     }
 
     return jsonOk({ success: true });

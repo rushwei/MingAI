@@ -376,3 +376,59 @@ test('knowledge-base archive route should continue fetching batches for deep off
   assert.ok(archivedCalls.length >= 2);
   assert.ok(virtualCalls.length >= 1);
 });
+
+test('knowledge-base archive DELETE should unarchive through transactional rpc', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {},
+  });
+  apiUtilsModule.getSystemAdminClient = () => ({
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      rpcCall = { fn, args };
+      return Promise.resolve({ data: true, error: null });
+    },
+    from: (table: string) => {
+      if (table === 'knowledge_bases') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { id: 'kb-1' }, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+  });
+
+  const { DELETE } = await import('../app/api/knowledge-base/archive/[id]/route');
+  const response = await DELETE(new NextRequest('http://localhost/api/knowledge-base/archive/chat_message:kb-1:msg-1', {
+    method: 'DELETE',
+  }), {
+    params: Promise.resolve({ id: 'chat_message:kb-1:msg-1' }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(rpcCall?.fn, 'kb_unarchive_source_as_service');
+  assert.deepEqual(rpcCall?.args, {
+    p_user_id: 'user-1',
+    p_kb_id: 'kb-1',
+    p_source_type: 'chat_message',
+    p_source_id: 'msg-1',
+  });
+  assert.equal(payload.success, true);
+});

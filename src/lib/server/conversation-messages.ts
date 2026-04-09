@@ -17,6 +17,8 @@ type MessagePageOptions = {
 
 type ConversationMessageSyncError = { message?: string; code?: string };
 
+const CHAT_MESSAGE_ROLES: ReadonlySet<ChatMessage['role']> = new Set(['user', 'assistant', 'system']);
+
 function toSyncError(error: unknown): ConversationMessageSyncError | null {
     if (!error) return null;
     const e = error as Record<string, unknown>;
@@ -32,6 +34,25 @@ export function isConversationMessageInfraMissing(error: ConversationMessageSync
         || text.includes('conversation_messages')
         || text.includes('does not exist')
         || text.includes('not found');
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidTimestampString(value: unknown): value is string {
+    return typeof value === 'string'
+        && value.trim().length > 0
+        && !Number.isNaN(Date.parse(value));
+}
+
+export function isValidChatMessagePayload(value: unknown): value is ChatMessage {
+    if (!isPlainObject(value)) return false;
+    if (typeof value.id !== 'string' || value.id.trim().length === 0) return false;
+    if (!CHAT_MESSAGE_ROLES.has(value.role as ChatMessage['role'])) return false;
+    if (typeof value.content !== 'string') return false;
+    if (!isValidTimestampString(value.createdAt)) return false;
+    return true;
 }
 
 function toStoredConversationMessage(
@@ -61,47 +82,23 @@ function fromStoredConversationMessage(row: StoredConversationMessageRow): ChatM
     };
 }
 
-async function replaceConversationMessagesByTable(
-    supabase: SupabaseClient,
-    conversationId: string,
-    messages: ChatMessage[]
-): Promise<{ error: ConversationMessageSyncError | null }> {
-    if (typeof supabase.from !== 'function') {
-        return { error: null };
-    }
-
-    const table = supabase.from('conversation_messages');
-    const deleteResult = await table.delete().eq('conversation_id', conversationId);
-    if (deleteResult.error) {
-        return { error: toSyncError(deleteResult.error) };
-    }
-
-    const rows = mapConversationMessagesForInsert(conversationId, messages);
-    if (rows.length === 0) {
-        return { error: null };
-    }
-
-    const insertResult = await table.insert(rows);
-    return { error: toSyncError(insertResult.error) };
-}
-
 export async function replaceConversationMessages(
     supabase: SupabaseClient,
     conversationId: string,
     messages: ChatMessage[]
 ) : Promise<{ error: ConversationMessageSyncError | null }> {
     if (typeof supabase.rpc !== 'function') {
-        return await replaceConversationMessagesByTable(supabase, conversationId, messages);
+        return {
+            error: {
+                message: 'replace_conversation_messages RPC unavailable',
+            },
+        };
     }
 
     const { error } = await supabase.rpc('replace_conversation_messages', {
         p_conversation_id: conversationId,
         p_messages: messages,
     });
-
-    if (isConversationMessageInfraMissing(toSyncError(error))) {
-        return await replaceConversationMessagesByTable(supabase, conversationId, messages);
-    }
 
     return { error: toSyncError(error) };
 }
