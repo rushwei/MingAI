@@ -61,6 +61,7 @@ function buildLinuxDoUserMetadata(linuxdoUser: LinuxDoUser, nickname: string) {
     linuxdo_sub: linuxdoUser.sub,
     linuxdo_username: linuxdoUser.preferred_username,
     linuxdo_email: linuxdoUser.email,
+    linuxdo_provider_metadata: linuxdoUser,
   };
 }
 
@@ -293,9 +294,8 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  const serviceClient = getSystemAdminClient();
-
   // 5. 查 user_oauth_providers
+  const serviceClient = getSystemAdminClient();
   const { data: existingProvider, error: existingProviderError } = await serviceClient
     .from('user_oauth_providers')
     .select('user_id')
@@ -317,13 +317,14 @@ export async function GET(request: NextRequest) {
 
   if (existingProvider) {
     // 已有记录：直接登录
-    const { data: existingUser } = await serviceClient
+    const { data: existingUser, error: existingUserError } = await serviceClient
       .from('users')
       .select('id')
       .eq('id', existingProvider.user_id)
       .maybeSingle();
 
-    if (!existingUser) {
+    if (existingUserError || !existingUser) {
+      console.error('[linuxdo-callback] Bound public user lookup failed:', existingUserError);
       const res = redirectWithError(origin, 'user_not_found');
       clearCookie(res);
       return res;
@@ -362,26 +363,6 @@ export async function GET(request: NextRequest) {
     if (signInError || !signInData.session) {
       console.error('[linuxdo-callback] Sign in failed:', signInError);
       const res = redirectWithError(origin, 'login_failed');
-      clearCookie(res);
-      return res;
-    }
-
-    // 更新 provider 信息（头像、用户名可能变化）
-    const { error: providerUpdateError } = await serviceClient
-      .from('user_oauth_providers')
-      .update({
-        provider_email: linuxdoUser.email,
-        provider_username: linuxdoUser.preferred_username,
-        provider_avatar_url: linuxdoUser.picture || null,
-        provider_metadata: linuxdoUser as unknown as Record<string, unknown>,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('provider', 'linuxdo')
-      .eq('provider_user_id', linuxdoUser.sub);
-
-    if (providerUpdateError) {
-      console.error('[linuxdo-callback] Provider update failed:', providerUpdateError);
-      const res = redirectWithError(origin, 'provider_sync_failed');
       clearCookie(res);
       return res;
     }
@@ -506,38 +487,6 @@ export async function GET(request: NextRequest) {
       }
       session = recoveredSession;
     }
-  }
-
-  const userId = session.user.id;
-
-  // 写 public.users 表（等价 ensureUserRecord）
-  await serviceClient.from('users').upsert(
-    {
-      id: userId,
-      nickname,
-      avatar_url: linuxdoUser.picture || null,
-      membership: 'free',
-      ai_chat_count: 3,
-    },
-    { onConflict: 'id', ignoreDuplicates: true },
-  );
-
-  // 写 user_oauth_providers
-  const { error: providerInsertError } = await serviceClient.from('user_oauth_providers').insert({
-    user_id: userId,
-    provider: 'linuxdo',
-    provider_user_id: linuxdoUser.sub,
-    provider_email: linuxdoUser.email,
-    provider_username: linuxdoUser.preferred_username,
-    provider_avatar_url: linuxdoUser.picture || null,
-    provider_metadata: linuxdoUser as unknown as Record<string, unknown>,
-  });
-
-  if (providerInsertError) {
-    console.error('[linuxdo-callback] Provider insert failed:', providerInsertError);
-    const res = redirectWithError(origin, 'provider_sync_failed');
-    clearCookie(res);
-    return res;
   }
 
   const response = NextResponse.redirect(new URL('/', origin));

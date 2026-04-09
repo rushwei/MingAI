@@ -134,6 +134,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
         upsert?: () => Promise<{ error: null }>;
         insert?: () => Promise<{ error: null }>;
       };
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
     };
   };
   const authSessionModule = require('../lib/auth-session') as {
@@ -183,18 +184,15 @@ test('linuxdo callback should not reject login when email_verified claim is miss
               }),
             }),
           }),
-          insert: async () => ({ error: null }),
-        };
-      }
-
-      if (table === 'users') {
-        return {
-          upsert: async () => ({ error: null }),
         };
       }
 
       throw new Error(`unexpected table: ${table}`);
     },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
   });
 
   authSessionModule.setSessionCookies = () => {};
@@ -255,6 +253,7 @@ test('linuxdo callback should create new users through admin api instead of publ
         upsert?: () => Promise<{ error: null }>;
         insert?: () => Promise<{ error: null }>;
       };
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
     };
   };
   const authSessionModule = require('../lib/auth-session') as {
@@ -334,18 +333,15 @@ test('linuxdo callback should create new users through admin api instead of publ
               }),
             }),
           }),
-          insert: async () => ({ error: null }),
-        };
-      }
-
-      if (table === 'users') {
-        return {
-          upsert: async () => ({ error: null }),
         };
       }
 
       throw new Error(`unexpected table: ${table}`);
     },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
   });
 
   authSessionModule.setSessionCookies = () => {};
@@ -388,6 +384,10 @@ test('linuxdo callback should create new users through admin api instead of publ
     (createdUser.user_metadata as Record<string, unknown>)?.linuxdo_sub,
     'linuxdo-user-2',
   );
+  assert.equal(
+    ((createdUser.user_metadata as Record<string, unknown>)?.linuxdo_provider_metadata as Record<string, unknown>)?.sub,
+    'linuxdo-user-2',
+  );
 });
 
 test('linuxdo callback should surface missing auth admin key when public signup is blocked', async (t) => {
@@ -407,6 +407,7 @@ test('linuxdo callback should surface missing auth admin key when public signup 
       from: (table: string) => {
         select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> } } };
       };
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string } | null; error: null }>;
     };
   };
 
@@ -445,6 +446,10 @@ test('linuxdo callback should surface missing auth admin key when public signup 
           }),
         }),
       }),
+    }),
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
     }),
   });
 
@@ -506,6 +511,7 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
     };
     getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
     };
   };
   const authSessionModule = require('../lib/auth-session') as {
@@ -521,7 +527,6 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   let signInCalls = 0;
-  let providerInsertCalls = 0;
 
   linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
   linuxdoModule.fetchUserInfo = async () => ({
@@ -599,21 +604,15 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
               }),
             }),
           }),
-          insert: async () => {
-            providerInsertCalls += 1;
-            return { error: null };
-          },
-        };
-      }
-
-      if (table === 'users') {
-        return {
-          upsert: async () => ({ error: null }),
         };
       }
 
       throw new Error(`unexpected table: ${table}`);
     },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
   });
 
   authSessionModule.setSessionCookies = () => {};
@@ -647,10 +646,9 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
   assert.equal(response.status, 307);
   assert.equal(response.headers.get('location'), 'http://localhost/');
   assert.equal(signInCalls, 1);
-  assert.equal(providerInsertCalls, 1);
 });
 
-test('linuxdo callback should surface provider sync failure when oauth binding insert fails', async (t) => {
+test('linuxdo callback should surface signup failure when auth user creation is rejected', async (t) => {
   const linuxdoModule = require('../lib/oauth/linuxdo') as {
     exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
     fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
@@ -665,12 +663,13 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
     getAuthAdminClient: () => {
       auth: {
         admin: {
-          createUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          createUser: () => Promise<{ data: { user: null }; error: { message: string } }>;
         };
       };
     };
     getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: null; error: { message: string } }>;
     };
   };
   const authSessionModule = require('../lib/auth-session') as {
@@ -712,8 +711,8 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
     auth: {
       admin: {
         createUser: async () => ({
-          data: { user: { id: 'user-5' } },
-          error: null,
+          data: { user: null },
+          error: { message: 'Database error saving new user' },
         }),
       },
     },
@@ -730,20 +729,15 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
               }),
             }),
           }),
-          insert: async () => ({
-            error: { message: 'new row violates row-level security policy' },
-          }),
-        };
-      }
-
-      if (table === 'users') {
-        return {
-          upsert: async () => ({ error: null }),
         };
       }
 
       throw new Error(`unexpected table: ${table}`);
     },
+    rpc: async () => ({
+      data: null,
+      error: { message: 'new row violates row-level security policy' },
+    }),
   });
 
   authSessionModule.setSessionCookies = () => {};
@@ -777,6 +771,6 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
   assert.equal(response.status, 307);
   assert.equal(
     response.headers.get('location'),
-    'http://localhost/?error=provider_sync_failed',
+    'http://localhost/?error=signup_failed',
   );
 });

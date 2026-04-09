@@ -80,6 +80,7 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
     } | null;
     getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
     };
   };
   const authSessionModule = require('../lib/auth-session') as {
@@ -166,11 +167,6 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
               }),
             }),
           }),
-          update: () => ({
-            eq: () => ({
-              eq: async () => ({ error: null }),
-            }),
-          }),
         };
       }
 
@@ -186,6 +182,10 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
 
       throw new Error(`unexpected table: ${table}`);
     },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
   });
 
   authSessionModule.setSessionCookies = () => {};
@@ -214,6 +214,119 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
     (updatedUser.user_metadata as Record<string, unknown>)?.linuxdo_sub,
     'linuxdo-user-bound',
   );
+});
+
+test('linuxdo callback should reject bound providers when public user row is missing and auth sync is unavailable', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as {
+    exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
+    fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+    generateDeterministicPassword: (sub: string) => string;
+  };
+  const apiUtilsModule = require('../lib/api-utils') as {
+    createAnonClient: () => {
+      auth: {
+        signInWithPassword: (credentials: { email: string; password: string }) => Promise<SessionResult>;
+      };
+    };
+    getAuthAdminClient: () => null;
+    getSystemAdminClient: () => {
+      from: (table: string) => Record<string, unknown>;
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
+    };
+  };
+  const authSessionModule = require('../lib/auth-session') as {
+    setSessionCookies: (response: Response, session: unknown) => void;
+  };
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  let signInCalled = false;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-missing-public',
+    preferred_username: 'missing-public',
+    name: 'Missing Public User',
+    email: 'missing-public@example.com',
+    email_verified: true,
+    picture: 'https://cdn.example.com/missing-public.png',
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'stable-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signInWithPassword: async () => {
+        signInCalled = true;
+        return {
+          data: {
+            session: {
+              user: { id: 'bound-user-id' },
+            },
+          },
+          error: null,
+        };
+      },
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => null;
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { user_id: 'bound-user-id' }, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
+  });
+  authSessionModule.setSessionCookies = () => {
+    throw new Error('setSessionCookies should not be called');
+  };
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const response = await GET(buildCallbackRequest());
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/?error=user_not_found');
+  assert.equal(signInCalled, false);
 });
 
 test('linuxdo callback should recover missing provider bindings via admin user lookup before creating a new auth user', async (t) => {
@@ -248,6 +361,7 @@ test('linuxdo callback should recover missing provider bindings via admin user l
     } | null;
     getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
     };
   };
   const authSessionModule = require('../lib/auth-session') as {
@@ -264,7 +378,6 @@ test('linuxdo callback should recover missing provider bindings via admin user l
 
   let listUsersCalls = 0;
   let createUserCalls = 0;
-  let providerInsertCalls = 0;
   let signInEmail = '';
   let updatePayload: Record<string, unknown> | null = null;
 
@@ -353,21 +466,15 @@ test('linuxdo callback should recover missing provider bindings via admin user l
               }),
             }),
           }),
-          insert: async () => {
-            providerInsertCalls += 1;
-            return { error: null };
-          },
-        };
-      }
-
-      if (table === 'users') {
-        return {
-          upsert: async () => ({ error: null }),
         };
       }
 
       throw new Error(`unexpected table: ${table}`);
     },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
   });
 
   authSessionModule.setSessionCookies = () => {};
@@ -389,12 +496,15 @@ test('linuxdo callback should recover missing provider bindings via admin user l
   assert.equal(response.headers.get('location'), 'http://localhost/');
   assert.equal(listUsersCalls, 1);
   assert.equal(createUserCalls, 0);
-  assert.equal(providerInsertCalls, 1);
   assert.equal(signInEmail, 'stored-auth@example.com');
   const reboundUser = updatePayload as Record<string, unknown> | null;
   assert.ok(reboundUser);
   assert.equal(
     (reboundUser.user_metadata as Record<string, unknown>)?.linuxdo_sub,
+    'linuxdo-user-recover',
+  );
+  assert.equal(
+    ((reboundUser.user_metadata as Record<string, unknown>)?.linuxdo_provider_metadata as Record<string, unknown>)?.sub,
     'linuxdo-user-recover',
   );
 });
