@@ -156,6 +156,11 @@ type AdminModelSource = {
 
 type PendingAdminModelSource = Omit<AdminModelSource, 'isActive'>;
 
+type AdminModelMutationResult = {
+    status?: string | null;
+    model?: Record<string, unknown> | null;
+};
+
 function pickGateway(input: AdminBindingRow['gateway']): AdminGatewayRow | null {
     if (Array.isArray(input)) {
         return input[0] ?? null;
@@ -178,18 +183,11 @@ function resolvePrimaryGatewayKey(
     return 'newapi';
 }
 
-async function rollbackCreatedModel(
-    supabase: ReturnType<typeof getSystemAdminClient>,
-    modelId: string,
-) {
-    const { error } = await supabase
-        .from('ai_models')
-        .delete()
-        .eq('id', modelId);
-
-    if (error) {
-        console.error('[ai-models] Failed to rollback created model:', error);
+function parseAdminModelMutationResult(value: unknown): AdminModelMutationResult | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
     }
+    return value as AdminModelMutationResult;
 }
 
 function mapModelSources(model: AdminModelRow) {
@@ -378,79 +376,62 @@ export async function POST(request: NextRequest) {
             return jsonError(error instanceof Error ? error.message : '自定义参数格式错误', 400);
         }
 
-        const { data: model, error } = await supabase
-            .from('ai_models')
-            .insert({
-                model_key: modelKey,
-                display_name: displayName,
-                vendor,
-                usage_type: usageType,
-                routing_mode: routingMode,
-                is_enabled: isEnabled,
-                sort_order: sortOrder,
-                required_tier: requiredTier,
-                supports_reasoning: supportsReasoning,
-                reasoning_required_tier: reasoningRequiredTier,
-                is_reasoning_default: isReasoningDefault,
-                supports_vision: supportsVision || usageType === 'vision',
-                default_temperature: defaultTemperature,
-                default_top_p: defaultTopP,
-                default_presence_penalty: defaultPresencePenalty,
-                default_frequency_penalty: defaultFrequencyPenalty,
-                default_max_tokens: defaultMaxTokens,
-                default_reasoning_effort: supportsReasoning ? defaultReasoningEffort : null,
-                reasoning_effort_format: supportsReasoning ? reasoningEffortFormat : null,
-                custom_parameters: normalizedCustomParameters,
-                description,
-            })
-            .select()
-            .single();
+        const insertData = {
+            model_key: modelKey,
+            display_name: displayName,
+            vendor,
+            usage_type: usageType,
+            routing_mode: routingMode,
+            is_enabled: isEnabled,
+            sort_order: sortOrder,
+            required_tier: requiredTier,
+            supports_reasoning: supportsReasoning,
+            reasoning_required_tier: reasoningRequiredTier,
+            is_reasoning_default: isReasoningDefault,
+            supports_vision: supportsVision || usageType === 'vision',
+            default_temperature: defaultTemperature,
+            default_top_p: defaultTopP,
+            default_presence_penalty: defaultPresencePenalty,
+            default_frequency_penalty: defaultFrequencyPenalty,
+            default_max_tokens: defaultMaxTokens,
+            default_reasoning_effort: supportsReasoning ? defaultReasoningEffort : null,
+            reasoning_effort_format: supportsReasoning ? reasoningEffortFormat : null,
+            custom_parameters: normalizedCustomParameters,
+            description,
+        };
+
+        const { data, error } = await supabase.rpc('admin_create_ai_model_with_binding', {
+            p_model: insertData,
+            p_primary_gateway_key: selectedGatewayKey,
+        });
 
         if (error) {
-            if (error.code === '23505') {
-                return jsonError('模型标识已存在', 409);
-            }
-            console.error('[ai-models] Failed to create model:', error);
+            console.error('[ai-models] Failed to create model transaction:', error);
             return jsonError('创建模型失败', 500);
         }
 
-        const { data: gateway, error: gatewayError } = await supabase
-            .from('ai_gateways')
-            .select('id')
-            .eq('gateway_key', selectedGatewayKey)
-            .single();
+        const result = parseAdminModelMutationResult(data);
+        if (!result?.status) {
+            console.error('[ai-models] Invalid create model RPC result:', data);
+            return jsonError('创建模型失败', 500);
+        }
 
-        if (gatewayError || !gateway) {
-            await rollbackCreatedModel(supabase, model.id);
-            if (gatewayError) {
-                console.error('[ai-models] Failed to resolve primary gateway:', gatewayError);
-            }
+        if (result.status === 'conflict') {
+            return jsonError('模型 ID 已存在', 409);
+        }
+
+        if (result.status === 'gateway_not_found') {
             return jsonError('来源网关不存在，请先在网关管理中配置', 404);
         }
 
-        const { error: bindingError } = await supabase
-            .from('ai_model_gateway_bindings')
-            .insert({
-                model_id: model.id,
-                gateway_id: gateway.id,
-                model_id_override: modelKey,
-                reasoning_model_id: null,
-                is_enabled: true,
-                priority: 0,
-                notes: 'Auto-created primary binding',
-            })
-            .select()
-            .single();
-
-        if (bindingError) {
-            await rollbackCreatedModel(supabase, model.id);
-            console.error('[ai-models] Failed to create primary binding:', bindingError);
+        if (result.status !== 'ok' || !result.model) {
+            console.error('[ai-models] Unexpected create model RPC status:', result.status);
             return jsonError('创建模型失败', 500);
         }
 
         clearModelCache();
 
-        return jsonOk({ success: true, model }, 201);
+        return jsonOk({ success: true, model: result.model }, 201);
     } catch (e) {
         console.error('[ai-models] Invalid request body:', e);
         return jsonError('请求格式错误', 400);

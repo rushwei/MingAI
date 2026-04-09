@@ -237,6 +237,30 @@ function createInitialSourceDraft(): SourceDraft {
     };
 }
 
+function normalizeSourceModelIdInput(modelIdOverride: string, modelKey: string): string | null {
+    const normalizedOverride = modelIdOverride.trim();
+    const normalizedModelKey = modelKey.trim();
+    if (!normalizedOverride || normalizedOverride === normalizedModelKey) {
+        return null;
+    }
+    return normalizedOverride;
+}
+
+function getSourceModelIdState(modelKey: string, modelIdOverride: string | null) {
+    const normalizedModelKey = modelKey.trim();
+    const normalizedOverride = modelIdOverride?.trim();
+    if (!normalizedOverride || normalizedOverride === normalizedModelKey) {
+        return {
+            value: normalizedModelKey,
+            inherited: true,
+        };
+    }
+    return {
+        value: normalizedOverride,
+        inherited: false,
+    };
+}
+
 export function AIModelPanel() {
     const [models, setModels] = useState<AIModel[]>([]);
     const [loading, setLoading] = useState(true);
@@ -398,7 +422,7 @@ export function AIModelPanel() {
         const vendor = resolveDraftVendor(newModel);
 
         if (!newModel.modelKey.trim() || !newModel.displayName.trim()) {
-            showToast('warning', '请填写模型标识和显示名称');
+            showToast('warning', '请填写模型 ID 和显示名称');
             return;
         }
         if (!vendor) {
@@ -470,7 +494,7 @@ export function AIModelPanel() {
             : draft.vendorPreset;
 
         if (!draft.modelKey.trim() || !draft.displayName.trim()) {
-            showToast('warning', '请填写模型标识和显示名称');
+            showToast('warning', '请填写模型 ID 和显示名称');
             return;
         }
         if (!vendor) {
@@ -538,10 +562,10 @@ export function AIModelPanel() {
         }
     };
 
-    const beginEditSource = (source: ModelSource) => {
+    const beginEditSource = (source: ModelSource, modelKey: string) => {
         setEditingSourceId(source.id);
         setEditingDraft({
-            modelIdOverride: source.modelIdOverride || '',
+            modelIdOverride: normalizeSourceModelIdInput(source.modelIdOverride || '', modelKey) || '',
             reasoningModelId: source.reasoningModelId || '',
             priority: source.priority,
             isEnabled: source.isEnabled,
@@ -549,7 +573,7 @@ export function AIModelPanel() {
         });
     };
 
-    const saveSource = async (modelId: string, sourceId: string) => {
+    const saveSource = async (modelId: string, sourceId: string, modelKey: string) => {
         if (!editingDraft) return;
 
         setUpdating(modelId);
@@ -566,7 +590,7 @@ export function AIModelPanel() {
                         Authorization: `Bearer ${token}`,
                     },
                     body: JSON.stringify({
-                        modelIdOverride: editingDraft.modelIdOverride.trim() || null,
+                        modelIdOverride: normalizeSourceModelIdInput(editingDraft.modelIdOverride, modelKey),
                         reasoningModelId: editingDraft.reasoningModelId.trim() || null,
                         priority: editingDraft.priority,
                         isEnabled: editingDraft.isEnabled,
@@ -592,7 +616,7 @@ export function AIModelPanel() {
         }
     };
 
-    const addSource = async (modelId: string, fallbackModelKey: string) => {
+    const addSource = async (modelId: string, modelKey: string) => {
         setUpdating(modelId);
         try {
             const token = await getToken();
@@ -606,7 +630,7 @@ export function AIModelPanel() {
                 },
                 body: JSON.stringify({
                     sourceKey: newSource.sourceKey,
-                    modelIdOverride: newSource.modelIdOverride.trim() || fallbackModelKey,
+                    modelIdOverride: normalizeSourceModelIdInput(newSource.modelIdOverride, modelKey),
                     reasoningModelId: newSource.reasoningModelId.trim() || null,
                     priority: newSource.priority,
                     isEnabled: newSource.isEnabled,
@@ -771,7 +795,7 @@ export function AIModelPanel() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs text-foreground-secondary mb-1">模型标识</label>
+                            <label className="block text-xs text-foreground-secondary mb-1">模型 ID</label>
                             <input
                                 type="text"
                                 value={newModel.modelKey}
@@ -1206,7 +1230,7 @@ export function AIModelPanel() {
                                             <div>
                                                 <p className="text-sm font-medium">基础信息</p>
                                                 <p className="text-[11px] text-foreground-secondary mt-1">
-                                                    模型标识、显示名称和供应商会直接影响管理员配置和运行时解析。
+                                                    模型 ID、显示名称和供应商会直接影响管理员配置和运行时解析。
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -1233,7 +1257,7 @@ export function AIModelPanel() {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-xs text-foreground-secondary mb-1">模型标识</label>
+                                                <label className="block text-xs text-foreground-secondary mb-1">模型 ID</label>
                                                 <input
                                                     type="text"
                                                     value={modelDraft.modelKey}
@@ -1662,6 +1686,7 @@ export function AIModelPanel() {
 
                                             {model.sources.map((source) => {
                                                 const isEditing = editingSourceId === source.id && editingDraft;
+                                                const sourceModelId = getSourceModelIdState(model.modelKey, source.modelIdOverride);
                                                 return (
                                                     <div
                                                         key={source.id}
@@ -1692,7 +1717,10 @@ export function AIModelPanel() {
                                                                 </div>
                                                                 <div className="mt-1 space-y-1 text-xs text-foreground-secondary">
                                                                     <p>{source.apiKeyEnvVar || '未配置 Key 环境变量'} → {source.apiUrl || '未配置 Base URL'}</p>
-                                                                    {source.modelIdOverride && <p>上游模型 ID: {source.modelIdOverride}</p>}
+                                                                    <p>
+                                                                        {sourceModelId.inherited ? '模型 ID' : '上游模型 ID'}: {sourceModelId.value}
+                                                                        {sourceModelId.inherited && '（跟随模型）'}
+                                                                    </p>
                                                                     {source.reasoningModelId && <p>推理模型 ID: {source.reasoningModelId}</p>}
                                                                     <p>优先级: {source.priority}</p>
                                                                     {source.notes && <p>备注: {source.notes}</p>}
@@ -1701,11 +1729,12 @@ export function AIModelPanel() {
                                                                 {isEditing && editingDraft && (
                                                                     <div className="grid grid-cols-2 gap-3 mt-3">
                                                                         <div>
-                                                                            <label className="block text-xs text-foreground-secondary mb-1">上游模型 ID</label>
+                                                                            <label className="block text-xs text-foreground-secondary mb-1">上游模型 ID（可选）</label>
                                                                             <input
                                                                                 type="text"
                                                                                 value={editingDraft.modelIdOverride}
                                                                                 onChange={(e) => setEditingDraft({ ...editingDraft, modelIdOverride: e.target.value })}
+                                                                                placeholder={`留空则跟随模型 ID（${model.modelKey}）`}
                                                                                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
                                                                             />
                                                                         </div>
@@ -1756,7 +1785,7 @@ export function AIModelPanel() {
                                                                 {!isEditing && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => beginEditSource(source)}
+                                                                        onClick={() => beginEditSource(source, model.modelKey)}
                                                                         disabled={isUpdating}
                                                                         className="p-1.5 rounded-lg hover:bg-background-secondary transition-colors"
                                                                         title="编辑来源"
@@ -1768,7 +1797,7 @@ export function AIModelPanel() {
                                                                     <>
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => saveSource(model.id, source.id)}
+                                                                            onClick={() => saveSource(model.id, source.id, model.modelKey)}
                                                                             disabled={isUpdating}
                                                                             className="p-1.5 rounded-lg hover:bg-background-secondary transition-colors"
                                                                             title="保存修改"
@@ -1837,12 +1866,12 @@ export function AIModelPanel() {
                                                             </select>
                                                         </div>
                                                         <div>
-                                                            <label className="block text-xs text-foreground-secondary mb-1">上游模型 ID</label>
+                                                            <label className="block text-xs text-foreground-secondary mb-1">上游模型 ID（可选）</label>
                                                             <input
                                                                 type="text"
                                                                 value={newSource.modelIdOverride}
                                                                 onChange={(e) => setNewSource({ ...newSource, modelIdOverride: e.target.value })}
-                                                                placeholder={model.modelKey}
+                                                                placeholder={`留空则跟随模型 ID（${model.modelKey}）`}
                                                                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
                                                             />
                                                         </div>

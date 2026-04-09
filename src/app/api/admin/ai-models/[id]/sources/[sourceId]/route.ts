@@ -27,6 +27,23 @@ function pickGateway(input: BindingIdentityRow['gateway']) {
     return input ?? null;
 }
 
+function normalizeOptionalTextField(
+    value: unknown,
+    fieldName: string,
+): { value: string | null | undefined; error: string | null } {
+    if (value === undefined) {
+        return { value: undefined, error: null };
+    }
+    if (value === null) {
+        return { value: null, error: null };
+    }
+    if (typeof value !== 'string') {
+        return { value: undefined, error: `${fieldName} 必须是字符串或 null` };
+    }
+
+    return { value, error: null };
+}
+
 async function getBindingIdentity(
     supabase: ReturnType<typeof getSystemAdminClient>,
     modelId: string,
@@ -49,39 +66,6 @@ async function getBindingIdentity(
     return (binding as BindingIdentityRow | null) || null;
 }
 
-async function promoteBinding(
-    supabase: ReturnType<typeof getSystemAdminClient>,
-    modelId: string,
-    sourceId: string,
-) {
-    const { data: bindings, error } = await supabase
-        .from('ai_model_gateway_bindings')
-        .select('id')
-        .eq('model_id', modelId)
-        .order('priority', { ascending: true });
-
-    if (error || !bindings) {
-        throw error ?? new Error('failed to load bindings');
-    }
-
-    const orderedIds = [
-        sourceId,
-        ...bindings.map((binding: { id: string }) => binding.id).filter((id: string) => id !== sourceId),
-    ];
-
-    for (const [index, id] of orderedIds.entries()) {
-        const { error: updateError } = await supabase
-            .from('ai_model_gateway_bindings')
-            .update({ priority: index })
-            .eq('id', id)
-            .eq('model_id', modelId);
-
-        if (updateError) {
-            throw updateError;
-        }
-    }
-}
-
 export async function PATCH(request: NextRequest, context: RouteContext) {
     const authResult = await requireAdminUser(request);
     if ('error' in authResult) {
@@ -93,38 +77,78 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     try {
         const body = await request.json();
-        const binding = await getBindingIdentity(supabase, modelId, sourceId);
-        if (!binding) {
+        const updateData: Record<string, unknown> = {};
+        if (body.modelIdOverride !== undefined) {
+            const normalizedModelIdOverride = normalizeOptionalTextField(body.modelIdOverride, 'modelIdOverride');
+            if (normalizedModelIdOverride.error) {
+                return jsonError(normalizedModelIdOverride.error, 400);
+            }
+            updateData.model_id_override = normalizedModelIdOverride.value;
+        }
+        if (body.reasoningModelId !== undefined) {
+            const normalizedReasoningModelId = normalizeOptionalTextField(body.reasoningModelId, 'reasoningModelId');
+            if (normalizedReasoningModelId.error) {
+                return jsonError(normalizedReasoningModelId.error, 400);
+            }
+            updateData.reasoning_model_id = normalizedReasoningModelId.value;
+        }
+        if (body.isEnabled !== undefined) {
+            if (typeof body.isEnabled !== 'boolean') {
+                return jsonError('isEnabled 必须是布尔值', 400);
+            }
+            updateData.is_enabled = body.isEnabled;
+        }
+        if (body.priority !== undefined) {
+            if (!Number.isInteger(body.priority) || body.priority < 0) {
+                return jsonError('priority 必须是大于等于 0 的整数', 400);
+            }
+            updateData.priority = body.priority;
+        }
+        if (body.notes !== undefined) {
+            const normalizedNotes = normalizeOptionalTextField(body.notes, 'notes');
+            if (normalizedNotes.error) {
+                return jsonError(normalizedNotes.error, 400);
+            }
+            updateData.notes = normalizedNotes.value;
+        }
+
+        if (body.isActive !== undefined && body.isActive !== true) {
+            return jsonError('isActive 仅支持 true', 400);
+        }
+
+        const { data, error } = await supabase.rpc('admin_update_ai_model_binding', {
+            p_model_id: modelId,
+            p_source_id: sourceId,
+            p_patch: updateData,
+            p_activate: body.isActive === true,
+        });
+
+        if (error) {
+            console.error('[ai-models] Failed to update binding transactionally:', error);
+            return jsonError('更新来源失败', 500);
+        }
+
+        const result = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+        if (!result?.status) {
+            console.error('[ai-models] Invalid binding update RPC result:', data);
+            return jsonError('更新来源失败', 500);
+        }
+
+        if (result.status === 'model_not_found' || result.status === 'not_found') {
             return jsonError('来源不存在', 404);
         }
 
-        const gateway = pickGateway(binding.gateway);
-        if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
+        if (result.status === 'unsupported_source') {
             return jsonError('仅支持 NewAPI 和 Octopus 来源', 400);
         }
 
-        const updateData: Record<string, unknown> = {};
-        if (body.modelIdOverride !== undefined) updateData.model_id_override = body.modelIdOverride;
-        if (body.reasoningModelId !== undefined) updateData.reasoning_model_id = body.reasoningModelId;
-        if (body.isEnabled !== undefined) updateData.is_enabled = body.isEnabled;
-        if (body.priority !== undefined) updateData.priority = body.priority;
-        if (body.notes !== undefined) updateData.notes = body.notes;
-
-        if (Object.keys(updateData).length > 0) {
-            const { error } = await supabase
-                .from('ai_model_gateway_bindings')
-                .update(updateData)
-                .eq('id', sourceId)
-                .eq('model_id', modelId);
-
-            if (error) {
-                console.error('[ai-models] Failed to update binding:', error);
-                return jsonError('更新来源失败', 500);
-            }
+        if (result.status === 'disabled_cannot_activate') {
+            return jsonError('无法激活已禁用的来源', 400);
         }
 
-        if (body.isActive === true) {
-            await promoteBinding(supabase, modelId, sourceId);
+        if (result.status !== 'ok') {
+            console.error('[ai-models] Unexpected binding update RPC status:', result.status);
+            return jsonError('更新来源失败', 500);
         }
 
         clearModelCache();
@@ -179,25 +203,39 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const { id: modelId, sourceId } = await context.params;
     const supabase = getSystemAdminClient();
-    const binding = await getBindingIdentity(supabase, modelId, sourceId);
 
-    if (!binding) {
+    const { data, error } = await supabase.rpc('admin_update_ai_model_binding', {
+        p_model_id: modelId,
+        p_source_id: sourceId,
+        p_patch: {},
+        p_activate: true,
+    });
+
+    if (error) {
+        console.error('[ai-models] Failed to activate binding transactionally:', error);
+        return jsonError('激活来源失败', 500);
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+    if (!result?.status) {
+        console.error('[ai-models] Invalid binding activate RPC result:', data);
+        return jsonError('激活来源失败', 500);
+    }
+
+    if (result.status === 'model_not_found' || result.status === 'not_found') {
         return jsonError('来源不存在', 404);
     }
 
-    const gateway = pickGateway(binding.gateway);
-    if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
+    if (result.status === 'unsupported_source') {
         return jsonError('仅支持 NewAPI 和 Octopus 来源', 400);
     }
 
-    if (!binding.is_enabled || gateway.is_enabled === false) {
+    if (result.status === 'disabled_cannot_activate') {
         return jsonError('无法激活已禁用的来源', 400);
     }
 
-    try {
-        await promoteBinding(supabase, modelId, sourceId);
-    } catch (error) {
-        console.error('[ai-models] Failed to activate binding:', error);
+    if (result.status !== 'ok') {
+        console.error('[ai-models] Unexpected binding activate RPC status:', result.status);
         return jsonError('激活来源失败', 500);
     }
 

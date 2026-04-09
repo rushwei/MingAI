@@ -33,6 +33,18 @@ type RouteContext = {
     params: Promise<{ id: string }>;
 };
 
+type AdminModelMutationResult = {
+    status?: string | null;
+    model?: Record<string, unknown> | null;
+};
+
+function parseAdminModelMutationResult(value: unknown): AdminModelMutationResult | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
+    }
+    return value as AdminModelMutationResult;
+}
+
 export async function PATCH(request: NextRequest, context: RouteContext) {
     const authResult = await requireAdminUser(request);
     if ('error' in authResult) {
@@ -47,7 +59,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const updateData: Record<string, unknown> = {};
 
         // 仅更新提供的字段
-        if (body.modelKey !== undefined) updateData.model_key = body.modelKey;
+        if (body.modelKey !== undefined) {
+            const normalizedModelKey = typeof body.modelKey === 'string' ? body.modelKey.trim() : '';
+            if (!normalizedModelKey) {
+                return jsonError('modelKey 不能为空', 400);
+            }
+            updateData.model_key = normalizedModelKey;
+        }
         if (body.displayName !== undefined) updateData.display_name = body.displayName;
         if (body.vendor !== undefined) updateData.vendor = body.vendor;
         if (body.usageType !== undefined) {
@@ -117,29 +135,39 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             return jsonError('没有提供要更新的字段', 400);
         }
 
-        const { data: model, error } = await supabase
-            .from('ai_models')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
+        const { data, error } = await supabase.rpc('admin_update_ai_model_and_cleanup_bindings', {
+            p_model_id: id,
+            p_patch: updateData,
+        });
 
         if (error) {
-            if (error.code === '23505') {
-                return jsonError('模型标识已存在', 409);
-            }
-            console.error('[ai-models] Failed to update model:', error);
+            console.error('[ai-models] Failed to update model transaction:', error);
             return jsonError('更新模型失败', 500);
         }
 
-        if (!model) {
+        const result = parseAdminModelMutationResult(data);
+        if (!result?.status) {
+            console.error('[ai-models] Invalid update model RPC result:', data);
+            return jsonError('更新模型失败', 500);
+        }
+
+        if (result.status === 'not_found') {
             return jsonError('模型不存在', 404);
+        }
+
+        if (result.status === 'conflict') {
+            return jsonError('模型 ID 已存在', 409);
+        }
+
+        if (result.status !== 'ok' || !result.model) {
+            console.error('[ai-models] Unexpected update model RPC status:', result.status);
+            return jsonError('更新模型失败', 500);
         }
 
         // 清除配置缓存
         clearModelCache();
 
-        return jsonOk({ success: true, model });
+        return jsonOk({ success: true, model: result.model });
     } catch (e) {
         console.error('[ai-models] Invalid request body:', e);
         return jsonError('请求格式错误', 400);

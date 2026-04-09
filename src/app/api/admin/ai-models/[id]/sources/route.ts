@@ -72,6 +72,23 @@ function pickGateway(input: BindingRow['gateway']): GatewayRow | null {
     return input ?? null;
 }
 
+function normalizeOptionalTextField(
+    value: unknown,
+    fieldName: string,
+): { value: string | null | undefined; error: string | null } {
+    if (value === undefined) {
+        return { value: undefined, error: null };
+    }
+    if (value === null) {
+        return { value: null, error: null };
+    }
+    if (typeof value !== 'string') {
+        return { value: undefined, error: `${fieldName} 必须是字符串或 null` };
+    }
+
+    return { value, error: null };
+}
+
 async function getModelUsageMeta(supabase: ReturnType<typeof getSystemAdminClient>, modelId: string) {
     const { data: model, error } = await supabase
         .from('ai_models')
@@ -205,53 +222,70 @@ export async function POST(request: NextRequest, context: RouteContext) {
             return jsonError('仅支持 NewAPI 和 Octopus 来源', 400);
         }
 
-        const modelMeta = await getModelUsageMeta(supabase, modelId);
-        if (!modelMeta) {
+        const normalizedModelIdOverride = normalizeOptionalTextField(modelIdOverride, 'modelIdOverride');
+        if (normalizedModelIdOverride.error) {
+            return jsonError(normalizedModelIdOverride.error, 400);
+        }
+
+        const normalizedReasoningModelId = normalizeOptionalTextField(reasoningModelId, 'reasoningModelId');
+        if (normalizedReasoningModelId.error) {
+            return jsonError(normalizedReasoningModelId.error, 400);
+        }
+
+        const normalizedNotes = normalizeOptionalTextField(notes, 'notes');
+        if (normalizedNotes.error) {
+            return jsonError(normalizedNotes.error, 400);
+        }
+
+        if (isEnabled !== undefined && typeof isEnabled !== 'boolean') {
+            return jsonError('isEnabled 必须是布尔值', 400);
+        }
+
+        if (priority !== undefined && (!Number.isInteger(priority) || priority < 0)) {
+            return jsonError('priority 必须是大于等于 0 的整数', 400);
+        }
+
+        const { data, error } = await supabase.rpc('admin_create_ai_model_binding', {
+            p_model_id: modelId,
+            p_source_key: sourceKey,
+            p_model_id_override: normalizedModelIdOverride.value ?? null,
+            p_reasoning_model_id: normalizedReasoningModelId.value ?? null,
+            p_is_enabled: isEnabled,
+            p_priority: priority ?? null,
+            p_notes: normalizedNotes.value ?? null,
+        });
+
+        if (error) {
+            console.error('[ai-models] Failed to create binding transactionally:', error);
+            return jsonError('创建来源失败', 500);
+        }
+
+        const result = (Array.isArray(data) ? data[0] : data) as { status?: string; binding?: Record<string, unknown> | null } | null;
+        if (!result?.status) {
+            console.error('[ai-models] Invalid binding create RPC result:', data);
+            return jsonError('创建来源失败', 500);
+        }
+
+        if (result.status === 'model_not_found') {
             return jsonError('模型不存在', 404);
         }
 
-        const { data: gateway, error: gatewayError } = await supabase
-            .from('ai_gateways')
-            .select('id')
-            .eq('gateway_key', sourceKey)
-            .single();
-
-        if (gatewayError || !gateway) {
+        if (result.status === 'gateway_not_found') {
             return jsonError('来源网关不存在，请先在网关管理中配置', 404);
         }
 
-        const { count } = await supabase
-            .from('ai_model_gateway_bindings')
-            .select('*', { count: 'exact', head: true })
-            .eq('model_id', modelId);
+        if (result.status === 'conflict') {
+            return jsonError('该来源已存在', 409);
+        }
 
-        const normalizedPriority = Number.isFinite(priority) ? priority : (count || 0);
-
-        const { data: binding, error } = await supabase
-            .from('ai_model_gateway_bindings')
-            .insert({
-                model_id: modelId,
-                gateway_id: gateway.id,
-                model_id_override: modelIdOverride || modelMeta.modelKey,
-                reasoning_model_id: reasoningModelId,
-                is_enabled: isEnabled,
-                priority: normalizedPriority,
-                notes,
-            })
-            .select()
-            .single();
-
-        if (error) {
-            if (error.code === '23505') {
-                return jsonError('该来源已存在', 409);
-            }
-            console.error('[ai-models] Failed to create binding:', error);
+        if (result.status !== 'ok' || !result.binding) {
+            console.error('[ai-models] Unexpected binding create RPC status:', result.status);
             return jsonError('创建来源失败', 500);
         }
 
         clearModelCache();
 
-        return jsonOk({ success: true, source: binding }, 201);
+        return jsonOk({ success: true, source: result.binding }, 201);
     } catch (e) {
         console.error('[ai-models] Invalid request body:', e);
         return jsonError('请求格式错误', 400);
