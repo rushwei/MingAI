@@ -12,26 +12,6 @@ export async function pruneExpiredNotifications(options: { userId?: string } = {
     const serviceClient = getSystemAdminClient();
     const cutoffIso = getNotificationRetentionCutoffIso();
 
-    let countQuery = serviceClient
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .lt('created_at', cutoffIso);
-
-    if (options.userId) {
-        countQuery = countQuery.eq('user_id', options.userId);
-    }
-
-    const { count, error: countError } = await countQuery;
-    if (countError) {
-        console.error('统计过期通知失败:', countError);
-        return 0;
-    }
-
-    const expiredCount = count ?? 0;
-    if (expiredCount <= 0) {
-        return 0;
-    }
-
     let deleteQuery = serviceClient
         .from('notifications')
         .delete()
@@ -41,13 +21,13 @@ export async function pruneExpiredNotifications(options: { userId?: string } = {
         deleteQuery = deleteQuery.eq('user_id', options.userId);
     }
 
-    const { error } = await deleteQuery;
+    const { data, error } = await deleteQuery.select('id');
     if (error) {
         console.error('清理过期通知失败:', error);
         return 0;
     }
 
-    return expiredCount;
+    return Array.isArray(data) ? data.length : 0;
 }
 
 export async function createNotification(
@@ -57,8 +37,6 @@ export async function createNotification(
     content?: string,
     link?: string,
 ): Promise<boolean> {
-    await pruneExpiredNotifications({ userId });
-
     const serviceClient = getSystemAdminClient();
     const { error } = await serviceClient
         .from('notifications')

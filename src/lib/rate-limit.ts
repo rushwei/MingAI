@@ -60,118 +60,37 @@ export async function checkRateLimit(
     const now = new Date();
 
     try {
-        // 注意：rate_limits 表在生产环境有 (identifier, endpoint) 唯一约束，
-        // 因此这里只能维护“单行计数 + window_start”的模型。
-        const { data: existingRow, error: existingError } = await supabase
-            .from('rate_limits')
-            .select('id, request_count, window_start')
-            .eq('identifier', identifier)
-            .eq('endpoint', endpoint)
-            .maybeSingle();
+        const { data, error } = await supabase.rpc('consume_rate_limit_slot_as_admin', {
+            p_identifier: identifier,
+            p_endpoint: endpoint,
+            p_max_requests: config.maxRequests,
+            p_window_ms: config.windowMs,
+        });
 
-        if (existingError) {
-            throw existingError;
+        if (error) {
+            throw error;
         }
 
-        const row = existingRow as { id: number; request_count: number | null; window_start: string | null } | null;
+        const result = (Array.isArray(data) ? data[0] : data) as {
+            allowed?: boolean;
+            remaining?: number;
+            reset_at?: string;
+        } | null;
 
-        // 无记录：先尝试插入（并处理并发冲突）
-        if (!row) {
-            const insertPayload = {
-                identifier,
-                endpoint,
-                request_count: 1,
-                window_start: now.toISOString(),
-            };
-            const { error: insertError } = await supabase
-                .from('rate_limits')
-                .insert(insertPayload);
-
-            if (insertError) {
-                // 并发场景：另一个请求已经插入同一 (identifier, endpoint)
-                if ((insertError as { code?: string })?.code === '23505') {
-                    const { data: retryRow, error: retryError } = await supabase
-                        .from('rate_limits')
-                        .select('id, request_count, window_start')
-                        .eq('identifier', identifier)
-                        .eq('endpoint', endpoint)
-                        .maybeSingle();
-                    if (retryError) throw retryError;
-                    if (!retryRow) {
-                        // 极端情况：重试仍为空，则放行（fail open）
-                        return { allowed: true, remaining: config.maxRequests, resetAt: now };
-                    }
-                    // 走“已有记录”的逻辑
-                    const retry = retryRow as { id: number; request_count: number | null; window_start: string | null };
-                    return handleExistingRow(supabase, retry, now, config);
-                }
-                throw insertError;
-            }
-
-            return {
-                allowed: true,
-                remaining: config.maxRequests - 1,
-                resetAt: new Date(now.getTime() + config.windowMs),
-            };
+        if (!result || typeof result.allowed !== 'boolean' || typeof result.remaining !== 'number' || typeof result.reset_at !== 'string') {
+            throw new Error('consume_rate_limit_slot_as_admin returned invalid payload');
         }
 
-        return handleExistingRow(supabase, row, now, config);
+        return {
+            allowed: result.allowed,
+            remaining: result.remaining,
+            resetAt: new Date(result.reset_at),
+        };
     } catch (error) {
         console.error('Rate limit check failed:', error);
         // 出错时允许请求（fail open）
         return { allowed: true, remaining: config.maxRequests, resetAt: now };
     }
-}
-
-async function handleExistingRow(
-    supabase: ReturnType<typeof getSystemAdminClient>,
-    row: { id: number; request_count: number | null; window_start: string | null },
-    now: Date,
-    config: RateLimitConfig
-): Promise<RateLimitResult> {
-    const windowStartMs = row.window_start ? new Date(row.window_start).getTime() : 0;
-    const nowMs = now.getTime();
-    const count = row.request_count ?? 0;
-    const windowExpired = !windowStartMs || (nowMs - windowStartMs >= config.windowMs);
-
-    if (windowExpired) {
-        const { error: updateError } = await supabase
-            .from('rate_limits')
-            .update({
-                request_count: 1,
-                window_start: now.toISOString(),
-            })
-            .eq('id', row.id);
-        if (updateError) throw updateError;
-
-        return {
-            allowed: true,
-            remaining: config.maxRequests - 1,
-            resetAt: new Date(nowMs + config.windowMs),
-        };
-    }
-
-    const resetAt = new Date(windowStartMs + config.windowMs);
-    if (count >= config.maxRequests) {
-        return {
-            allowed: false,
-            remaining: 0,
-            resetAt,
-        };
-    }
-
-    const nextCount = count + 1;
-    const { error: updateError } = await supabase
-        .from('rate_limits')
-        .update({ request_count: nextCount })
-        .eq('id', row.id);
-    if (updateError) throw updateError;
-
-    return {
-        allowed: true,
-        remaining: Math.max(0, config.maxRequests - nextCount),
-        resetAt,
-    };
 }
 
 // 内存速率限制（开发环境备用）

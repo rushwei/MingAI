@@ -5,7 +5,6 @@
  */
 
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { addExperience } from './gamification';
 
 // ===== 签到奖励配置 =====
 
@@ -116,50 +115,16 @@ export async function performCheckin(userId: string): Promise<{
     leveledUp: boolean;
     error?: string;
 }> {
-    const status = await getCheckinStatus(userId);
-
-    if (!status.canCheckin) {
-        return {
-            success: false,
-            streakDays: status.streakDays,
-            rewardCredits: 0,
-            rewardXp: 0,
-            leveledUp: false,
-            error: '今日已签到',
-        };
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-    // 计算连续天数
-    let newStreakDays = 1;
-    if (status.lastCheckin === yesterday) {
-        newStreakDays = status.streakDays + 1;
-    }
-
-    // 计算奖励积分（里程碑奖励）
-    let rewardCredits = getCheckinReward(newStreakDays);
-
-    // 计算经验值（30天后+11，否则+10）
-    const rewardXp = getCheckinXp(newStreakDays);
-
-    // 插入签到记录
     const supabase = getSystemAdminClient();
-    const { error: insertError } = await supabase
-        .from('daily_checkins')
-        .insert({
-            user_id: userId,
-            checkin_date: today,
-            streak_days: newStreakDays,
-            reward_credits: rewardCredits,
-        });
+    const { data, error } = await supabase.rpc('perform_daily_checkin_as_service', {
+        p_user_id: userId,
+    });
 
-    if (insertError) {
-        console.error('[checkin] 签到失败:', insertError);
+    if (error) {
+        console.error('[checkin] 签到失败:', error);
         return {
             success: false,
-            streakDays: status.streakDays,
+            streakDays: 0,
             rewardCredits: 0,
             rewardXp: 0,
             leveledUp: false,
@@ -167,39 +132,42 @@ export async function performCheckin(userId: string): Promise<{
         };
     }
 
-    // 增加经验值（使用动态XP）
-    const xpResult = await addExperience(userId, rewardXp, 'checkin');
+    const result = (data || {}) as {
+        status?: string;
+        streak_days?: number;
+        reward_credits?: number;
+        reward_xp?: number;
+        leveled_up?: boolean;
+    };
 
-    // 如果升级，额外奖励1积分
-    if (xpResult.leveledUp) {
-        rewardCredits += 1;
+    if (result.status === 'already_checked_in') {
+        return {
+            success: false,
+            streakDays: result.streak_days || 0,
+            rewardCredits: 0,
+            rewardXp: 0,
+            leveledUp: false,
+            error: '今日已签到',
+        };
     }
 
-    // 记录积分交易（如果有积分奖励）
-    if (rewardCredits > 0) {
-        await supabase
-            .from('credit_transactions')
-            .insert({
-                user_id: userId,
-                amount: rewardCredits,
-                type: 'earn',
-                source: 'checkin',
-                description: xpResult.leveledUp
-                    ? `连续签到第${newStreakDays}天 + 升级奖励`
-                    : `连续签到第${newStreakDays}天`,
-            });
-
-        // 增加用户积分
-        const { addCredits } = await import('@/lib/user/credits');
-        await addCredits(userId, rewardCredits);
+    if (result.status !== 'ok') {
+        return {
+            success: false,
+            streakDays: 0,
+            rewardCredits: 0,
+            rewardXp: 0,
+            leveledUp: false,
+            error: '签到失败，请稍后重试',
+        };
     }
 
     return {
         success: true,
-        streakDays: newStreakDays,
-        rewardCredits,
-        rewardXp,
-        leveledUp: xpResult.leveledUp,
+        streakDays: result.streak_days || 0,
+        rewardCredits: result.reward_credits || 0,
+        rewardXp: result.reward_xp || 0,
+        leveledUp: result.leveled_up === true,
     };
 }
 

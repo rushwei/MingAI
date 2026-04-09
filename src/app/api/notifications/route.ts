@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { getNotificationRetentionCutoffIso, pruneExpiredNotifications } from '@/lib/notification-server';
+import { getNotificationRetentionCutoffIso } from '@/lib/notification-server';
 
 function parseIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -71,8 +71,6 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-  await pruneExpiredNotifications({ userId: auth.user.id });
-
   let body: { action?: unknown; id?: unknown; ids?: unknown };
   try {
     body = await request.json() as { action?: unknown; id?: unknown; ids?: unknown };
@@ -121,8 +119,6 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-
-  await pruneExpiredNotifications({ userId: auth.user.id });
 
   let ids = parseIds(request.nextUrl.searchParams.getAll('id'));
   if (ids.length === 0) {

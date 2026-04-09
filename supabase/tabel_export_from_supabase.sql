@@ -519,7 +519,8 @@ CREATE TABLE public.rate_limits (
   endpoint character varying NOT NULL,
   request_count integer DEFAULT 1,
   window_start timestamp with time zone DEFAULT now(),
-  CONSTRAINT rate_limits_pkey PRIMARY KEY (id)
+  CONSTRAINT rate_limits_pkey PRIMARY KEY (id),
+  CONSTRAINT rate_limits_identifier_endpoint_key UNIQUE (identifier, endpoint)
 );
 CREATE TABLE public.reminder_subscriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -543,6 +544,7 @@ CREATE TABLE public.scheduled_reminders (
   sent_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT scheduled_reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT scheduled_reminders_user_id_reminder_type_scheduled_for_key UNIQUE (user_id, reminder_type, scheduled_for),
   CONSTRAINT scheduled_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.tarot_readings (

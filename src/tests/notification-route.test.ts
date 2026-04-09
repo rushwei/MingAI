@@ -230,3 +230,180 @@ test('notifications GET list should filter notifications to the most recent 3 da
   assert.equal(gteCalls[0].column, 'created_at');
   assert.equal(typeof gteCalls[0].value, 'string');
 });
+
+test('notifications PATCH should not prune before mark-one updates', async (t) => {
+  const apiUtils = require('../lib/api-utils') as {
+    requireUserContext: typeof import('../lib/api-utils').requireUserContext;
+  };
+  const notificationServer = require('../lib/notification-server') as {
+    pruneExpiredNotifications: typeof import('../lib/notification-server').pruneExpiredNotifications;
+  };
+  const originalRequireUserContext = apiUtils.requireUserContext;
+  const originalPruneExpiredNotifications = notificationServer.pruneExpiredNotifications;
+
+  let pruneCalled = false;
+  let updatedId: string | null = null;
+
+  apiUtils.requireUserContext = (async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'notifications');
+        return {
+          update(payload: Record<string, unknown>) {
+            assert.deepEqual(payload, { is_read: true });
+            return {
+              eq(column: string, value: unknown) {
+                if (column === 'id') {
+                  updatedId = value as string;
+                }
+                return this;
+              },
+            };
+          },
+        };
+      },
+    },
+  })) as unknown as typeof apiUtils.requireUserContext;
+  notificationServer.pruneExpiredNotifications = (async () => {
+    pruneCalled = true;
+    return 0;
+  }) as typeof notificationServer.pruneExpiredNotifications;
+
+  t.after(() => {
+    apiUtils.requireUserContext = originalRequireUserContext;
+    notificationServer.pruneExpiredNotifications = originalPruneExpiredNotifications;
+  });
+
+  const { PATCH } = await import('../app/api/notifications/route');
+  const response = await PATCH(new NextRequest('http://localhost/api/notifications', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'mark-one', id: 'notification-1' }),
+  }));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload, { success: true });
+  assert.equal(updatedId, 'notification-1');
+  assert.equal(pruneCalled, false);
+});
+
+test('notifications DELETE should not prune before deleting selected ids', async (t) => {
+  const apiUtils = require('../lib/api-utils') as {
+    requireUserContext: typeof import('../lib/api-utils').requireUserContext;
+  };
+  const notificationServer = require('../lib/notification-server') as {
+    pruneExpiredNotifications: typeof import('../lib/notification-server').pruneExpiredNotifications;
+  };
+  const originalRequireUserContext = apiUtils.requireUserContext;
+  const originalPruneExpiredNotifications = notificationServer.pruneExpiredNotifications;
+
+  let pruneCalled = false;
+  let deletedIds: string[] | null = null;
+
+  apiUtils.requireUserContext = (async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'notifications');
+        return {
+          delete() {
+            return {
+              in(column: string, ids: string[]) {
+                assert.equal(column, 'id');
+                deletedIds = ids;
+                return this;
+              },
+              eq() {
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
+        };
+      },
+    },
+  })) as unknown as typeof apiUtils.requireUserContext;
+  notificationServer.pruneExpiredNotifications = (async () => {
+    pruneCalled = true;
+    return 0;
+  }) as typeof notificationServer.pruneExpiredNotifications;
+
+  t.after(() => {
+    apiUtils.requireUserContext = originalRequireUserContext;
+    notificationServer.pruneExpiredNotifications = originalPruneExpiredNotifications;
+  });
+
+  const { DELETE } = await import('../app/api/notifications/route');
+  const response = await DELETE(new NextRequest('http://localhost/api/notifications?id=notification-1&id=notification-2', {
+    method: 'DELETE',
+  }));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload, { success: true });
+  assert.deepEqual(deletedIds, ['notification-1', 'notification-2']);
+  assert.equal(pruneCalled, false);
+});
+
+test('getUnreadCount should read count from top-level response', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => new Response(JSON.stringify({ count: 7 }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  }) as Response;
+
+  try {
+    const { getUnreadCount } = await import('../lib/notification');
+    const count = await getUnreadCount('user-1', { bypassCache: true });
+    assert.equal(count, 7);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('getUnreadCount should not log the generic notifications route placeholder error', async () => {
+  const originalFetch = global.fetch;
+  const originalConsoleError = console.error;
+  const errors: string[] = [];
+
+  global.fetch = async () => new Response(JSON.stringify({ error: '获取通知失败' }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+  }) as Response;
+  console.error = (...args: unknown[]) => {
+    errors.push(args.map(String).join(' '));
+  };
+
+  try {
+    const { getUnreadCount } = await import('../lib/notification');
+    const count = await getUnreadCount('user-1', { bypassCache: true });
+    assert.equal(count, 0);
+    assert.equal(errors.length, 0);
+  } finally {
+    global.fetch = originalFetch;
+    console.error = originalConsoleError;
+  }
+});
+
+test('unread query should not rely on a cold bootstrap zero as fresh initial data', async () => {
+  const originalFetch = global.fetch;
+  let fetchCount = 0;
+
+  global.fetch = async () => {
+    fetchCount += 1;
+    return new Response(JSON.stringify({ count: 3 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }) as Response;
+  };
+
+  try {
+    const { getUnreadCount } = await import('../lib/notification');
+    const count = await getUnreadCount('user-1');
+    assert.equal(count, 3);
+    assert.equal(fetchCount, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

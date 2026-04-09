@@ -132,29 +132,40 @@ export async function addExperience(
     source: XpSource
 ): Promise<{ leveledUp: boolean; newLevel?: number; newTitle?: string }> {
     void source; // 保留参数以备将来使用
-    // 获取当前等级
-    const currentLevel = await getUserLevel(userId);
-    if (!currentLevel) {
+    const supabase = getSystemAdminClient();
+    const { data: currentRow, error: currentError } = await supabase
+        .from('user_levels')
+        .select('level, total_experience')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (currentError) {
+        console.error('[gamification] 获取当前等级失败:', currentError);
         return { leveledUp: false };
     }
+
+    const currentLevel = {
+        level: currentRow?.level ?? LEVEL_CONFIG[0].level,
+        totalExperience: currentRow?.total_experience ?? 0,
+    };
 
     const newTotalXp = currentLevel.totalExperience + amount;
     const newLevelInfo = calculateLevel(newTotalXp);
 
     const leveledUp = newLevelInfo.level > currentLevel.level;
 
-    // 更新数据库
-    const supabase = getSystemAdminClient();
     const { error } = await supabase
         .from('user_levels')
-        .update({
+        .upsert({
+            user_id: userId,
             level: newLevelInfo.level,
             experience: newLevelInfo.currentLevelXp,
             total_experience: newTotalXp,
             title: newLevelInfo.title,
             updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
+        }, {
+            onConflict: 'user_id',
+        });
 
     if (error) {
         console.error('[gamification] 更新经验值失败:', error);

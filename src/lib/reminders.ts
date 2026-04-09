@@ -5,7 +5,6 @@
  */
 
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { createNotification } from '@/lib/notification-server';
 import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
 import { calculateDailyFortune, generateEnhancedKeyDates, compareLevels, isLevelFavorable } from '@/lib/divination/fortune';
 import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
@@ -35,6 +34,14 @@ export interface ScheduledReminder {
 }
 
 const REMINDER_CLAIM_TTL_MS = 5 * 60 * 1000;
+
+type ReminderNotificationPayload = {
+    title: string;
+    message: string;
+    link?: string;
+};
+
+type ReminderDeliveryStatus = 'sent' | 'skipped' | 'not_claimed';
 
 // ===== 订阅管理 =====
 
@@ -146,28 +153,16 @@ export async function scheduleSolarTermReminder(
     termName: string
 ): Promise<boolean> {
     const meaning = getSolarTermMeaning(termName);
-
-    // 使用 service client 绕过 RLS
-    const serviceClient = getSystemAdminClient();
-    const { error } = await serviceClient
-        .from('scheduled_reminders')
-        .insert({
-            user_id: userId,
-            reminder_type: 'solar_term',
-            scheduled_for: `${termDate}T08:00:00+08:00`, // 早上8点提醒
-            content: {
-                term_name: termName,
-                meaning: meaning.meaning,
-                tips: meaning.tips,
-            },
-        });
-
-    if (error) {
-        console.error('[reminders] 安排节气提醒失败:', error);
-        return false;
-    }
-
-    return true;
+    return scheduleReminderIfAbsent(
+        userId,
+        'solar_term',
+        `${termDate}T08:00:00+08:00`,
+        {
+            term_name: termName,
+            meaning: meaning.meaning,
+            tips: meaning.tips,
+        },
+    );
 }
 
 /**
@@ -178,23 +173,12 @@ export async function scheduleFortuneReminder(
     date: string,
     fortuneData: Record<string, unknown>
 ): Promise<boolean> {
-    // 使用 service client 绕过 RLS
-    const serviceClient = getSystemAdminClient();
-    const { error } = await serviceClient
-        .from('scheduled_reminders')
-        .insert({
-            user_id: userId,
-            reminder_type: 'fortune',
-            scheduled_for: `${date}T07:00:00+08:00`, // 早上7点提醒
-            content: fortuneData,
-        });
-
-    if (error) {
-        console.error('[reminders] 安排运势提醒失败:', error);
-        return false;
-    }
-
-    return true;
+    return scheduleReminderIfAbsent(
+        userId,
+        'fortune',
+        `${date}T07:00:00+08:00`,
+        fortuneData,
+    );
 }
 
 /**
@@ -225,42 +209,18 @@ export async function processScheduledReminders(): Promise<number> {
     let processed = 0;
 
     for (const reminder of pendingReminders) {
-        const claimToken = await claimReminder(reminder.id, claimStaleBefore);
-        if (!claimToken) {
-            continue;
-        }
-
-        let claimed = false;
         try {
-            // 检查用户是否仍然订阅
-            const subscribed = await isSubscribed(reminder.user_id, reminder.reminder_type);
-            if (!subscribed) {
-                // 已占用后发现用户取消订阅，标记为已发送避免重复处理
-                await markReminderSent(reminder.id, claimToken);
-                claimed = false; // successfully marked, no need to release
-                continue;
-            }
-
-            // 发送提醒
-            const sent = await sendReminder(reminder);
-            if (sent) {
-                const marked = await markReminderSent(reminder.id, claimToken);
-                if (marked) {
-                    processed++;
-                    claimed = false;
-                } else {
-                    claimed = true;
-                }
-            } else {
-                claimed = true;
+            const notification = buildReminderNotificationPayload(reminder);
+            const status = await processScheduledReminderDelivery(
+                reminder.id,
+                claimStaleBefore,
+                notification,
+            );
+            if (status === 'sent') {
+                processed++;
             }
         } catch (err) {
             console.error(`[reminders] 处理提醒 ${reminder.id} 失败:`, err);
-            claimed = true;
-        } finally {
-            if (claimed) {
-                await releaseReminderClaim(reminder.id, claimToken);
-            }
         }
     }
 
@@ -268,13 +228,13 @@ export async function processScheduledReminders(): Promise<number> {
 }
 
 /**
- * 发送提醒通知
+ * 构建提醒通知内容
  */
-async function sendReminder(reminder: {
+function buildReminderNotificationPayload(reminder: {
     user_id: string;
     reminder_type: string;
     content: Record<string, unknown>;
-}): Promise<boolean> {
+}): ReminderNotificationPayload {
     const content = reminder.content || {};
 
     let title = '';
@@ -302,101 +262,59 @@ async function sendReminder(reminder: {
             message = '您有一条新提醒';
     }
 
-    const success = await createNotification(reminder.user_id, 'system', title, message, link);
-    if (!success) {
-        console.error('[reminders] 创建通知失败:', reminder.user_id, reminder.reminder_type);
-    }
-    return success;
+    return {
+        title,
+        message,
+        link,
+    };
 }
 
-/**
- * 抢占提醒处理权（Lease）
- */
-async function claimReminder(reminderId: string, staleBefore: string): Promise<string | null> {
-    // 使用 service client 绕过 RLS
+async function processScheduledReminderDelivery(
+    reminderId: string,
+    staleBefore: string,
+    notification: ReminderNotificationPayload,
+): Promise<ReminderDeliveryStatus> {
     const serviceClient = getSystemAdminClient();
-    const claimedAt = new Date().toISOString();
-    const claimOpenLease = await serviceClient
-        .from('scheduled_reminders')
-        .update({
-            sent_at: claimedAt,
-        })
-        .eq('id', reminderId)
-        .eq('sent', false)
-        .is('sent_at', null)
-        .select('id')
-        .maybeSingle();
-
-    if (claimOpenLease.error) {
-        console.error(`[reminders] 占用提醒 ${reminderId} 失败:`, claimOpenLease.error);
-        return null;
-    }
-
-    if (claimOpenLease.data) {
-        return claimedAt;
-    }
-
-    const claimStaleLease = await serviceClient
-        .from('scheduled_reminders')
-        .update({
-            sent_at: claimedAt,
-        })
-        .eq('id', reminderId)
-        .eq('sent', false)
-        .lte('sent_at', staleBefore)
-        .select('id')
-        .maybeSingle();
-
-    if (claimStaleLease.error) {
-        console.error(`[reminders] 占用过期提醒 ${reminderId} 失败:`, claimStaleLease.error);
-        return null;
-    }
-
-    return claimStaleLease.data ? claimedAt : null;
-}
-
-/**
- * 标记提醒已发送（仅当前 lease 持有者可提交）
- */
-async function markReminderSent(reminderId: string, claimToken: string): Promise<boolean> {
-    const serviceClient = getSystemAdminClient();
-    const { data, error } = await serviceClient
-        .from('scheduled_reminders')
-        .update({
-            sent: true,
-            sent_at: new Date().toISOString(),
-        })
-        .eq('id', reminderId)
-        .eq('sent', false)
-        .eq('sent_at', claimToken)
-        .select('id')
-        .maybeSingle();
+    const { data, error } = await serviceClient.rpc('process_scheduled_reminder_delivery_as_service', {
+        p_reminder_id: reminderId,
+        p_stale_before: staleBefore,
+        p_notification_title: notification.title,
+        p_notification_content: notification.message,
+        p_notification_link: notification.link ?? null,
+    });
 
     if (error) {
-        console.error(`[reminders] 标记提醒 ${reminderId} 已发送失败:`, error);
+        throw error;
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+    if (result?.status === 'sent' || result?.status === 'skipped' || result?.status === 'not_claimed') {
+        return result.status;
+    }
+
+    throw new Error('process_scheduled_reminder_delivery_as_service returned invalid payload');
+}
+
+async function scheduleReminderIfAbsent(
+    userId: string,
+    reminderType: ReminderType,
+    scheduledFor: string,
+    content: Record<string, unknown>,
+): Promise<boolean> {
+    const serviceClient = getSystemAdminClient();
+    const { data, error } = await serviceClient.rpc('schedule_reminder_if_absent_as_service', {
+        p_user_id: userId,
+        p_reminder_type: reminderType,
+        p_scheduled_for: scheduledFor,
+        p_content: content,
+    });
+
+    if (error) {
+        console.error('[reminders] 安排提醒失败:', error);
         return false;
     }
 
-    return !!data;
-}
-
-/**
- * 释放提醒占用（发送失败时回滚）
- */
-async function releaseReminderClaim(reminderId: string, claimToken: string): Promise<void> {
-    const serviceClient = getSystemAdminClient();
-    const { error } = await serviceClient
-        .from('scheduled_reminders')
-        .update({
-            sent_at: null,
-        })
-        .eq('id', reminderId)
-        .eq('sent', false)
-        .eq('sent_at', claimToken);
-
-    if (error) {
-        console.error(`[reminders] 回滚提醒 ${reminderId} 失败:`, error);
-    }
+    return data === true;
 }
 
 // ===== 自动调度 =====
@@ -408,23 +326,17 @@ export async function scheduleUpcomingSolarTermReminders(userId: string): Promis
     const nextTerm = getNextSolarTerm();
     if (!nextTerm) return 0;
 
-    // 检查是否已经安排
-    // 使用 service client 绕过 RLS
-    const serviceClient = getSystemAdminClient();
-    const { data: existing } = await serviceClient
-        .from('scheduled_reminders')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('reminder_type', 'solar_term')
-        .gte('scheduled_for', new Date().toISOString())
-        .eq('sent', false)
-        .limit(1);
-
-    if (existing && existing.length > 0) {
-        return 0; // 已有待发送的提醒
-    }
-
-    const success = await scheduleSolarTermReminder(userId, nextTerm.date, nextTerm.name);
+    const meaning = getSolarTermMeaning(nextTerm.name);
+    const success = await scheduleReminderIfAbsent(
+        userId,
+        'solar_term',
+        `${nextTerm.date}T08:00:00+08:00`,
+        {
+            term_name: nextTerm.name,
+            meaning: meaning.meaning,
+            tips: meaning.tips,
+        },
+    );
     return success ? 1 : 0;
 }
 
@@ -436,7 +348,6 @@ export async function scheduleUpcomingFortuneReminders(
     userId: string,
     baziOutput: CoreBaziOutput
 ): Promise<number> {
-    const serviceClient = getSystemAdminClient();
     const now = new Date();
     let scheduled = 0;
 
@@ -452,24 +363,16 @@ export async function scheduleUpcomingFortuneReminders(
         const isSignificant = fortune.overall === '大吉' || compareLevels(fortune.overall, '小凶') <= 0;
         if (!isSignificant) continue;
 
-        // 检查是否已经安排
-        const { data: existing } = await serviceClient
-            .from('scheduled_reminders')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('reminder_type', 'fortune')
-            .eq('scheduled_for', `${dateStr}T07:00:00+08:00`)
-            .limit(1);
-
-        if (existing && existing.length > 0) continue;
-
-        // 创建提醒
         const summaryType = isLevelFavorable(fortune.overall) ? '大吉日' : '低谷日';
         const summary = isLevelFavorable(fortune.overall)
             ? `今日运势极佳（${fortune.overall}），适合把握机会！`
             : `今日运势较低（${fortune.overall}），建议谨慎行事。`;
 
-        const success = await scheduleFortuneReminder(userId, dateStr, {
+        const success = await scheduleReminderIfAbsent(
+            userId,
+            'fortune',
+            `${dateStr}T07:00:00+08:00`,
+            {
             summary,
             overall: fortune.overall,
             career: fortune.career,
@@ -477,7 +380,8 @@ export async function scheduleUpcomingFortuneReminders(
             love: fortune.love,
             health: fortune.health,
             type: summaryType,
-        });
+            },
+        );
 
         if (success) scheduled++;
     }
@@ -492,7 +396,6 @@ export async function scheduleKeyDateReminders(
     userId: string,
     baziOutput: CoreBaziOutput
 ): Promise<number> {
-    const serviceClient = getSystemAdminClient();
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -506,35 +409,21 @@ export async function scheduleKeyDateReminders(
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(keyDate.date).padStart(2, '0')}`;
         if (dateStr <= now.toISOString().split('T')[0]) continue;
 
-        // 检查是否已经安排
-        const { data: existing } = await serviceClient
-            .from('scheduled_reminders')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('reminder_type', 'key_date')
-            .eq('scheduled_for', `${dateStr}T07:00:00+08:00`)
-            .limit(1);
+        const inserted = await scheduleReminderIfAbsent(
+            userId,
+            'key_date',
+            `${dateStr}T07:00:00+08:00`,
+            {
+                date: keyDate.date,
+                type: keyDate.type,
+                summary: keyDate.summary,
+                recommendation: keyDate.recommendation,
+                scores: keyDate.levels,
+                description: `${month}月${keyDate.date}日：${keyDate.summary}`,
+            },
+        );
 
-        if (existing && existing.length > 0) continue;
-
-        // 创建提醒
-        const { error } = await serviceClient
-            .from('scheduled_reminders')
-            .insert({
-                user_id: userId,
-                reminder_type: 'key_date',
-                scheduled_for: `${dateStr}T07:00:00+08:00`,
-                content: {
-                    date: keyDate.date,
-                    type: keyDate.type,
-                    summary: keyDate.summary,
-                    recommendation: keyDate.recommendation,
-                    scores: keyDate.levels,
-                    description: `${month}月${keyDate.date}日：${keyDate.summary}`,
-                },
-            });
-
-        if (!error) scheduled++;
+        if (inserted) scheduled++;
     }
 
     return scheduled;
