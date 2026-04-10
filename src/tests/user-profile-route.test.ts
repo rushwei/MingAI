@@ -30,8 +30,7 @@ test('user profile route should update profile fields and return the normalized 
         is_admin: false,
         membership: 'free',
         membership_expires_at: null,
-        ai_chat_count: 3,
-        last_credit_restore_at: null,
+        ai_chat_count: 1,
       },
       error: null,
     }),
@@ -111,4 +110,81 @@ test('user profile route should update profile fields and return the normalized 
   assert.equal(payload.profile?.nickname, '新昵称');
   assert.equal(payload.settings?.expressionStyle, 'gentle');
   assert.deepEqual(payload.settings?.promptKbIds, ['kb-1']);
+});
+
+test('user profile route should downgrade expired membership to free in profile responses', async (t) => {
+  const apiUtilsPath = require.resolve('../lib/api-utils');
+  const routePath = require.resolve('../app/api/user/profile/route');
+  const apiUtilsModule = require('../lib/api-utils');
+
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalJsonOk = apiUtilsModule.jsonOk;
+  const originalJsonError = apiUtilsModule.jsonError;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      from(table: string) {
+        if (table === 'users') {
+          return {
+            select() {
+              return this;
+            },
+            eq() {
+              return this;
+            },
+            maybeSingle: async () => ({
+              data: {
+                id: 'user-1',
+                nickname: '过期会员',
+                avatar_url: null,
+                is_admin: false,
+                membership: 'pro',
+                membership_expires_at: '2020-01-01T00:00:00.000Z',
+                ai_chat_count: 7,
+              },
+              error: null,
+            }),
+          };
+        }
+
+        if (table === 'user_settings') {
+          return {
+            select() {
+              return this;
+            },
+            eq() {
+              return this;
+            },
+            maybeSingle: async () => ({
+              data: null,
+              error: null,
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    },
+  });
+  apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
+  apiUtilsModule.jsonError = (message: string, status = 400) => Response.json({ error: message }, { status });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.jsonOk = originalJsonOk;
+    apiUtilsModule.jsonError = originalJsonError;
+    delete require.cache[routePath];
+    delete require.cache[apiUtilsPath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/user/profile/route') as typeof import('../app/api/user/profile/route');
+  const response = await routeModule.GET(new Request('http://localhost/api/user/profile?scope=profile') as never);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.profile?.membership, 'free');
+  assert.equal(payload.profile?.membership_expires_at, '2020-01-01T00:00:00.000Z');
+  assert.equal(payload.profile?.ai_chat_count, 7);
 });

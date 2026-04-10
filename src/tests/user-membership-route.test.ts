@@ -30,7 +30,6 @@ test('user membership route should return lightweight normalized membership payl
                       membership: 'pro',
                       membership_expires_at: '2099-01-01T00:00:00.000Z',
                       ai_chat_count: 88,
-                      last_credit_restore_at: '2026-03-27T00:00:00.000Z',
                     },
                     error: null,
                   }),

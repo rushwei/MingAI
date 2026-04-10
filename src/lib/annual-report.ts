@@ -5,66 +5,11 @@
  */
 
 import { getSystemAdminClient } from '@/lib/api-utils';
+import {
+    ANNUAL_REPORT_FEATURE_NAMES,
+    type AnnualReportData,
+} from '@/lib/annual-report-shared';
 import { toFeatureUsageBucket } from '@/lib/source-contracts';
-
-// ===== 报告数据类型 =====
-
-export interface AnnualReportData {
-    year: number;
-    userId: string;
-    generatedAt: string;
-
-    // 使用统计
-    usage: {
-        totalAnalyses: number;
-        totalChats: number;
-        activeMonths: number;
-        firstUseDate: string | null;
-        lastUseDate: string | null;
-    };
-
-    // 功能使用分布
-    featureUsage: {
-        bazi: number;
-        ziwei: number;
-        liuyao: number;
-        tarot: number;
-        palm: number;
-        face: number;
-        mbti: number;
-        hepan: number;
-        fortune: number;
-        qimen: number;
-        daliuren: number;
-        dream: number;
-        chat: number;
-    };
-
-    // 活跃度
-    activity: {
-        monthlyUsage: { month: number; count: number }[];
-        weekdayDistribution: { day: number; count: number }[];
-        peakHour: number;
-    };
-
-    // 签到统计
-    checkin: {
-        totalDays: number;
-        longestStreak: number;
-        totalCreditsEarned: number;
-    };
-
-    // 等级与成就
-    progress: {
-        levelGained: number;
-        currentLevel: number;
-        totalXp: number;
-        achievementsUnlocked: string[];
-    };
-
-    // 个性化洞察（由 AI 生成，可选）
-    insights?: string[];
-}
 
 // ===== 报告生成 =====
 
@@ -118,39 +63,23 @@ export async function generateAnnualReport(
         // 3. 获取签到统计
         const { data: checkins } = await supabase
             .from('daily_checkins')
-            .select('streak_days, reward_credits')
+            .select('reward_credits')
             .eq('user_id', userId)
             .gte('checkin_date', `${year}-01-01`)
             .lte('checkin_date', `${year}-12-31`);
 
-        const checkinList = (checkins || []) as Array<{ streak_days: number; reward_credits: number }>;
+        const checkinList = (checkins || []) as Array<{ reward_credits: number }>;
         const totalCheckinDays = checkinList.length;
-        const longestStreak = Math.max(...checkinList.map(c => c.streak_days), 0);
         const totalCreditsEarned = checkinList.reduce((sum, c) => sum + c.reward_credits, 0);
 
-        // 4. 获取等级信息
-        const { data: levelData } = await supabase
-            .from('user_levels')
-            .select('level, total_experience')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-        // 5. 获取成就
-        const { data: achievements } = await supabase
-            .from('user_achievements')
-            .select('achievement_key')
-            .eq('user_id', userId)
-            .gte('unlocked_at', startDate)
-            .lte('unlocked_at', endDate);
-
-        // 6. 计算活跃月份
+        // 4. 计算活跃月份
         const activeMonths = Object.keys(monthlyUsage).length;
 
-        // 7. 找出峰值小时
+        // 5. 找出峰值小时
         const peakHour = Object.entries(hourDist)
             .sort((a, b) => b[1] - a[1])[0]?.[0] || '12';
 
-        // 8. 获取首次和最后使用日期
+        // 6. 获取首次和最后使用日期
         const sortedConvs = [...convList].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
@@ -183,14 +112,7 @@ export async function generateAnnualReport(
             },
             checkin: {
                 totalDays: totalCheckinDays,
-                longestStreak,
                 totalCreditsEarned,
-            },
-            progress: {
-                levelGained: 0, // 需要历史数据计算
-                currentLevel: levelData?.level || 1,
-                totalXp: levelData?.total_experience || 0,
-                achievementsUnlocked: achievements?.map(a => a.achievement_key) || [],
             },
         };
 
@@ -287,15 +209,6 @@ export async function getReportSummary(
 /**
  * 功能名称映射
  */
-export const FEATURE_NAMES: Record<string, string> = {
-    bazi: '八字命理',
-    ziwei: '紫微斗数',
-    liuyao: '六爻占卜',
-    tarot: '塔罗占卜',
-    palm: '手相分析',
-    face: '面相分析',
-    mbti: 'MBTI',
-    hepan: '合盘分析',
-    fortune: '运势分析',
-    chat: 'AI对话',
-};
+export type { AnnualReportData } from '@/lib/annual-report-shared';
+
+export const FEATURE_NAMES = ANNUAL_REPORT_FEATURE_NAMES;

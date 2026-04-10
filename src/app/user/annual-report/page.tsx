@@ -14,48 +14,12 @@ import {
     TrendingUp
 } from 'lucide-react';
 import { supabase } from '@/lib/auth';
+import {
+    ANNUAL_REPORT_FEATURE_NAMES,
+    type AnnualReportData,
+} from '@/lib/annual-report-shared';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { useToast } from '@/components/ui/Toast';
-
-interface AnnualReportData {
-    year: number;
-    generatedAt: string;
-    usage: {
-        totalAnalyses: number;
-        totalChats: number;
-        activeMonths: number;
-        firstUseDate: string | null;
-        lastUseDate: string | null;
-    };
-    featureUsage: Record<string, number>;
-    activity: {
-        monthlyUsage: { month: number; count: number }[];
-        weekdayDistribution: { day: number; count: number }[];
-        peakHour: number;
-    };
-    checkin: {
-        totalDays: number;
-        longestStreak: number;
-        totalCreditsEarned: number;
-    };
-    progress: {
-        currentLevel: number;
-        totalXp: number;
-        achievementsUnlocked: string[];
-    };
-}
-
-const FEATURE_NAMES: Record<string, string> = {
-    bazi: '八字命理',
-    ziwei: '紫微斗数',
-    liuyao: '六爻占卜',
-    tarot: '塔罗占卜',
-    palm: '手相分析',
-    face: '面相分析',
-    mbti: 'MBTI',
-    hepan: '合盘分析',
-    fortune: '运势分析',
-};
 
 export default function AnnualReportPage() {
     const { showToast } = useToast();
@@ -161,7 +125,7 @@ export default function AnnualReportPage() {
                 {entries.map(([key, count]) => (
                     <div key={key}>
                         <div className="flex justify-between text-sm mb-1">
-                            <span>{FEATURE_NAMES[key] || key}</span>
+                            <span>{ANNUAL_REPORT_FEATURE_NAMES[key as keyof typeof ANNUAL_REPORT_FEATURE_NAMES] || key}</span>
                             <span className="text-foreground-secondary">{count}次 ({Math.round(count / total * 100)}%)</span>
                         </div>
                         <div className="h-2 bg-background rounded-full overflow-hidden">
@@ -310,8 +274,8 @@ export default function AnnualReportPage() {
                                         <div className="text-sm text-foreground-secondary">签到天数</div>
                                     </div>
                                     <div className="text-center p-4 bg-background/50 rounded-xl">
-                                        <div className="text-3xl font-bold text-purple-500">{report.progress.totalXp}</div>
-                                        <div className="text-sm text-foreground-secondary">获得经验</div>
+                                        <div className="text-3xl font-bold text-purple-500">{report.usage.totalChats}</div>
+                                        <div className="text-sm text-foreground-secondary">AI 对话</div>
                                     </div>
                                 </div>
                             </div>
@@ -328,7 +292,9 @@ export default function AnnualReportPage() {
                                             <Trophy className="w-8 h-8 text-amber-500" />
                                         </div>
                                         <div>
-                                            <div className="text-xl font-bold">{FEATURE_NAMES[topFeature[0]] || topFeature[0]}</div>
+                                            <div className="text-xl font-bold">
+                                                {ANNUAL_REPORT_FEATURE_NAMES[topFeature[0] as keyof typeof ANNUAL_REPORT_FEATURE_NAMES] || topFeature[0]}
+                                            </div>
                                             <div className="text-foreground-secondary">使用了 {topFeature[1]} 次</div>
                                         </div>
                                     </div>
@@ -357,16 +323,12 @@ export default function AnnualReportPage() {
                             <div className="bg-background-secondary rounded-2xl border border-border p-6">
                                 <h3 className="font-bold mb-4 flex items-center gap-2">
                                     <Flame className="w-5 h-5 text-orange-500" />
-                                    签到成就
+                                    签到与积分
                                 </h3>
-                                <div className="grid grid-cols-3 gap-4 text-center">
+                                <div className="grid grid-cols-2 gap-4 text-center">
                                     <div>
                                         <div className="text-2xl font-bold text-orange-500">{report.checkin.totalDays}</div>
                                         <div className="text-sm text-foreground-secondary">累计签到</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-2xl font-bold text-red-500">{report.checkin.longestStreak}</div>
-                                        <div className="text-sm text-foreground-secondary">最长连续</div>
                                     </div>
                                     <div>
                                         <div className="text-2xl font-bold text-amber-500">{report.checkin.totalCreditsEarned}</div>

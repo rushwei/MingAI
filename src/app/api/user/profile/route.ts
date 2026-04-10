@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { buildMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { normalizeUserSettings, USER_SETTINGS_SELECT } from '@/lib/user/settings';
 
 type UserProfilePatchBody = {
@@ -21,16 +22,41 @@ function buildEnsurePayload(user: { id: string; user_metadata?: Record<string, u
             ? user.user_metadata.avatar_url
             : null,
         membership: 'free',
-        ai_chat_count: 3,
+        ai_chat_count: 1,
     };
 }
 
 async function loadProfile(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
     return auth.supabase
         .from('users')
-        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count')
         .eq('id', auth.user.id)
         .maybeSingle();
+}
+
+function normalizeProfileRow(row: Record<string, unknown> | null) {
+    if (!row) {
+        return null;
+    }
+
+    const membershipType: MembershipType | null = row.membership === 'free'
+        || row.membership === 'plus'
+        || row.membership === 'pro'
+        ? row.membership
+        : null;
+
+    const membership = buildMembershipInfo({
+        membership: membershipType,
+        membership_expires_at: typeof row.membership_expires_at === 'string' ? row.membership_expires_at : null,
+        ai_chat_count: typeof row.ai_chat_count === 'number' ? row.ai_chat_count : null,
+    });
+
+    return {
+        ...row,
+        membership: membership.type,
+        membership_expires_at: membership.expiresAt ? membership.expiresAt.toISOString() : null,
+        ai_chat_count: membership.aiChatCount,
+    };
 }
 
 async function loadSettings(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
@@ -58,7 +84,7 @@ export async function GET(request: NextRequest) {
         }
 
         return jsonOk({
-            profile: profileResult.data ?? null,
+            profile: normalizeProfileRow((profileResult.data ?? null) as Record<string, unknown> | null),
             settings: null,
         });
     }
@@ -72,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
 
     return jsonOk({
-        profile: profileResult.data ?? null,
+        profile: normalizeProfileRow((profileResult.data ?? null) as Record<string, unknown> | null),
         settings: settingsResult.settings,
     });
 }
@@ -145,7 +171,7 @@ export async function PATCH(request: NextRequest) {
         .from('users')
         .update(updatePayload)
         .eq('id', auth.user.id)
-        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count')
         .maybeSingle(),
         loadSettings(auth),
     ]);
@@ -155,7 +181,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     return jsonOk({
-        profile: updateResult.data ?? null,
+        profile: normalizeProfileRow((updateResult.data ?? null) as Record<string, unknown> | null),
         settings: settingsResult.settings,
     });
 }

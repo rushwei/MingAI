@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await auth.supabase
         .from('users')
-        .select('membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+        .select('membership, membership_expires_at, ai_chat_count')
         .eq('id', auth.user.id)
         .maybeSingle();
 

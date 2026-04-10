@@ -44,32 +44,7 @@ test('annual report generation uses service client for queries', async (t) => {
                             eq: () => ({
                                 gte: () => ({
                                     lte: async () => ({
-                                        data: [{ streak_days: 3, reward_credits: 1 }],
-                                    }),
-                                }),
-                            }),
-                        }),
-                    };
-                }
-                if (table === 'user_levels') {
-                    return {
-                        select: () => ({
-                            eq: () => ({
-                                maybeSingle: async () => ({
-                                    data: { level: 2, total_experience: 120 },
-                                    error: null,
-                                }),
-                            }),
-                        }),
-                    };
-                }
-                if (table === 'user_achievements') {
-                    return {
-                        select: () => ({
-                            eq: () => ({
-                                gte: () => ({
-                                    lte: async () => ({
-                                        data: [{ achievement_key: 'streak' }],
+                                        data: [{ reward_credits: 1 }],
                                     }),
                                 }),
                             }),
@@ -95,12 +70,19 @@ test('annual report generation uses service client for queries', async (t) => {
     });
 
     const { generateAnnualReport } = await import('../lib/annual-report');
+    const { ANNUAL_REPORT_FEATURE_NAMES } = await import('../lib/annual-report-shared');
 
     const report = await generateAnnualReport('user-1', 2024);
 
     assert.equal(usedServiceClient, true);
     assert.ok(report);
     assert.equal(report?.usage.totalAnalyses, 2);
+    assert.equal('longestStreak' in (report?.checkin ?? {}), false);
+    assert.equal('progress' in (report ?? {}), false);
+    assert.equal(ANNUAL_REPORT_FEATURE_NAMES.qimen, '奇门遁甲');
+    assert.equal(ANNUAL_REPORT_FEATURE_NAMES.daliuren, '大六壬');
+    assert.equal(ANNUAL_REPORT_FEATURE_NAMES.dream, '解梦分析');
+    assert.equal(ANNUAL_REPORT_FEATURE_NAMES.chat, 'AI 对话');
     assert.ok(cachedReport);
 });
 
