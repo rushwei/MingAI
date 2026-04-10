@@ -64,3 +64,4 @@ docs/*
 # AI
 .claude
 **/CLAUDE.md
+.ace-tool/

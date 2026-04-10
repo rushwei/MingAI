@@ -187,3 +187,7 @@ export function generateBaziAnalysisTitle(chartName: string, analysisType: 'wuxi
     const typeName = analysisType === 'wuxing' ? '五行分析' : '人格分析';
     return `${chartName} - ${typeName}`;
 }
+
+export function generateZiweiAnalysisTitle(chartName: string): string {
+    return `${chartName} - 紫微斗数分析`;
+}

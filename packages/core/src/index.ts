@@ -79,6 +79,7 @@ export {
 } from './domains/ziwei/index.js';
 export { calculateZiweiFlyingStar, toZiweiFlyingStarJson, toZiweiFlyingStarText } from './domains/ziwei-flying-star/index.js';
 export { calculateZiweiHoroscope, toZiweiHoroscopeJson, toZiweiHoroscopeText } from './domains/ziwei-horoscope/index.js';
+export { calculateXiaoliurenData, toXiaoliurenJson, toXiaoliurenText } from './domains/xiaoliuren/index.js';
 export type {
   ChangedYaoDetail,
   DerivedHexagramInfo,

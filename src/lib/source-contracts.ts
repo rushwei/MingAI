@@ -13,6 +13,7 @@ export const CONVERSATION_SOURCE_TYPES = [
   'dream',
   'qimen',
   'daliuren',
+  'ziwei',
 ] as const;
 
 export type ConversationSourceType = typeof CONVERSATION_SOURCE_TYPES[number];
@@ -50,6 +51,7 @@ const SOURCE_META: Record<ConversationSourceType, SourceContractMeta> = {
   dream: { featureUsageBucket: 'dream', questionField: 'dreamContent' },
   qimen: { featureUsageBucket: 'qimen', questionField: 'question' },
   daliuren: { featureUsageBucket: 'daliuren', questionField: 'question' },
+  ziwei: { featureUsageBucket: 'ziwei' },
 };
 
 const CONVERSATION_SOURCE_TYPE_SET = new Set<string>(CONVERSATION_SOURCE_TYPES);
@@ -136,6 +138,11 @@ export type AnalysisSourceDataMap = {
     day_ganzhi?: string | null;
     hour_ganzhi?: string | null;
     yue_jiang?: string | null;
+  };
+  ziwei: CommonAnalysisSourceData & {
+    chart_id?: string | null;
+    chart_name?: string | null;
+    chart_summary?: string | null;
   };
 };
 

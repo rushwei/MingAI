@@ -42,6 +42,23 @@ type TaobiConstructor = new (
 
 let taobiConstructorPromise: Promise<TaobiConstructor> | null = null;
 
+// 互斥锁：保护 process.env.TZ 全局变异区间，防止并发竞争
+let tzMutexQueue: Promise<void> = Promise.resolve();
+
+function withTzMutex<T>(fn: () => T): Promise<T> {
+  let release: () => void;
+  const next = new Promise<void>(resolve => { release = resolve; });
+  const prev = tzMutexQueue;
+  tzMutexQueue = next;
+  return prev.then(() => {
+    try {
+      return fn();
+    } finally {
+      release!();
+    }
+  });
+}
+
 async function loadTaobiConstructor(): Promise<TaobiConstructor> {
   if (!taobiConstructorPromise) {
     taobiConstructorPromise = import('taobi').then((module) => {
@@ -139,11 +156,18 @@ function getFormations(heavenStem: string, earthStem: string): string[] {
     // 吉格
     '乙+丙': '奇仪相佐', '乙+丁': '奇仪相佐', '丙+丁': '星月相会',
     '丙+戊': '飞鸟跌穴', '丁+戊': '青龙返首', '乙+戊': '日出扶桑',
+    // 五遁格
+    '丙+己': '天遁', '丁+壬': '地遁', '丁+己': '人遁',
+    '丙+壬': '神遁', '乙+癸': '鬼遁',
     // 凶格
     '庚+乙': '太白入荧', '庚+丙': '太白入荧', '庚+丁': '太白入荧',
     '辛+乙': '白虎猖狂',
+    '乙+辛': '龙逃走',
     '癸+丁': '腾蛇夭矫', '癸+丙': '蛇矫入火',
     '庚+戊': '值符飞宫', '庚+壬': '上格', '庚+癸': '大格',
+    // 其他重要格局
+    '丁+癸': '玉女守门', '戊+壬': '小格', '戊+癸': '刑格',
+    '己+庚': '刑格入狱', '辛+壬': '凶蛇入刑',
   };
 
   if (FORMATION_MAP[key]) formations.push(FORMATION_MAP[key]);
@@ -185,7 +209,8 @@ export function calculateQimenData(input: QimenInput): Promise<QimenOutput> {
   const followOption = zhiFuJiGong === 'ji_wugong' ? 0 : 1;
   assertValidTimeZone(timezone);
   return loadTaobiConstructor().then((TheArtOfBecomingInvisible) => {
-
+    // 通过互斥锁串行化 TZ 变异区间，防止并发请求之间的竞争条件
+    return withTzMutex(() => {
     // WARNING: process.env.TZ 全局变异区间 —— 此区间内禁止 await！
     // taobi 库内部使用 Date 的 UTC 时间戳，zonedWallClockToSystemDate 无法替代。
     const previousTimeZone = process.env.TZ;
@@ -401,6 +426,7 @@ export function calculateQimenData(input: QimenInput): Promise<QimenOutput> {
         process.env.TZ = previousTimeZone;
       }
     }
+    }); // withTzMutex
   });
 }
 

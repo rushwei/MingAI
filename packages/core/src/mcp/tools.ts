@@ -7,6 +7,7 @@ import { liuyaoManifest } from './domains/liuyao/tool.js';
 import { meihuaManifest } from './domains/meihua/tool.js';
 import { qimenManifest } from './domains/qimen/tool.js';
 import { tarotManifest } from './domains/tarot/tool.js';
+import { xiaoliurenManifest } from './domains/xiaoliuren/tool.js';
 import { ziweiFlyingStarManifest } from './domains/ziwei-flying-star/tool.js';
 import { ziweiHoroscopeManifest } from './domains/ziwei-horoscope/tool.js';
 import { ziweiManifest } from './domains/ziwei/tool.js';
@@ -29,6 +30,7 @@ export const tools: AnyTool[] = [
   baziDayunManifest,
   qimenManifest,
   daliurenManifest,
+  xiaoliurenManifest,
 ];
 
 export const toolByName = new Map(tools.map((tool) => [tool.definition.name, tool] as const));

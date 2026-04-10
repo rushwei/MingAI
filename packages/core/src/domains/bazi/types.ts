@@ -60,6 +60,8 @@ export interface BaziShenShaOutput {
     day: string[];
     hour: string[];
   };
+  /** 数据获取过程中产生的警告（如 lunar-javascript 在边界日期抛出异常） */
+  warnings?: string[];
 }
 
 export interface BaziLiuYueInfo {

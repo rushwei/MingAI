@@ -991,11 +991,12 @@ export function calculateBaziShenShaData(input: BaziInput): BaziShenShaOutput {
   let xiongSha: string[] = [];
   let dayYi: string[] = [];
   let dayJi: string[] = [];
+  const warnings: string[] = [];
 
-  try { jiShen = lunar.getDayJiShen() || []; } catch { /* ignore */ }
-  try { xiongSha = lunar.getDayXiongSha() || []; } catch { /* ignore */ }
-  try { dayYi = lunar.getDayYi() || []; } catch { /* ignore */ }
-  try { dayJi = lunar.getDayJi() || []; } catch { /* ignore */ }
+  try { jiShen = lunar.getDayJiShen() || []; } catch (e) { warnings.push(`吉神数据获取失败: ${e instanceof Error ? e.message : String(e)}`); }
+  try { xiongSha = lunar.getDayXiongSha() || []; } catch (e) { warnings.push(`凶煞数据获取失败: ${e instanceof Error ? e.message : String(e)}`); }
+  try { dayYi = lunar.getDayYi() || []; } catch (e) { warnings.push(`日宜数据获取失败: ${e instanceof Error ? e.message : String(e)}`); }
+  try { dayJi = lunar.getDayJi() || []; } catch (e) { warnings.push(`日忌数据获取失败: ${e instanceof Error ? e.message : String(e)}`); }
 
   return {
     jiShen,
@@ -1003,5 +1004,6 @@ export function calculateBaziShenShaData(input: BaziInput): BaziShenShaOutput {
     dayYi,
     dayJi,
     pillarShenSha,
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
 }
