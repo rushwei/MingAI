@@ -13,7 +13,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useAppBootstrap } from '@/lib/hooks/useAppBootstrap';
-import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useChatBootstrap } from '@/lib/chat/use-chat-bootstrap';
@@ -29,7 +28,6 @@ export default function ChatPage() {
     const searchParams = useSearchParams();
     const { showToast } = useToast();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
-    const { isPaused: isPaymentPaused } = usePaymentPause();
     const { isFeatureEnabled } = useFeatureToggles();
     const { user, loading: sessionLoading } = useSessionSafe();
     const appBootstrap = useAppBootstrap({ enabled: !sessionLoading });
@@ -74,8 +72,7 @@ export default function ChatPage() {
         return () => clearMenuItems();
     }, [aiPersonalizationEnabled, clearMenuItems, knowledgeBaseEnabled, membership?.type, router, setMenuItems]);
 
-    const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
-    const isCreditLocked = !isUnlimited && credits === 0;
+    const isCreditLocked = typeof credits === 'number' && credits <= 0;
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     return (
@@ -116,7 +113,6 @@ export default function ChatPage() {
                 dreamContextLoading={state.dreamContextLoading}
                 knowledgeBaseEnabled={knowledgeBaseEnabled}
                 aiPersonalizationEnabled={aiPersonalizationEnabled}
-                isPaymentPaused={isPaymentPaused}
                 isCreditLocked={isCreditLocked}
             >
                 {state.kbTargetMessage && state.activeConversationId && isFeatureEnabled('knowledge-base') && (

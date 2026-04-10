@@ -41,7 +41,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
                     select: () => ({
                         eq: () => ({
                             single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
                                 error: null,
                             }),
                             maybeSingle: async () => ({
@@ -207,7 +207,7 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
                     select: () => ({
                         eq: () => ({
                             single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
                                 error: null,
                             }),
                             maybeSingle: async () => ({
@@ -350,7 +350,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
                     select: () => ({
                         eq: () => ({
                             single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
                                 error: null,
                             }),
                             maybeSingle: async () => ({
@@ -516,7 +516,7 @@ test('liuyao route surfaces SSE error when stream persistence fails after conten
                     select: () => ({
                         eq: () => ({
                             single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
                                 error: null,
                             }),
                             maybeSingle: async () => ({
@@ -770,7 +770,7 @@ test('liuyao route interpret enforces targets when persisted question exists but
                 select: () => ({
                     eq: () => ({
                         single: async () => ({
-                            data: { ai_chat_count: 0, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                            data: { ai_chat_count: 0, membership: 'pro', membership_expires_at: null },
                             error: null,
                         }),
                         maybeSingle: async () => ({
@@ -912,7 +912,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
                     select: () => ({
                         eq: () => ({
                             single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
                                 error: null,
                             }),
                             maybeSingle: async () => ({

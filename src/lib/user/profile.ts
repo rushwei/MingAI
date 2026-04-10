@@ -10,7 +10,6 @@ export type UserProfile = {
   membership: MembershipType | null;
   membership_expires_at: string | null;
   ai_chat_count: number | null;
-  last_credit_restore_at: string | null;
 };
 
 export type UserProfileBundle = {

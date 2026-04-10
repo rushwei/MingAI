@@ -335,5 +335,5 @@ export function useStreamingResponse(
  */
 export function isCreditsError(error: string | null): boolean {
     if (!error) return false;
-    return error.includes('积分不足') || error.includes('充值');
+    return error.includes('积分不足') || error.includes('充值') || error.includes('获取积分');
 }

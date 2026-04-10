@@ -116,7 +116,7 @@ export const NAV_REGISTRY: readonly NavItemDef[] = [
   { id: 'user/upgrade', href: '/user/upgrade', label: '订阅', icon: CircleStar, featureId: 'upgrade', category: 'user' },
   { id: 'user/charts', href: '/user/charts', label: '命盘', icon: Scroll, featureId: 'charts', category: 'user' },
   { id: 'user/notifications', href: '/user/notifications', label: '通知', icon: Bell, featureId: 'notifications', category: 'user' },
-  { id: 'user/orders', href: '/user/orders', label: '订单', icon: CreditCard, featureId: 'orders', category: 'user' },
+  { id: 'user/credits', href: '/user/credits', label: '积分流水', icon: CreditCard, featureId: 'credits', category: 'user' },
   { id: 'user/settings/ai', href: '/user/settings/ai', label: '个性化', icon: MessageCircleHeart, featureId: 'ai-personalization', category: 'user' },
   { id: 'user/knowledge-base', href: '/user/knowledge-base', label: '知识库', icon: BookOpenText, featureId: 'knowledge-base', category: 'user' },
   { id: 'user/help', href: '/user/help', label: '帮助中心', icon: CircleQuestionMark, featureId: 'help', category: 'user' },
@@ -150,11 +150,9 @@ export function getSidebarNavItems() {
   return NAV_REGISTRY.filter(n => n.category === 'divination');
 }
 
-/** Sidebar "工具" items (tool category, excluding checkin which only shows in customizer). */
+/** Sidebar "工具" items (tool category). */
 export function getSidebarToolItems() {
-  return NAV_REGISTRY.filter(
-    n => n.category === 'tool' && n.id !== 'checkin',
-  );
+  return NAV_REGISTRY.filter((n) => n.category === 'tool');
 }
 
 /** MobileNav — all items keyed by id. */
@@ -216,7 +214,7 @@ const adminLabelOverride: Record<string, string> = {
   upgrade: '订阅',
   help: '帮助',
   charts: '我的命盘',
-  orders: '订单',
+  credits: '积分流水',
 };
 
 /** Features that only appear in the admin toggle panel. */

@@ -1,21 +1,16 @@
 /**
- * 升级套餐页面
- * 
- * 包含订阅套餐和按量付费两部分
- * 使用Key激活方式
+ * 会员中心页面
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
-    Crown,
     Key,
-    Sparkles,
-    Zap,
-    Check
+    ShieldCheck,
+    RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/user/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { KeyActivationModal } from '@/components/membership/KeyActivationModal';
@@ -23,13 +18,14 @@ import { SubscriptionPlans } from '@/components/membership/SubscriptionPlans';
 import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { FeatureGate } from '@/components/layout/FeatureGate';
-import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
-interface PurchaseLinks {
-    plus?: string;
-    pro?: string;
-    credits?: string;
-}
+type ClaimStatus =
+    | 'ok'
+    | 'cooldown'
+    | 'lower_tier_ignored'
+    | 'no_eligibility'
+    | 'claim_failed'
+    | 'missing_linuxdo';
 
 export default function UpgradePage() {
     return (
@@ -41,43 +37,18 @@ export default function UpgradePage() {
 
 function UpgradeContent() {
     const { user, loading: sessionLoading } = useSessionSafe();
-    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const searchParams = useSearchParams();
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showKeyModal, setShowKeyModal] = useState(false);
-    const [purchaseLinks, setPurchaseLinks] = useState<PurchaseLinks>({});
-    const [level, setLevel] = useState<{ level: number } | null>(null);
-    const [copiedLink, setCopiedLink] = useState<string | null>(null);
     const { showToast } = useToast();
-    const checkinFeatureEnabled = !featureToggleLoading && isFeatureEnabled('checkin');
-    const effectiveLevel = checkinFeatureEnabled ? level : null;
 
-    const refreshMembership = async (userId: string) => {
+    const refreshMembership = useCallback(async (userId: string) => {
         const info = await getMembershipInfo(userId);
         setMembership(info);
         return info;
-    };
-
-    const fetchPurchaseLinks = async () => {
-        const response = await fetch('/api/purchase-links', {
-            credentials: 'include',
-        });
-        if (!response.ok) {
-            return;
-        }
-
-        const payload = await response.json() as {
-            links?: Array<{ link_type: string; url: string }>;
-        };
-        if (payload.links) {
-            const links: PurchaseLinks = {};
-            payload.links.forEach((item) => {
-                links[item.link_type as keyof PurchaseLinks] = item.url;
-            });
-            setPurchaseLinks(links);
-        }
-    };
+    }, []);
 
     useEffect(() => {
         const init = async () => {
@@ -86,56 +57,65 @@ function UpgradeContent() {
                 await refreshMembership(user.id);
             } else {
                 setMembership(null);
-                setLevel(null);
             }
-            await fetchPurchaseLinks();
             setLoading(false);
         };
         void init();
-    }, [sessionLoading, user]);
+    }, [refreshMembership, sessionLoading, user]);
 
     useEffect(() => {
-        if (sessionLoading) {
+        const claim = searchParams.get('claim') as ClaimStatus | null;
+        if (!claim) return;
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete('claim');
+        nextUrl.searchParams.delete('next_available_at');
+        window.history.replaceState({}, '', nextUrl.toString());
+
+        if (claim === 'ok') {
+            showToast('success', 'Linux.do 月度会员已领取');
             return;
         }
-        if (!user || !checkinFeatureEnabled) {
+
+        if (claim === 'cooldown') {
+            const nextAvailableAt = searchParams.get('next_available_at');
+            const formatted = nextAvailableAt
+                ? new Date(nextAvailableAt).toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                })
+                : null;
+            showToast('info', formatted ? `本月已领取，请在 ${formatted} 后再试` : '本月已领取，请下次再来');
             return;
         }
 
-        let isActive = true;
+        if (claim === 'lower_tier_ignored') {
+            showToast('info', '当前已有更高等级会员，本次 Linux.do 月领未覆盖');
+            return;
+        }
 
-        const loadCheckinLevel = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.access_token || !isActive) {
-                    return;
-                }
-                const res = await fetch('/api/checkin?action=status', {
-                    headers: { Authorization: `Bearer ${session.access_token}` },
-                });
-                const data = await res.json();
-                if (isActive && data.success && data.data?.level?.level) {
-                    setLevel({ level: data.data.level.level });
-                }
-            } catch {
-            }
-        };
+        if (claim === 'no_eligibility') {
+            showToast('info', '当前 Linux.do 等级不足，无法领取本月会员');
+            return;
+        }
 
-        void loadCheckinLevel();
+        if (claim === 'missing_linuxdo') {
+            showToast('error', '请使用 Linux.do 账号重新登录后再领取');
+            return;
+        }
 
-        return () => {
-            isActive = false;
-        };
-    }, [checkinFeatureEnabled, sessionLoading, user]);
+        showToast('error', '领取会员失败，请稍后重试');
+    }, [refreshMembership, searchParams, showToast, user]);
 
     const handleSelectPlan = (plan: PricingPlan) => {
+        if (plan.id === 'free') return;
         if (!user) {
             setShowAuthModal(true);
             return;
         }
-        if (plan.id === 'free') return;
-        if (membership?.type === plan.id) return;
-
         setShowKeyModal(true);
     };
 
@@ -146,24 +126,21 @@ function UpgradeContent() {
             return;
         }
         if (user) {
-            refreshMembership(user.id);
+            void refreshMembership(user.id);
         }
     };
 
     const currentPlan = membership?.type || 'free';
+    const canShowMembership = !!user && !!membership;
 
-    const copyToClipboard = async (url: string, type: string) => {
-        try {
-            await navigator.clipboard.writeText(url);
-            setCopiedLink(type);
-            showToast('success', '链接已复制，请前往闲鱼购买');
-            setTimeout(() => setCopiedLink(null), 2000);
-        } catch {
-            showToast('error', '复制失败，请手动复制');
-        }
-    };
+    const linuxdoClaimUrl = useMemo(() => {
+        const params = new URLSearchParams({
+            intent: 'membership-claim',
+            returnTo: '/user/upgrade',
+        });
+        return `/api/auth/linuxdo?${params.toString()}`;
+    }, []);
 
-    // 格式化到期时间
     const formatExpiryDate = (date: Date | null) => {
         if (!date) return null;
         return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -172,7 +149,6 @@ function UpgradeContent() {
     if (loading) {
         return (
             <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:py-8 sm:pb-8">
-                {/* 头部骨架 */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 sm:mb-8">
                     <div className="hidden md:block space-y-2">
                         <div className="h-7 w-32 rounded bg-foreground/10 animate-pulse" />
@@ -180,31 +156,14 @@ function UpgradeContent() {
                     </div>
                     <div className="h-8 w-20 rounded-full bg-foreground/10 animate-pulse" />
                 </div>
-                {/* 积分进度条骨架 */}
                 <div className="mb-2 sm:mb-8">
                     <div className="h-20 rounded-2xl bg-foreground/5 animate-pulse" />
                 </div>
-                {/* 激活码模块骨架 */}
-                <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse" />
-                            <div className="space-y-1.5">
-                                <div className="h-4 w-16 rounded bg-foreground/10 animate-pulse" />
-                                <div className="h-3 w-32 rounded bg-foreground/5 animate-pulse" />
-                            </div>
-                        </div>
-                        <div className="h-9 w-20 rounded-lg bg-foreground/10 animate-pulse" />
-                    </div>
-                </div>
-                {/* 订阅套餐骨架 */}
-                <div>
-                    <div className="hidden sm:block h-6 w-24 rounded bg-foreground/10 animate-pulse mb-4 sm:mb-6" />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="h-64 rounded-2xl bg-foreground/5 animate-pulse" />
-                        ))}
-                    </div>
+                <div className="mb-6 sm:mb-8 h-40 rounded-2xl bg-foreground/5 animate-pulse" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[1, 2, 3].map((item) => (
+                        <div key={item} className="h-64 rounded-2xl bg-foreground/5 animate-pulse" />
+                    ))}
                 </div>
             </div>
         );
@@ -213,126 +172,125 @@ function UpgradeContent() {
     return (
         <div>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:py-8 sm:pb-8">
-                {/* 头部 - 包含当前套餐 */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 sm:mb-8">
                     <div className="hidden md:block">
-                        <h1 className="text-xl sm:text-2xl font-bold">升级会员</h1>
-                        <p className="text-sm sm:text-base text-foreground-secondary">解锁全部功能，尽享AI命理服务</p>
+                        <h1 className="text-xl sm:text-2xl font-bold">会员中心</h1>
+                        <p className="text-sm sm:text-base text-foreground-secondary">
+                            管理会员权益、积分余额和 Linux.do 月度领取资格
+                        </p>
                     </div>
-                    {user && membership && (
+                    {canShowMembership && (
                         <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${membership.type === 'pro'
-                                ? 'bg-purple-500/10 text-purple-500'
-                                : membership.type === 'plus'
-                                    ? 'bg-amber-500/10 text-amber-500'
-                                    : 'bg-gray-500/10 text-gray-500'
-                                }`}>
+                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                membership.type === 'pro'
+                                    ? 'bg-purple-500/10 text-purple-500'
+                                    : membership.type === 'plus'
+                                        ? 'bg-amber-500/10 text-amber-500'
+                                        : 'bg-gray-500/10 text-gray-500'
+                            }`}>
                                 {currentPlan.toUpperCase()}
                             </span>
                             {membership.type !== 'free' && membership.expiresAt && (
                                 <span className="text-sm text-foreground-secondary whitespace-nowrap">
-                                    {formatExpiryDate(membership.expiresAt)}
+                                    到期：{formatExpiryDate(membership.expiresAt)}
                                 </span>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* 积分进度条 */}
-                {user && membership && (
+                {canShowMembership && (
                     <div className="mb-2 sm:mb-8">
                         <CreditProgressBar
                             credits={membership.aiChatCount}
                             membershipType={membership.type}
-                            lastRestoreAt={membership.lastCreditRestoreAt}
-                            extraLimit={Math.max(0, (effectiveLevel?.level || 1) - 1)}
                         />
                     </div>
                 )}
 
-                {/* 激活码模块 */}
-                <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-accent/10 text-accent">
-                            <Key className="w-5 h-5" />
+                <div className="mb-6 sm:mb-8 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
+                    <div className="p-5 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                                <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-sm sm:text-base">Linux.do 月度会员</h3>
+                                <p className="text-xs text-foreground-secondary">
+                                    每次领取前都会强制重新登录 Linux.do，以最新等级为准
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="font-bold text-sm sm:text-base">激活码</h3>
-                            <p className="text-xs text-foreground-secondary">输入激活码开通会员或获取积分</p>
+
+                        <ul className="text-sm text-foreground-secondary space-y-2 mb-5">
+                            <li>• Linux.do `trust_level = 2` 可领取 30 天 Plus</li>
+                            <li>• Linux.do `trust_level &gt;= 3` 可领取 30 天 Pro</li>
+                            <li>• 30 天内仅可领取 1 次；同档顺延 30 天，低档不会覆盖高档</li>
+                            <li>• 领取会员不会额外补积分，激活码会员仍可继续使用</li>
+                        </ul>
+
+                        <a
+                            href={linuxdoClaimUrl}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors text-sm"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            重新登录 Linux.do 并领取本月会员
+                        </a>
+                    </div>
+
+                    <div className="p-5 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-accent/10 text-accent">
+                                    <Key className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-sm sm:text-base">激活码</h3>
+                                    <p className="text-xs text-foreground-secondary">
+                                        可用于开通会员或增加积分
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (!user) {
+                                        setShowAuthModal(true);
+                                        return;
+                                    }
+                                    setShowKeyModal(true);
+                                }}
+                                className="px-4 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors text-sm"
+                            >
+                                立即激活
+                            </button>
+                        </div>
+                        <div className="text-sm text-foreground-secondary space-y-2">
+                            <p>• 会员激活码支持 Plus / Pro，和 Linux.do 月领共用同一套会员规则</p>
+                            <p>• 积分激活码会直接增加余额，并写入积分流水</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => {
-                            if (!user) {
-                                setShowAuthModal(true);
-                                return;
-                            }
-                            setShowKeyModal(true);
-                        }}
-                        className="px-4 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors text-sm"
-                    >
-                        立即激活
-                    </button>
-                </div>
-                {(purchaseLinks.plus || purchaseLinks.pro || purchaseLinks.credits) && (
-                    <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
-                        <span className="text-xs text-foreground-secondary mr-1 leading-7">点击前往购买：</span>
-                        {purchaseLinks.plus && (
-                            <button
-                                onClick={() => copyToClipboard(purchaseLinks.plus!, 'plus')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-xs font-medium"
-                            >
-                                {copiedLink === 'plus' ? <Check className="w-3.5 h-3.5" /> : <Crown className="w-3.5 h-3.5" />}
-                                Plus
-                            </button>
-                        )}
-                        {purchaseLinks.pro && (
-                            <button
-                                onClick={() => copyToClipboard(purchaseLinks.pro!, 'pro')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 transition-colors text-xs font-medium"
-                            >
-                                {copiedLink === 'pro' ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                                Pro
-                            </button>
-                        )}
-                        {purchaseLinks.credits && (
-                            <button
-                                onClick={() => copyToClipboard(purchaseLinks.credits!, 'credits')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors text-xs font-medium"
-                            >
-                                {copiedLink === 'credits' ? <Check className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
-                                积分
-                            </button>
-                        )}
-                    </div>
-                )}
                 </div>
 
-                {/* 订阅套餐 */}
                 <div>
-                    <h2 className="hidden sm:block text-lg sm:text-xl font-bold mb-4 sm:mb-6">订阅套餐</h2>
+                    <h2 className="hidden sm:block text-lg sm:text-xl font-bold mb-4 sm:mb-6">会员档位</h2>
                     <SubscriptionPlans
                         currentPlan={currentPlan}
                         onSelectPlan={handleSelectPlan}
                     />
                     <p className="text-center text-xs sm:text-sm text-foreground-secondary mt-3 sm:mt-4">
-                        点击套餐输入激活码开通
+                        套餐卡片仅展示权益说明；会员通过 Linux.do 月领或激活码开通
                     </p>
                 </div>
 
-                {/* 登录弹窗 */}
                 <AuthModal
                     isOpen={showAuthModal}
                     onClose={() => setShowAuthModal(false)}
                 />
 
-                {/* Key激活弹窗 */}
                 <KeyActivationModal
                     isOpen={showKeyModal}
                     onClose={() => setShowKeyModal(false)}
                     onSuccess={handleKeySuccess}
-                    purchaseLinks={purchaseLinks}
                 />
             </div>
         </div>

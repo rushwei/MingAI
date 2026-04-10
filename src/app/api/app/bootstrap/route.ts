@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getAuthContext, jsonOk } from '@/lib/api-utils';
-import { readFeatureTogglesState, readPaymentsPausedState } from '@/lib/app-settings';
+import { readFeatureTogglesState } from '@/lib/app-settings';
 import { getNotificationRetentionCutoffIso } from '@/lib/notification-server';
-import { buildMembershipInfo, type MembershipInfoSource } from '@/lib/user/membership';
+import { buildMembershipInfo, type MembershipInfo, type MembershipInfoSource } from '@/lib/user/membership';
 import type { AppBootstrapData, AppBootstrapViewerSummary } from '@/lib/app/bootstrap';
 
 type UserRow = {
@@ -13,7 +13,6 @@ type UserRow = {
   membership: MembershipInfoSource['membership'];
   membership_expires_at: string | null;
   ai_chat_count: number | null;
-  last_credit_restore_at: string | null;
 };
 
 function buildFallbackViewerSummary(user: {
@@ -27,21 +26,19 @@ function buildFallbackViewerSummary(user: {
     isAdmin: false,
     membershipType: 'free',
     membershipExpiresAt: null,
-    aiChatCount: 3,
-    lastCreditRestoreAt: null,
+    aiChatCount: 1,
   };
 }
 
-function buildViewerSummary(row: UserRow): AppBootstrapViewerSummary {
+function buildViewerSummary(row: UserRow, membership: MembershipInfo): AppBootstrapViewerSummary {
   return {
     userId: row.id,
     nickname: row.nickname,
     avatarUrl: row.avatar_url,
     isAdmin: !!row.is_admin,
-    membershipType: row.membership ?? null,
-    membershipExpiresAt: row.membership_expires_at,
-    aiChatCount: row.ai_chat_count,
-    lastCreditRestoreAt: row.last_credit_restore_at,
+    membershipType: membership.type,
+    membershipExpiresAt: membership.expiresAt ? membership.expiresAt.toISOString() : null,
+    aiChatCount: membership.aiChatCount,
   };
 }
 
@@ -58,7 +55,7 @@ async function loadViewerState(auth: Awaited<ReturnType<typeof getAuthContext>>)
   const [profileResult, unreadResult] = await Promise.all([
     auth.supabase
       .from('users')
-      .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+      .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count')
       .eq('id', auth.user.id)
       .maybeSingle(),
     auth.supabase
@@ -79,15 +76,14 @@ async function loadViewerState(auth: Awaited<ReturnType<typeof getAuthContext>>)
   }
 
   const row = (profileResult.data ?? null) as UserRow | null;
-  const viewerSummary = row ? buildViewerSummary(row) : buildFallbackViewerSummary(auth.user);
   const membership = row
     ? buildMembershipInfo({
       membership: row.membership,
       membership_expires_at: row.membership_expires_at,
       ai_chat_count: row.ai_chat_count,
-      last_credit_restore_at: row.last_credit_restore_at,
     })
     : buildMembershipInfo(null);
+  const viewerSummary = row ? buildViewerSummary(row, membership) : buildFallbackViewerSummary(auth.user);
 
   return {
     viewerLoaded: true,
@@ -100,9 +96,8 @@ async function loadViewerState(auth: Awaited<ReturnType<typeof getAuthContext>>)
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
 
-  const [featureToggleState, paymentPauseState, viewerState] = await Promise.all([
+  const [featureToggleState, viewerState] = await Promise.all([
     readFeatureTogglesState(),
-    readPaymentsPausedState(),
     loadViewerState(auth),
   ]);
 
@@ -112,8 +107,6 @@ export async function GET(request: NextRequest) {
     membership: viewerState.membership,
     featureToggles: featureToggleState.toggles,
     featureTogglesLoaded: featureToggleState.loaded,
-    paymentPaused: paymentPauseState.paused,
-    paymentStatusLoaded: paymentPauseState.loaded,
     unreadCount: viewerState.unreadCount,
   };
 

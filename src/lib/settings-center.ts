@@ -53,7 +53,7 @@ const SETTINGS_CENTER_TAB_META: Record<SettingsCenterTab, Omit<SettingsCenterTab
   'knowledge-base': { id: 'knowledge-base', label: '知识库', group: 'extensions' },
   'mcp-service': { id: 'mcp-service', label: 'MCP OAuth', group: 'extensions' },
   'admin-announcements': { id: 'admin-announcements', label: '公告管理', group: 'management' },
-  'admin-features': { id: 'admin-features', label: '功能与支付', group: 'management' },
+  'admin-features': { id: 'admin-features', label: '功能与激活码', group: 'management' },
   'admin-ai-services': { id: 'admin-ai-services', label: 'AI 服务', group: 'management' },
   'admin-mcp': { id: 'admin-mcp', label: 'MCP 管理', group: 'management' },
 };

@@ -125,7 +125,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
             if (!response.ok) {
                 const errorData = await response.json();
                 if (errorData.code === 'INSUFFICIENT_CREDITS') {
-                    setError('积分不足，请先充值');
+                    setError('积分不足，请先获取积分');
                 } else {
                     setError(errorData.error || '请求失败');
                 }

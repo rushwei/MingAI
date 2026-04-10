@@ -2,9 +2,9 @@
  * 会员权限逻辑
  * 
  * Free/Plus/Pro 三级会员体系
- * - Free: 每日+1次对话，上限3次
- * - Plus: 立即+50次，每日+5次，上限50次
- * - Pro: 立即+200次，每小时+1次，上限200次
+ * - Free: 积分上限 10，签到随机 1-3 积分
+ * - Plus: 积分上限 20，签到奖励 x2
+ * - Pro: 积分上限 50，签到奖励 x3
  */
 
 import { requestBrowserJson } from '@/lib/browser-api';
@@ -16,7 +16,6 @@ export interface MembershipInfo {
     expiresAt: Date | null;
     isActive: boolean;
     aiChatCount: number;
-    lastCreditRestoreAt: Date | null;
 }
 
 export type MembershipLookupResult = {
@@ -28,7 +27,6 @@ export type MembershipInfoSource = {
     membership?: MembershipType | null;
     membership_expires_at?: string | null;
     ai_chat_count?: number | null;
-    last_credit_restore_at?: string | null;
 };
 
 /**
@@ -54,13 +52,7 @@ export interface PricingPlan {
     period: string;
     features: string[];
     popular?: boolean;
-    /** 初始获得的对话次数 */
-    initialCredits: number;
-    /** 每周期恢复的次数 */
-    restoreCredits: number;
-    /** 恢复周期（daily/hourly） */
-    restorePeriod: 'daily' | 'hourly';
-    /** 次数上限 */
+    /** 可累计积分上限 */
     creditLimit: number;
 }
 
@@ -75,50 +67,40 @@ export const pricingPlans: PricingPlan[] = [
             '基础命盘排盘',
             '每日/月运势预览',
             '塔罗牌、六爻、MBTI解读',
-            '面相、手相基础分析',
-            '积分上限3，每日+1积分',
+            '积分上限 10',
+            '每日签到随机 1-3 积分',
         ],
-        initialCredits: 3,
-        restoreCredits: 1,
-        restorePeriod: 'daily',
-        creditLimit: 3,
+        creditLimit: 10,
     },
     {
         id: 'plus',
         name: 'Plus',
-        price: 29.9,
-        period: '月',
+        price: 0,
+        period: '30 天',
         features: [
             '全部 Free 功能',
-            '积分上限50，每日+5积分，立即获得50积分',
+            '积分上限 20',
+            '每日签到奖励 x2',
             '更多模型支持',
             '全部AI分析',
             '知识库',
         ],
         popular: true,
-        initialCredits: 50,
-        restoreCredits: 5,
-        restorePeriod: 'daily',
-        creditLimit: 50,
+        creditLimit: 20,
     },
     {
         id: 'pro',
         name: 'Pro',
-        price: 99,
-        period: '月',
+        price: 0,
+        period: '30 天',
         features: [
             '全部 Plus 功能',
-            '积分上限200，每小时+1积分，立即获得200积分',
+            '积分上限 50',
+            '每日签到奖励 x3',
             '获取更高级模型支持',
-            '记住用户目标和过往对话',
             '更精确的知识库',
-            '优先处理和更快响应',
-            
         ],
-        initialCredits: 200,
-        restoreCredits: 1,
-        restorePeriod: 'hourly',
-        creditLimit: 200,
+        creditLimit: 50,
     },
 ];
 
@@ -176,18 +158,14 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
             type: 'free',
             expiresAt: null,
             isActive: true,
-            aiChatCount: 3,
-            lastCreditRestoreAt: null,
+            aiChatCount: 1,
         };
     }
 
     const membershipType = source.membership ? (source.membership as MembershipType) : 'free';
-    const aiChatCount = typeof source.ai_chat_count === 'number' ? source.ai_chat_count : 3;
+    const aiChatCount = typeof source.ai_chat_count === 'number' ? source.ai_chat_count : 1;
     const expiresAt = source.membership_expires_at
         ? new Date(source.membership_expires_at)
-        : null;
-    const lastCreditRestoreAt = source.last_credit_restore_at
-        ? new Date(source.last_credit_restore_at)
         : null;
 
     let isActive = true;
@@ -203,6 +181,5 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
         expiresAt,
         isActive,
         aiChatCount,
-        lastCreditRestoreAt,
     };
 }

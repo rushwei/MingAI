@@ -160,7 +160,7 @@ export async function resolveChatRequest(
   if (userId && !canSkipCredit) {
     const hasEnough = authInfo?.hasCredits ?? false;
     if (!hasEnough) {
-      return jsonError('积分不足，请充值后继续使用', 402, {
+      return jsonError('积分不足，请先通过签到、激活码或会员权益获取积分', 402, {
         code: 'INSUFFICIENT_CREDITS',
         needRecharge: true,
       });

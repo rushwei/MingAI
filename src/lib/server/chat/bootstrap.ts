@@ -32,7 +32,7 @@ export async function buildChatBootstrap(
   const knowledgeBaseFeatureEnabled = await isFeatureModuleEnabled('knowledge-base');
   const { data: membershipRow } = await supabase
     .from('users')
-    .select('id, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+    .select('id, membership, membership_expires_at, ai_chat_count')
     .eq('id', userId)
     .maybeSingle();
 

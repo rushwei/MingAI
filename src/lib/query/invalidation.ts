@@ -14,10 +14,6 @@ function resolveInvalidationKeys(pathname: string): ReadonlyArray<readonly unkno
     return [queryKeys.appBootstrapPrefix()];
   }
 
-  if (pathname.startsWith('/api/payment-status')) {
-    return [queryKeys.appBootstrapPrefix()];
-  }
-
   if (pathname.startsWith('/api/user/profile')) {
     return [queryKeys.appBootstrapPrefix()];
   }

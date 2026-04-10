@@ -125,11 +125,12 @@ export function classifyApiError(
     const isInsufficientCredits = status === 402
         || data?.code === 'INSUFFICIENT_CREDITS'
         || data?.error?.includes('积分不足')
-        || data?.error?.includes('充值');
+        || data?.error?.includes('充值')
+        || data?.error?.includes('获取积分');
     if (isInsufficientCredits) {
         return {
             code: 'INSUFFICIENT_CREDITS',
-            message: data?.error || '积分不足，请充值后继续使用',
+            message: data?.error || '积分不足，请先通过签到、激活码或会员权益获取积分',
         };
     }
 

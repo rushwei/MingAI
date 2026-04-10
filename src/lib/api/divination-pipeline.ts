@@ -23,6 +23,7 @@ import {
   AIAnalysisConversationPersistenceError,
   createAIAnalysisConversation,
 } from '@/lib/ai/ai-analysis';
+import { extractAIErrorMessage } from '@/lib/ai/ai-error';
 import type { AIModelConfig } from '@/types';
 import type { AIPersonality } from '@/types';
 import type { ChartType } from '@/lib/visualization/chart-types';
@@ -257,7 +258,7 @@ export function createInterpretHandler<
     // 2. Credits + membership
     const authInfo = await getUserAuthInfo(user.id);
     if (!authInfo || !authInfo.hasCredits) {
-      return jsonError('积分不足，请充值后使用', 403, { success: false });
+      return jsonError('积分不足，请通过签到、激活码或会员权益获取积分后再使用', 403, { success: false });
     }
 
     // 3. Model access
@@ -318,7 +319,7 @@ export function createInterpretHandler<
 
       await addCredits(user.id, 1);
       console.error(`[${tag}] AI 调用失败:`, aiError);
-      return jsonError('AI 分析失败，请稍后重试', 500, { success: false });
+      return jsonError(extractAIErrorMessage(aiError), 500, { success: false });
     }
   };
 

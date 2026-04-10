@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
@@ -325,99 +326,6 @@ test('community reports POST should return 500 when transactional rpc fails', as
   assert.equal(payload.error, '提交举报失败');
 });
 
-test('membership upgrade route should complete through transactional rpc', async (t) => {
-  const apiUtilsModule = require('../lib/api-utils') as any;
-  const settingsModule = require('../lib/app-settings') as any;
-  const originalRequireUserContext = apiUtilsModule.requireUserContext;
-  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
-  const originalGetPaymentsPaused = settingsModule.getPaymentsPaused;
-
-  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
-
-  apiUtilsModule.requireUserContext = async () => ({ user: { id: 'user-1' }, supabase: {} });
-  settingsModule.getPaymentsPaused = async () => false;
-  apiUtilsModule.getSystemAdminClient = () => ({
-    rpc: (fn: string, args: Record<string, unknown>) => {
-      rpcCall = { fn, args };
-      return Promise.resolve({
-        data: {
-          status: 'ok',
-          credits: 50,
-          expires_at: '2026-05-08T00:00:00.000Z',
-        },
-        error: null,
-      });
-    },
-  });
-
-  t.after(() => {
-    apiUtilsModule.requireUserContext = originalRequireUserContext;
-    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
-    settingsModule.getPaymentsPaused = originalGetPaymentsPaused;
-  });
-
-  const { POST } = await import('../app/api/membership/upgrade/route');
-  const response = await POST(new NextRequest('http://localhost/api/membership/upgrade', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ planId: 'plus' }),
-  }));
-  const payload = await response.json();
-
-  assert.equal(response.status, 200);
-  assert.equal(rpcCall?.fn, 'complete_membership_upgrade_as_service');
-  assert.equal(rpcCall?.args.p_user_id, 'user-1');
-  assert.equal(rpcCall?.args.p_plan_id, 'plus');
-  assert.equal(payload.credits, 50);
-  assert.equal(payload.membership, 'plus');
-});
-
-test('purchase credits route should complete through transactional rpc', async (t) => {
-  const apiUtilsModule = require('../lib/api-utils') as any;
-  const settingsModule = require('../lib/app-settings') as any;
-  const originalRequireUserContext = apiUtilsModule.requireUserContext;
-  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
-  const originalGetPaymentsPaused = settingsModule.getPaymentsPaused;
-
-  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
-
-  apiUtilsModule.requireUserContext = async () => ({ user: { id: 'user-1' }, supabase: {} });
-  settingsModule.getPaymentsPaused = async () => false;
-  apiUtilsModule.getSystemAdminClient = () => ({
-    rpc: (fn: string, args: Record<string, unknown>) => {
-      rpcCall = { fn, args };
-      return Promise.resolve({
-        data: {
-          status: 'ok',
-          credits: 12,
-        },
-        error: null,
-      });
-    },
-  });
-
-  t.after(() => {
-    apiUtilsModule.requireUserContext = originalRequireUserContext;
-    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
-    settingsModule.getPaymentsPaused = originalGetPaymentsPaused;
-  });
-
-  const { POST } = await import('../app/api/membership/purchase-credits/route');
-  const response = await POST(new NextRequest('http://localhost/api/membership/purchase-credits', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ count: 1, amount: 9.9 }),
-  }));
-  const payload = await response.json();
-
-  assert.equal(response.status, 200);
-  assert.equal(rpcCall?.fn, 'complete_credit_purchase_as_service');
-  assert.equal(rpcCall?.args.p_user_id, 'user-1');
-  assert.equal(rpcCall?.args.p_credit_count, 1);
-  assert.equal(payload.credits, 12);
-  assert.equal(payload.purchased, 1);
-});
-
 test('records import POST should call transactional RPC and return imported counts', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const originalRequireUserContext = apiUtilsModule.requireUserContext;
@@ -519,10 +427,9 @@ test('performCheckin should use transactional rpc result', async (t) => {
       return Promise.resolve({
         data: {
           status: 'ok',
-          streak_days: 7,
           reward_credits: 2,
-          reward_xp: 10,
-          leveled_up: true,
+          credits: 11,
+          credit_limit: 20,
         },
         error: null,
       });
@@ -540,122 +447,157 @@ test('performCheckin should use transactional rpc result', async (t) => {
   assert.deepEqual(rpcCall?.args, { p_user_id: 'user-1' });
   assert.deepEqual(result, {
     success: true,
-    streakDays: 7,
     rewardCredits: 2,
-    rewardXp: 10,
-    leveledUp: true,
+    credits: 11,
+    creditLimit: 20,
   });
 });
 
-test('addExperience should upsert final level state for a first-time user', async (t) => {
+test('checkin route should return structured status when the user already checked in', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
-  const gamificationPath = require.resolve('../lib/user/gamification');
-  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const checkinModule = require('../lib/user/checkin') as any;
+  const routePath = require.resolve('../app/api/checkin/route');
+  const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
+  const originalPerformCheckin = checkinModule.performCheckin;
 
-  let selectCalls = 0;
-  let upsertCall: { payload: Record<string, unknown>; options: Record<string, unknown> } | null = null;
-
-  apiUtilsModule.getSystemAdminClient = () => ({
-    from(table: string) {
-      assert.equal(table, 'user_levels');
-      return {
-        select(columns: string) {
-          assert.equal(columns, 'level, total_experience');
-          return {
-            eq(field: string, value: string) {
-              assert.equal(field, 'user_id');
-              assert.equal(value, 'user-1');
-              return {
-                maybeSingle: async () => {
-                  selectCalls += 1;
-                  return { data: null, error: null };
-                },
-              };
-            },
-          };
-        },
-        upsert(payload: Record<string, unknown>, options: Record<string, unknown>) {
-          upsertCall = { payload, options };
-          return Promise.resolve({ error: null });
-        },
-      };
-    },
+  apiUtilsModule.requireBearerUser = async () => ({ user: { id: 'user-1' } });
+  checkinModule.performCheckin = async () => ({
+    success: false,
+    rewardCredits: 0,
+    blockedReason: 'already_checked_in',
+    error: '今日已签到',
   });
-
-  delete require.cache[gamificationPath];
-  const { addExperience } = require('../lib/user/gamification') as typeof import('../lib/user/gamification');
+  delete require.cache[routePath];
 
   t.after(() => {
-    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
-    delete require.cache[gamificationPath];
+    apiUtilsModule.requireBearerUser = originalRequireBearerUser;
+    checkinModule.performCheckin = originalPerformCheckin;
+    delete require.cache[routePath];
   });
 
-  const result = await addExperience('user-1', 120, 'bonus');
+  const { POST } = await import('../app/api/checkin/route');
+  const response = await POST(new NextRequest('http://localhost/api/checkin', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer token',
+    },
+  }));
+  const payload = await response.json();
 
-  assert.equal(selectCalls, 1);
-  assert.equal(upsertCall?.options.onConflict, 'user_id');
-  assert.equal(upsertCall?.payload.user_id, 'user-1');
-  assert.equal(upsertCall?.payload.level, 2);
-  assert.equal(upsertCall?.payload.experience, 20);
-  assert.equal(upsertCall?.payload.total_experience, 120);
-  assert.equal(upsertCall?.payload.title, '见习者');
-  assert.equal(result.leveledUp, true);
-  assert.equal(result.newLevel, 2);
-  assert.equal(result.newTitle, '见习者');
+  assert.equal(response.status, 400);
+  assert.equal(payload.error, '今日已签到');
+  assert.equal(payload.data.result.blockedReason, 'already_checked_in');
 });
 
-test('addExperience should keep existing rows on the single upsert path', async (t) => {
+test('checkin route should return structured cap details when credits are full', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
-  const gamificationPath = require.resolve('../lib/user/gamification');
-  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const checkinModule = require('../lib/user/checkin') as any;
+  const routePath = require.resolve('../app/api/checkin/route');
+  const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
+  const originalPerformCheckin = checkinModule.performCheckin;
 
-  let upsertCall: { payload: Record<string, unknown>; options: Record<string, unknown> } | null = null;
+  apiUtilsModule.requireBearerUser = async () => ({ user: { id: 'user-1' } });
+  checkinModule.performCheckin = async () => ({
+    success: false,
+    rewardCredits: 0,
+    blockedReason: 'credit_cap_reached',
+    credits: 20,
+    creditLimit: 20,
+    error: '当前积分已达上限，消耗后再来签到',
+  });
+  delete require.cache[routePath];
+
+  t.after(() => {
+    apiUtilsModule.requireBearerUser = originalRequireBearerUser;
+    checkinModule.performCheckin = originalPerformCheckin;
+    delete require.cache[routePath];
+  });
+
+  const { POST } = await import('../app/api/checkin/route');
+  const response = await POST(new NextRequest('http://localhost/api/checkin', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer token',
+    },
+  }));
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(payload.data.result.blockedReason, 'credit_cap_reached');
+  assert.equal(payload.data.result.credits, 20);
+  assert.equal(payload.data.result.creditLimit, 20);
+});
+
+test('getCheckinStatus should keep the full reward range while the user is still below the cap', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const creditsModule = require('../lib/user/credits') as any;
+  const checkinPath = require.resolve('../lib/user/checkin');
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const originalGetUserCreditInfo = creditsModule.getUserCreditInfo;
 
   apiUtilsModule.getSystemAdminClient = () => ({
     from(table: string) {
-      assert.equal(table, 'user_levels');
+      if (table !== 'daily_checkins') {
+        throw new Error(`unexpected table: ${table}`);
+      }
+
       return {
         select() {
-          return {
-            eq() {
-              return {
-                maybeSingle: async () => ({
-                  data: {
-                    level: 2,
-                    total_experience: 120,
-                  },
-                  error: null,
-                }),
-              };
-            },
-          };
+          return this;
         },
-        upsert(payload: Record<string, unknown>, options: Record<string, unknown>) {
-          upsertCall = { payload, options };
-          return Promise.resolve({ error: null });
+        eq() {
+          return this;
         },
+        order() {
+          return this;
+        },
+        limit() {
+          return this;
+        },
+        maybeSingle: async () => ({ data: null, error: null }),
       };
     },
   });
+  creditsModule.getUserCreditInfo = async () => ({
+    credits: 19,
+    membership: 'plus',
+    expiresAt: null,
+  });
 
-  delete require.cache[gamificationPath];
-  const { addExperience } = require('../lib/user/gamification') as typeof import('../lib/user/gamification');
+  delete require.cache[checkinPath];
 
   t.after(() => {
     apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
-    delete require.cache[gamificationPath];
+    creditsModule.getUserCreditInfo = originalGetUserCreditInfo;
+    delete require.cache[checkinPath];
   });
 
-  const result = await addExperience('user-1', 10, 'chat');
+  const { getCheckinStatus } = await import('../lib/user/checkin');
+  const status = await getCheckinStatus('user-1');
 
-  assert.equal(upsertCall?.options.onConflict, 'user_id');
-  assert.equal(upsertCall?.payload.level, 2);
-  assert.equal(upsertCall?.payload.experience, 30);
-  assert.equal(upsertCall?.payload.total_experience, 130);
-  assert.equal(upsertCall?.payload.title, '见习者');
-  assert.equal(result.leveledUp, false);
-  assert.equal(result.newLevel, undefined);
-  assert.equal(result.newTitle, undefined);
+  assert.equal(status.canCheckin, true);
+  assert.deepEqual(status.rewardRange, [2, 6]);
+  assert.equal(status.blockedReason, null);
+});
+
+test('linuxdo monthly claim migration should serialize grants with an advisory lock', () => {
+  const sql = fs.readFileSync('supabase/migrations/20260410_103000_fix_linuxdo_claim_concurrency.sql', 'utf8');
+
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.claim_linuxdo_membership_as_service/u);
+  assert.match(sql, /pg_advisory_xact_lock/u);
+  assert.match(sql, /linuxdo_monthly_claim:/u);
+});
+
+test('checkin over-cap migration should drop achievements and keep the full reward when signing in below the cap', () => {
+  const sql = fs.readFileSync(
+    'supabase/migrations/20260410_141500_checkin_overcap_drop_user_achievements.sql',
+    'utf8',
+  );
+
+  assert.match(sql, /DROP TABLE IF EXISTS public\.user_achievements/u);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.perform_daily_checkin_as_service/u);
+  assert.doesNotMatch(sql, /LEAST\(v_reward_credits,\s*v_credit_limit - v_current_credits\)/u);
+  assert.match(sql, /v_new_credits := v_current_credits \+ v_reward_credits;/u);
 });
 
 test('checkRateLimit should use transactional rpc result', async (t) => {

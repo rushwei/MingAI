@@ -4,15 +4,14 @@
  * 使用服务端 Supabase 客户端绕过 RLS
  * 注意：积分存储在 users 表的 ai_chat_count 字段
  * 
- * 积分恢复规则：
- * - Free: 每日+1次，上限3次
- * - Plus: 每日+5次，上限50次
- * - Pro: 每小时+1次，上限200次
+ * 当前规则：
+ * - 积分余额存储在 users.ai_chat_count
+ * - 会员只决定上限（Free 10 / Plus 20 / Pro 50）
+ * - 定时恢复已取消，积分主要来自签到、激活码与退款
  */
 
 import { type MembershipType, getPlanConfig, isMembershipExpired } from './membership';
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { getUserLevel } from './gamification';
 
 /**
  * 一次查询获取用户积分 + 有效会员类型
@@ -38,14 +37,13 @@ export async function getUserAuthInfo(userId: string): Promise<{
 export async function getUserCreditInfo(userId: string): Promise<{
     credits: number;
     membership: MembershipType;
-    lastRestoreAt: Date | null;
     expiresAt: Date | null;
 } | null> {
     const supabase = getSystemAdminClient();
 
     const { data, error } = await supabase
         .from('users')
-        .select('ai_chat_count, membership, last_credit_restore_at, membership_expires_at')
+        .select('ai_chat_count, membership, membership_expires_at')
         .eq('id', userId)
         .single();
 
@@ -63,9 +61,8 @@ export async function getUserCreditInfo(userId: string): Promise<{
     }
 
     return {
-        credits: typeof data.ai_chat_count === 'number' ? data.ai_chat_count : 3,
+        credits: typeof data.ai_chat_count === 'number' ? data.ai_chat_count : 1,
         membership,
-        lastRestoreAt: data.last_credit_restore_at ? new Date(data.last_credit_restore_at) : null,
         expiresAt,
     };
 }
@@ -97,7 +94,7 @@ export async function useCredit(userId: string): Promise<number | null> {
 }
 
 /**
- * 添加积分（充值）
+ * 添加积分
  */
 export async function addCredits(userId: string, amount: number): Promise<number | null> {
     const supabase = getSystemAdminClient();
@@ -121,103 +118,6 @@ export async function hasCredits(userId: string): Promise<boolean> {
     return credits > 0;
 }
 
-/**
- * 恢复单个用户的积分
- * @returns 恢复的积分数量，如果不需要恢复返回 0
- */
-export async function restoreUserCredits(userId: string): Promise<number> {
-    const supabase = getSystemAdminClient();
-    const info = await getUserCreditInfo(userId);
-
-    if (!info) return 0;
-
-    const plan = getPlanConfig(info.membership);
-    const levelInfo = await getUserLevel(userId);
-    const levelBonus = Math.max(0, (levelInfo?.level || 1) - 1);
-    const effectiveLimit = plan.creditLimit + levelBonus;
-    const now = new Date();
-    const lastRestore = info.lastRestoreAt || new Date(0);
-
-    // 计算应恢复的次数
-    let periodsElapsed = 0;
-
-    if (plan.restorePeriod === 'daily') {
-        // 计算跨越了多少天
-        const lastRestoreDay = new Date(lastRestore.getFullYear(), lastRestore.getMonth(), lastRestore.getDate());
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        periodsElapsed = Math.floor((today.getTime() - lastRestoreDay.getTime()) / (24 * 60 * 60 * 1000));
-    } else if (plan.restorePeriod === 'hourly') {
-        // 计算跨越了多少小时
-        periodsElapsed = Math.floor((now.getTime() - lastRestore.getTime()) / (60 * 60 * 1000));
-    }
-
-    if (periodsElapsed <= 0) return 0;
-
-    // 计算恢复的积分数
-    const creditsToRestore = periodsElapsed * plan.restoreCredits;
-    const newCredits = Math.min(info.credits + creditsToRestore, effectiveLimit);
-    const actualRestored = newCredits - info.credits;
-
-    if (actualRestored <= 0) return 0;
-
-    const { data, error } = await supabase
-        .rpc('restore_ai_chat_count', {
-            user_id: userId,
-            amount: creditsToRestore,
-            credit_limit: effectiveLimit,
-            restore_at: now.toISOString(),
-        });
-
-    if (error || typeof data !== 'number') {
-        console.error('[credits] Failed to restore credits:', error?.message);
-        return 0;
-    }
-
-    const restored = Math.max(0, data - info.credits);
-    return restored;
-}
-
-/**
- * 批量恢复所有用户的积分（用于 Cron Job）
- * @param period 恢复周期 ('daily' | 'hourly')
- */
-export async function restoreAllCredits(period: 'daily' | 'hourly'): Promise<{
-    processed: number;
-    restored: number;
-}> {
-    const supabase = getSystemAdminClient();
-    const nowIso = new Date().toISOString();
-
-    // 根据周期选择需要处理的会员类型
-    let query = supabase
-        .from('users')
-        .select('id, membership, membership_expires_at');
-
-    if (period === 'hourly') {
-        query = query
-            .eq('membership', 'pro')
-            .or(`membership_expires_at.is.null,membership_expires_at.gt.${nowIso}`);
-    } else {
-        query = query.or(
-            `membership.in.(free,plus),and(membership.eq.pro,membership_expires_at.lte.${nowIso})`
-        );
-    }
-
-    const { data: users, error } = await query;
-
-    if (error || !users) {
-        console.error('[credits] Failed to fetch users for restore:', error?.message);
-        return { processed: 0, restored: 0 };
-    }
-
-    let totalRestored = 0;
-
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < users.length; i += BATCH_SIZE) {
-        const batch = users.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(batch.map(user => restoreUserCredits(user.id)));
-        totalRestored += results.reduce((sum, r) => sum + r, 0);
-    }
-
-    return { processed: users.length, restored: totalRestored };
+export function getMembershipCreditLimit(type: MembershipType): number {
+    return getPlanConfig(type).creditLimit;
 }

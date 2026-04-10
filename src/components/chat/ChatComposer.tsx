@@ -437,7 +437,7 @@ export function ChatComposer({
                                     </span>
                                 ) : (
                                     <span className="text-foreground-secondary/80">
-                                        {disabled ? "请充值后继续使用" : isDreamMode ? "\u{1F319} 做了什么梦" : "尽管问"}
+                                        {disabled ? "请先获取积分" : isDreamMode ? "\u{1F319} 做了什么梦" : "尽管问"}
                                     </span>
                                 )}
                             </div>

@@ -9,7 +9,6 @@ export type AppBootstrapViewerSummary = {
   membershipType: MembershipType | null;
   membershipExpiresAt: string | null;
   aiChatCount: number | null;
-  lastCreditRestoreAt: string | null;
 };
 
 export type AppBootstrapData = {
@@ -18,8 +17,6 @@ export type AppBootstrapData = {
   membership: MembershipInfo | null;
   featureToggles: Record<string, boolean>;
   featureTogglesLoaded: boolean;
-  paymentPaused: boolean;
-  paymentStatusLoaded: boolean;
   unreadCount: number;
 };
 
@@ -29,8 +26,6 @@ export const EMPTY_APP_BOOTSTRAP: AppBootstrapData = {
   membership: null,
   featureToggles: {},
   featureTogglesLoaded: false,
-  paymentPaused: false,
-  paymentStatusLoaded: false,
   unreadCount: 0,
 };
 
@@ -51,18 +46,12 @@ export async function loadAppBootstrap(): Promise<AppBootstrapData> {
     throw new Error('功能状态加载失败');
   }
 
-  if (result.data.paymentStatusLoaded !== true) {
-    throw new Error('支付状态加载失败');
-  }
-
   return {
     viewerLoaded: result.data.viewerLoaded === true,
     viewerSummary: result.data.viewerSummary ?? null,
     membership: result.data.membership ?? null,
     featureToggles: result.data.featureToggles ?? {},
     featureTogglesLoaded: result.data.featureTogglesLoaded === true,
-    paymentPaused: result.data.paymentPaused ?? false,
-    paymentStatusLoaded: result.data.paymentStatusLoaded === true,
     unreadCount: result.data.unreadCount ?? 0,
   };
 }

@@ -213,7 +213,7 @@ export function KeyManagementPanel() {
                             >
                                 <option value="plus">Plus 会员</option>
                                 <option value="pro">Pro 会员</option>
-                                <option value="credits">积分充值</option>
+                                <option value="credits">积分发放</option>
                             </select>
                         </div>
 

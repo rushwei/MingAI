@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Sparkles, Coins } from 'lucide-react';
+import { requestBrowserJson } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 interface AIAnalysisLockProps {
@@ -63,20 +64,17 @@ export function AIAnalysisLock({
         setError('');
 
         try {
-            // 调用服务端API扣减积分
-            const response = await fetch('/api/credits/use', {
+            const result = await requestBrowserJson<{ success: boolean; remaining: number }>('/api/credits/use', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId }),
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.code === 'INSUFFICIENT_CREDITS') {
-                    setError('积分不足，请先充值');
+            if (result.error) {
+                if (result.error.code === 'INSUFFICIENT_CREDITS') {
+                    setError('积分不足，请先获取积分');
                 } else {
-                    setError(data.error || '解锁失败，请重试');
+                    setError(result.error.message || '解锁失败，请重试');
                 }
                 setLoading(false);
                 return;
@@ -111,14 +109,14 @@ export function AIAnalysisLock({
                         </div>
                         <h3 className="text-lg font-bold mb-2">积分不足</h3>
                         <p className="text-sm text-foreground-secondary mb-4">
-                            您的积分已用完，请前往会员页面购买积分或升级会员
+                            您的积分已用完，请前往会员中心通过签到、激活码或会员权益继续获取积分
                         </p>
                         <button
                             onClick={() => router.push('/user/upgrade')}
                             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90 transition-opacity"
                         >
                             <Coins className="w-4 h-4" />
-                            前往充值
+                            前往会员中心
                         </button>
                     </div>
                 </div>

@@ -8,13 +8,7 @@ import {
     getCheckinCalendar,
     getCheckinStats
 } from '@/lib/user/checkin';
-import { getUserLevel } from '@/lib/user/gamification';
 import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { createMemoryCache, createSingleFlight } from '@/lib/cache/memory';
-
-const STATUS_CACHE_TTL_MS = 60_000;
-const statusCache = createMemoryCache<CheckinResponse['data']>(STATUS_CACHE_TTL_MS);
-const statusSingleFlight = createSingleFlight<CheckinResponse['data']>();
 
 interface CheckinResponse {
     success: boolean;
@@ -22,27 +16,23 @@ interface CheckinResponse {
         status?: {
             canCheckin: boolean;
             lastCheckin: string | null;
-            streakDays: number;
             todayCheckedIn: boolean;
+            rewardRange: [number, number];
+            currentCredits: number;
+            creditLimit: number;
+            blockedReason: 'already_checked_in' | 'credit_cap_reached' | null;
         };
         result?: {
-            streakDays: number;
             rewardCredits: number;
-            rewardXp: number;
-            leveledUp: boolean;
+            credits?: number;
+            creditLimit?: number;
+            blockedReason?: 'already_checked_in' | 'credit_cap_reached';
         };
         calendar?: string[];
         stats?: {
             totalDays: number;
-            currentStreak: number;
-            longestStreak: number;
             thisMonthDays: number;
-        };
-        level?: {
-            level: number;
-            experience: number;
-            totalExperience: number;
-            title: string;
+            totalCreditsEarned: number;
         };
     };
     error?: string;
@@ -64,35 +54,8 @@ export async function GET(request: NextRequest) {
 
         switch (action) {
             case 'status': {
-                const cached = statusCache.get(user.id);
-                if (cached !== null) {
-                    if (perfEnabled) {
-                        const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
-                        console.info(`[perf:checkin:status] ${duration}ms`, { userId: user.id, cached: true });
-                    }
-                    return jsonOk({
-                        success: true,
-                        data: cached,
-                    });
-                }
-
-                const data = await statusSingleFlight.run(user.id, async () => {
-                        const [status, level] = await Promise.all([
-                            getCheckinStatus(user.id),
-                            getUserLevel(user.id),
-                        ]);
-                        const payload: CheckinResponse['data'] = {
-                            status,
-                            level: level ? {
-                                level: level.level,
-                                experience: level.experience,
-                                totalExperience: level.totalExperience,
-                                title: level.title,
-                            } : undefined
-                        };
-                        statusCache.set(user.id, payload);
-                        return payload;
-                    });
+                const status = await getCheckinStatus(user.id);
+                const data: CheckinResponse['data'] = { status };
                 if (perfEnabled) {
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                     console.info(`[perf:checkin:status] ${duration}ms`, { userId: user.id });
@@ -146,30 +109,25 @@ export async function POST(request: NextRequest) {
         if (!result.success) {
             return jsonError(result.error || '签到失败', 400, {
                 success: false,
+                data: {
+                    result: {
+                        rewardCredits: result.rewardCredits,
+                        credits: result.credits,
+                        creditLimit: result.creditLimit,
+                        blockedReason: result.blockedReason,
+                    },
+                },
             });
         }
-
-        statusCache.remove(user.id);
-        statusSingleFlight.clear(user.id);
-
-        // 获取更新后的等级信息
-        const level = await getUserLevel(user.id);
 
         return jsonOk({
             success: true,
             data: {
                 result: {
-                    streakDays: result.streakDays,
                     rewardCredits: result.rewardCredits,
-                    rewardXp: result.rewardXp,
-                    leveledUp: result.leveledUp,
+                    credits: result.credits,
+                    creditLimit: result.creditLimit,
                 },
-                level: level ? {
-                    level: level.level,
-                    experience: level.experience,
-                    totalExperience: level.totalExperience,
-                    title: level.title,
-                } : undefined,
             },
         });
     } catch (error) {

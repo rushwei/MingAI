@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server';
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
 
-test('app bootstrap route should return viewer summary, membership, toggles, payment status and unread count', async (t) => {
+test('app bootstrap route should return viewer summary, membership, toggles and unread count', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const appSettingsModule = require('../lib/app-settings') as any;
   const routePath = require.resolve('../app/api/app/bootstrap/route');
@@ -13,7 +13,6 @@ test('app bootstrap route should return viewer summary, membership, toggles, pay
   const originalGetAuthContext = apiUtilsModule.getAuthContext;
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalReadFeatureTogglesState = appSettingsModule.readFeatureTogglesState;
-  const originalReadPaymentsPausedState = appSettingsModule.readPaymentsPausedState;
 
   apiUtilsModule.getAuthContext = async () => ({
     user: {
@@ -40,7 +39,6 @@ test('app bootstrap route should return viewer summary, membership, toggles, pay
                         membership: 'pro',
                         membership_expires_at: '2099-01-01T00:00:00.000Z',
                         ai_chat_count: 88,
-                        last_credit_restore_at: '2026-03-29T00:00:00.000Z',
                       },
                       error: null,
                     }),
@@ -78,13 +76,11 @@ test('app bootstrap route should return viewer summary, membership, toggles, pay
   });
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   appSettingsModule.readFeatureTogglesState = async () => ({ loaded: true, toggles: { chat: false, tarot: true } });
-  appSettingsModule.readPaymentsPausedState = async () => ({ loaded: true, paused: true });
 
   t.after(() => {
     apiUtilsModule.getAuthContext = originalGetAuthContext;
     apiUtilsModule.jsonOk = originalJsonOk;
     appSettingsModule.readFeatureTogglesState = originalReadFeatureTogglesState;
-    appSettingsModule.readPaymentsPausedState = originalReadPaymentsPausedState;
     delete require.cache[routePath];
   });
 
@@ -102,8 +98,6 @@ test('app bootstrap route should return viewer summary, membership, toggles, pay
   assert.equal(payload.data.membership.aiChatCount, 88);
   assert.equal(payload.data.featureToggles.chat, false);
   assert.equal(payload.data.featureTogglesLoaded, true);
-  assert.equal(payload.data.paymentPaused, true);
-  assert.equal(payload.data.paymentStatusLoaded, true);
   assert.equal(payload.data.unreadCount, 4);
 });
 
@@ -115,7 +109,6 @@ test('app bootstrap route should return public state for anonymous users', async
   const originalGetAuthContext = apiUtilsModule.getAuthContext;
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalReadFeatureTogglesState = appSettingsModule.readFeatureTogglesState;
-  const originalReadPaymentsPausedState = appSettingsModule.readPaymentsPausedState;
 
   apiUtilsModule.getAuthContext = async () => ({
     user: null,
@@ -123,13 +116,11 @@ test('app bootstrap route should return public state for anonymous users', async
   });
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   appSettingsModule.readFeatureTogglesState = async () => ({ loaded: true, toggles: { chat: false } });
-  appSettingsModule.readPaymentsPausedState = async () => ({ loaded: true, paused: false });
 
   t.after(() => {
     apiUtilsModule.getAuthContext = originalGetAuthContext;
     apiUtilsModule.jsonOk = originalJsonOk;
     appSettingsModule.readFeatureTogglesState = originalReadFeatureTogglesState;
-    appSettingsModule.readPaymentsPausedState = originalReadPaymentsPausedState;
     delete require.cache[routePath];
   });
 
@@ -144,12 +135,10 @@ test('app bootstrap route should return public state for anonymous users', async
   assert.equal(payload.data.membership, null);
   assert.equal(payload.data.featureToggles.chat, false);
   assert.equal(payload.data.featureTogglesLoaded, true);
-  assert.equal(payload.data.paymentPaused, false);
-  assert.equal(payload.data.paymentStatusLoaded, true);
   assert.equal(payload.data.unreadCount, 0);
 });
 
-test('app bootstrap route should mark toggles and payment status as unloaded when app settings reads fail', async (t) => {
+test('app bootstrap route should mark toggles as unloaded when app settings reads fail', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const appSettingsModule = require('../lib/app-settings') as any;
   const routePath = require.resolve('../app/api/app/bootstrap/route');
@@ -157,7 +146,6 @@ test('app bootstrap route should mark toggles and payment status as unloaded whe
   const originalGetAuthContext = apiUtilsModule.getAuthContext;
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalReadFeatureTogglesState = appSettingsModule.readFeatureTogglesState;
-  const originalReadPaymentsPausedState = appSettingsModule.readPaymentsPausedState;
 
   apiUtilsModule.getAuthContext = async () => ({
     user: null,
@@ -165,13 +153,11 @@ test('app bootstrap route should mark toggles and payment status as unloaded whe
   });
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   appSettingsModule.readFeatureTogglesState = async () => ({ loaded: false, toggles: {} });
-  appSettingsModule.readPaymentsPausedState = async () => ({ loaded: false, paused: false });
 
   t.after(() => {
     apiUtilsModule.getAuthContext = originalGetAuthContext;
     apiUtilsModule.jsonOk = originalJsonOk;
     appSettingsModule.readFeatureTogglesState = originalReadFeatureTogglesState;
-    appSettingsModule.readPaymentsPausedState = originalReadPaymentsPausedState;
     delete require.cache[routePath];
   });
 
@@ -184,8 +170,6 @@ test('app bootstrap route should mark toggles and payment status as unloaded whe
   assert.equal(payload.data.viewerLoaded, true);
   assert.deepEqual(payload.data.featureToggles, {});
   assert.equal(payload.data.featureTogglesLoaded, false);
-  assert.equal(payload.data.paymentPaused, false);
-  assert.equal(payload.data.paymentStatusLoaded, false);
 });
 
 test('app bootstrap route should mark viewer state as unloaded when profile lookup fails', async (t) => {
@@ -196,7 +180,6 @@ test('app bootstrap route should mark viewer state as unloaded when profile look
   const originalGetAuthContext = apiUtilsModule.getAuthContext;
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalReadFeatureTogglesState = appSettingsModule.readFeatureTogglesState;
-  const originalReadPaymentsPausedState = appSettingsModule.readPaymentsPausedState;
 
   apiUtilsModule.getAuthContext = async () => ({
     user: {
@@ -251,13 +234,11 @@ test('app bootstrap route should mark viewer state as unloaded when profile look
   });
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   appSettingsModule.readFeatureTogglesState = async () => ({ loaded: true, toggles: { chat: false } });
-  appSettingsModule.readPaymentsPausedState = async () => ({ loaded: true, paused: false });
 
   t.after(() => {
     apiUtilsModule.getAuthContext = originalGetAuthContext;
     apiUtilsModule.jsonOk = originalJsonOk;
     appSettingsModule.readFeatureTogglesState = originalReadFeatureTogglesState;
-    appSettingsModule.readPaymentsPausedState = originalReadPaymentsPausedState;
     delete require.cache[routePath];
   });
 
@@ -281,7 +262,6 @@ test('app bootstrap route should fall back to free membership defaults when the 
   const originalGetAuthContext = apiUtilsModule.getAuthContext;
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalReadFeatureTogglesState = appSettingsModule.readFeatureTogglesState;
-  const originalReadPaymentsPausedState = appSettingsModule.readPaymentsPausedState;
 
   apiUtilsModule.getAuthContext = async () => ({
     user: {
@@ -337,13 +317,11 @@ test('app bootstrap route should fall back to free membership defaults when the 
   });
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   appSettingsModule.readFeatureTogglesState = async () => ({ loaded: true, toggles: { chat: false } });
-  appSettingsModule.readPaymentsPausedState = async () => ({ loaded: true, paused: false });
 
   t.after(() => {
     apiUtilsModule.getAuthContext = originalGetAuthContext;
     apiUtilsModule.jsonOk = originalJsonOk;
     appSettingsModule.readFeatureTogglesState = originalReadFeatureTogglesState;
-    appSettingsModule.readPaymentsPausedState = originalReadPaymentsPausedState;
     delete require.cache[routePath];
   });
 
@@ -356,9 +334,98 @@ test('app bootstrap route should fall back to free membership defaults when the 
   assert.equal(payload.data.viewerLoaded, true);
   assert.equal(payload.data.viewerSummary.userId, 'user-1');
   assert.equal(payload.data.viewerSummary.membershipType, 'free');
-  assert.equal(payload.data.viewerSummary.aiChatCount, 3);
+  assert.equal(payload.data.viewerSummary.aiChatCount, 1);
   assert.equal(payload.data.membership.type, 'free');
-  assert.equal(payload.data.membership.aiChatCount, 3);
+  assert.equal(payload.data.membership.aiChatCount, 1);
+});
+
+test('app bootstrap route should downgrade expired viewer membership to free consistently', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const appSettingsModule = require('../lib/app-settings') as any;
+  const routePath = require.resolve('../app/api/app/bootstrap/route');
+
+  const originalGetAuthContext = apiUtilsModule.getAuthContext;
+  const originalJsonOk = apiUtilsModule.jsonOk;
+  const originalReadFeatureTogglesState = appSettingsModule.readFeatureTogglesState;
+
+  apiUtilsModule.getAuthContext = async () => ({
+    user: {
+      id: 'user-1',
+      user_metadata: {},
+    },
+    supabase: {
+      from(table: string) {
+        if (table === 'users') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    maybeSingle: async () => ({
+                      data: {
+                        id: 'user-1',
+                        nickname: '过期用户',
+                        avatar_url: null,
+                        is_admin: false,
+                        membership: 'pro',
+                        membership_expires_at: '2020-01-01T00:00:00.000Z',
+                        ai_chat_count: 7,
+                      },
+                      error: null,
+                    }),
+                  };
+                },
+              };
+            },
+          };
+        }
+
+        if (table === 'notifications') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    gte() {
+                      return {
+                        eq: async () => ({
+                          count: 0,
+                          error: null,
+                        }),
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+
+        throw new Error(`unexpected table: ${table}`);
+      },
+    },
+  });
+  apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
+  appSettingsModule.readFeatureTogglesState = async () => ({ loaded: true, toggles: {} });
+
+  t.after(() => {
+    apiUtilsModule.getAuthContext = originalGetAuthContext;
+    apiUtilsModule.jsonOk = originalJsonOk;
+    appSettingsModule.readFeatureTogglesState = originalReadFeatureTogglesState;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/app/bootstrap/route') as typeof import('../app/api/app/bootstrap/route');
+  const response = await routeModule.GET(new NextRequest('http://localhost/api/app/bootstrap'));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.data.membership.type, 'free');
+  assert.equal(payload.data.membership.isActive, false);
+  assert.equal(payload.data.viewerSummary.membershipType, 'free');
+  assert.equal(payload.data.viewerSummary.aiChatCount, 7);
+  assert.equal(payload.data.viewerSummary.membershipExpiresAt, '2020-01-01T00:00:00.000Z');
 });
 
 test('loadAppBootstrap should unwrap the route envelope into app bootstrap data', async () => {
@@ -373,20 +440,16 @@ test('loadAppBootstrap should unwrap the route envelope into app bootstrap data'
         isAdmin: false,
         membershipType: 'free',
         membershipExpiresAt: null,
-        aiChatCount: 3,
-        lastCreditRestoreAt: null,
+        aiChatCount: 1,
       },
       membership: {
         type: 'free',
         expiresAt: null,
         isActive: true,
-        aiChatCount: 3,
-        lastCreditRestoreAt: null,
+        aiChatCount: 1,
       },
       featureToggles: { chat: false },
       featureTogglesLoaded: true,
-      paymentPaused: true,
-      paymentStatusLoaded: true,
       unreadCount: 7,
     },
   }), {
@@ -400,7 +463,6 @@ test('loadAppBootstrap should unwrap the route envelope into app bootstrap data'
 
     assert.equal(payload.viewerSummary?.userId, 'user-1');
     assert.equal(payload.featureToggles.chat, false);
-    assert.equal(payload.paymentPaused, true);
     assert.equal(payload.unreadCount, 7);
   } finally {
     global.fetch = originalFetch;
@@ -423,7 +485,7 @@ test('loadAppBootstrap should throw on request failure', async () => {
   }
 });
 
-test('loadAppBootstrap should throw when feature or payment state is unavailable', async () => {
+test('loadAppBootstrap should throw when feature state is unavailable', async () => {
   const originalFetch = global.fetch;
 
   global.fetch = async () => new Response(JSON.stringify({
@@ -433,8 +495,6 @@ test('loadAppBootstrap should throw when feature or payment state is unavailable
       membership: null,
       featureToggles: {},
       featureTogglesLoaded: false,
-      paymentPaused: false,
-      paymentStatusLoaded: true,
       unreadCount: 0,
     },
   }), {

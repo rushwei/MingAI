@@ -13,13 +13,11 @@ import { pricingPlans, type PricingPlan, type MembershipType } from '@/lib/user/
 interface SubscriptionPlansProps {
     currentPlan: MembershipType;
     onSelectPlan: (plan: PricingPlan) => void;
-    isPaymentPaused?: boolean;
 }
 
 export function SubscriptionPlans({
     currentPlan,
     onSelectPlan,
-    isPaymentPaused = false,
 }: SubscriptionPlansProps) {
     // 手机端默认选中推荐的套餐
     const getDefaultTab = (): MembershipType => {
@@ -71,7 +69,6 @@ export function SubscriptionPlans({
     const renderPlanCard = (plan: PricingPlan) => {
         const color = getPlanColor(plan.id);
         const isCurrent = currentPlan === plan.id;
-        const isPaused = isPaymentPaused && plan.id !== 'free';
         const isRecommended = plan.id === recommendedPlan;
 
         return (
@@ -98,19 +95,14 @@ export function SubscriptionPlans({
                                 {isCurrent && (
                                     <span className="text-xs text-green-500">当前</span>
                                 )}
-                                {isPaused && (
-                                    <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">暂停</span>
-                                )}
                             </div>
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-xl font-bold">
-                            {plan.price === 0 ? '免费' : `¥${plan.price}`}
+                        <div className="text-sm font-semibold text-foreground">
+                            {plan.id === 'free' ? '常驻' : '月度权益'}
                         </div>
-                        {plan.price > 0 && (
-                            <div className="text-foreground-secondary text-xs">/{plan.period}</div>
-                        )}
+                        <div className="text-foreground-secondary text-xs">{plan.period}</div>
                     </div>
                 </div>
                 <ul className="space-y-1.5 mb-3 text-sm">
@@ -131,20 +123,18 @@ export function SubscriptionPlans({
                     )}
                 </ul>
                 <button
-                    onClick={() => !isPaused && onSelectPlan(plan)}
-                    disabled={isCurrent || plan.id === 'free' || isPaused}
+                    onClick={() => onSelectPlan(plan)}
+                    disabled={isCurrent || plan.id === 'free'}
                     className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all ${plan.id === 'free'
                         ? 'bg-background text-foreground-secondary cursor-not-allowed'
-                        : isPaused
-                            ? 'bg-amber-500/10 text-amber-600 cursor-not-allowed'
-                            : isCurrent
-                                ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
-                                : isRecommended
-                                    ? 'bg-accent text-white hover:bg-accent/90'
-                                    : 'bg-background-secondary hover:bg-accent hover:text-white'
+                        : isCurrent
+                            ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
+                            : isRecommended
+                                ? 'bg-accent text-white hover:bg-accent/90'
+                                : 'bg-background-secondary hover:bg-accent hover:text-white'
                         }`}
                 >
-                    {plan.id === 'free' ? '免费' : isPaused ? '暂停' : isCurrent ? '已开通' : '开通'}
+                    {plan.id === 'free' ? '免费' : isCurrent ? '已开通' : '查看获取方式'}
                 </button>
             </div>
         );

@@ -15,7 +15,6 @@ import {
     Plus,
     X,
 } from 'lucide-react';
-import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { DEFAULT_MOBILE_MAIN_ITEMS, DEFAULT_MOBILE_DRAWER_ORDER } from '@/lib/user/settings';
 import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
@@ -32,7 +31,6 @@ const GRID_COLS_CLASS: Record<number, string> = {
 export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const { isPaused: isPaymentPaused } = usePaymentPause();
     const { isFeatureEnabled, isLoading: featureLoading, loaded: featureLoaded, error: featureError, refresh: refreshFeatures } = useFeatureToggles();
     const isNavLoading = featureLoading;
 
@@ -181,10 +179,6 @@ export function MobileNav() {
                                     (pathname === other.href || pathname?.startsWith(other.href + '/'))
                                 ));
                             const Icon = item.icon;
-
-                            if (item.href === '/user/upgrade' && isPaymentPaused) {
-                                return null;
-                            }
 
                             return (
                                 <Link

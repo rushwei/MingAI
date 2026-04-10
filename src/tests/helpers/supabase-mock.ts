@@ -89,10 +89,10 @@ export function createMockSupabaseClient(config: MockSupabaseConfig = {}) {
 
 /** Default user table config for a free user with credits */
 export const FREE_USER_TABLE = {
-    data: { ai_chat_count: 10, membership: 'free', last_credit_restore_at: null, membership_expires_at: null },
+    data: { ai_chat_count: 10, membership: 'free', membership_expires_at: null },
 };
 
 /** Default user table config for a pro user with credits */
 export const PRO_USER_TABLE = {
-    data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+    data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
 };

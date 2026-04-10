@@ -65,7 +65,6 @@ interface ChatLayoutProps {
     aiPersonalizationEnabled: boolean;
 
     // Credit lock
-    isPaymentPaused: boolean;
     isCreditLocked: boolean;
     onAuthRequired?: () => void;
 
@@ -87,7 +86,7 @@ export function ChatLayout(props: ChatLayoutProps) {
         mentions, onMentionsChange, promptKnowledgeBases,
         dreamContext, dreamContextLoading,
         knowledgeBaseEnabled, aiPersonalizationEnabled,
-        isPaymentPaused, isCreditLocked,
+        isCreditLocked,
         onAuthRequired,
         children,
     } = props;
@@ -122,7 +121,7 @@ export function ChatLayout(props: ChatLayoutProps) {
                     <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 bg-background">
                         <p className="text-xl text-foreground-secondary mb-8 animate-fade-in-up">今天运势如何？</p>
                         {isCreditLocked && (
-                            <CreditLockBanner isPaymentPaused={isPaymentPaused} />
+                            <CreditLockBanner />
                         )}
                         <div className="w-full max-w-3xl">
                             <ChatComposer {...composerProps} hideDisclaimer />
@@ -152,7 +151,7 @@ export function ChatLayout(props: ChatLayoutProps) {
                             </div>
                         )}
                         {isCreditLocked && (
-                            <CreditLockBanner isPaymentPaused={isPaymentPaused} inline />
+                            <CreditLockBanner inline />
                         )}
                         <ChatComposer {...composerProps} />
                     </>
@@ -164,7 +163,7 @@ export function ChatLayout(props: ChatLayoutProps) {
     );
 }
 
-function CreditLockBanner({ isPaymentPaused, inline }: { isPaymentPaused: boolean; inline?: boolean }) {
+function CreditLockBanner({ inline }: { inline?: boolean }) {
     const wrapperClass = inline
         ? 'px-4 py-3 bg-amber-500/10 border-t border-amber-500/20'
         : 'w-full max-w-3xl mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl';
@@ -175,17 +174,10 @@ function CreditLockBanner({ isPaymentPaused, inline }: { isPaymentPaused: boolea
                     <Lock className="w-4 h-4" />
                     <span className="text-sm">积分已用完</span>
                 </div>
-                {isPaymentPaused ? (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-sm cursor-not-allowed">
-                        <Lock className="w-3.5 h-3.5" />
-                        支付暂停
-                    </div>
-                ) : (
-                    <Link href="/user/upgrade" className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        立即充值
-                    </Link>
-                )}
+                <Link href="/user/upgrade" className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    获取积分
+                </Link>
             </div>
         </div>
     );

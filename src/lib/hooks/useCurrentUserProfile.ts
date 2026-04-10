@@ -18,7 +18,6 @@ function toUserProfile(bootstrap: ReturnType<typeof useAppBootstrap>['data']): U
     membership: bootstrap.viewerSummary.membershipType,
     membership_expires_at: bootstrap.viewerSummary.membershipExpiresAt,
     ai_chat_count: bootstrap.viewerSummary.aiChatCount,
-    last_credit_restore_at: bootstrap.viewerSummary.lastCreditRestoreAt,
   };
 }
 

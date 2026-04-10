@@ -6,20 +6,16 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Key, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
+import { X, Key, CheckCircle, AlertCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
+import { dispatchApiWriteEvents } from '@/lib/browser-api';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
 interface KeyActivationModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: (info: MembershipInfo | null) => void;
-    purchaseLinks?: {
-        plus?: string;
-        pro?: string;
-        credits?: string;
-    };
 }
 
 type ActivationStep = 'input' | 'processing' | 'success' | 'error';
@@ -34,7 +30,6 @@ export function KeyActivationModal({
     isOpen,
     onClose,
     onSuccess,
-    purchaseLinks,
 }: KeyActivationModalProps) {
     const [step, setStep] = useState<ActivationStep>('input');
     const [keyCode, setKeyCode] = useState('');
@@ -82,6 +77,7 @@ export function KeyActivationModal({
             const data = await response.json();
 
             if (data.success) {
+                dispatchApiWriteEvents('/api/activation-keys', 'POST');
                 setResult({
                     keyType: data.keyType,
                     membershipType: data.membershipType,
@@ -127,8 +123,6 @@ export function KeyActivationModal({
         }
         return `已获得 ${result.creditsAmount} 积分`;
     };
-
-    const hasPurchaseLinks = purchaseLinks?.plus || purchaseLinks?.pro || purchaseLinks?.credits;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -238,50 +232,6 @@ export function KeyActivationModal({
                             >
                                 激活
                             </button>
-
-                            {/* 购买链接 */}
-                            {hasPurchaseLinks && (
-                                <div className="mt-6 pt-6 border-t border-border">
-                                    <p className="text-sm text-foreground-secondary mb-3 text-center">
-                                        还没有激活码？
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 justify-center">
-                                        {purchaseLinks?.plus && (
-                                            <a
-                                                href={purchaseLinks.plus}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500/10 text-amber-600 text-sm font-medium hover:bg-amber-500/20 transition-colors"
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                                获取 Plus
-                                            </a>
-                                        )}
-                                        {purchaseLinks?.pro && (
-                                            <a
-                                                href={purchaseLinks.pro}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-500/10 text-purple-600 text-sm font-medium hover:bg-purple-500/20 transition-colors"
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                                获取 Pro
-                                            </a>
-                                        )}
-                                        {purchaseLinks?.credits && (
-                                            <a
-                                                href={purchaseLinks.credits}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-600 text-sm font-medium hover:bg-blue-500/20 transition-colors"
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                                获取积分
-                                            </a>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </>
                     )}
                 </div>

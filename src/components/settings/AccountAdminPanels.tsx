@@ -7,9 +7,7 @@ import {
   Bot,
   GitBranch,
   Key,
-  Link2,
   Settings2,
-  ToggleLeft,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
@@ -19,14 +17,8 @@ const LazyAnnouncementManagementPanel = lazy(async () => ({
 const LazyFeatureTogglePanel = lazy(async () => ({
   default: (await import('@/components/admin/FeatureTogglePanel')).FeatureTogglePanel,
 }));
-const LazyPaymentPausePanel = lazy(async () => ({
-  default: (await import('@/components/admin/PaymentPausePanel')).PaymentPausePanel,
-}));
 const LazyKeyManagementPanel = lazy(async () => ({
   default: (await import('@/components/admin/KeyManagementPanel')).KeyManagementPanel,
-}));
-const LazyPurchaseLinkPanel = lazy(async () => ({
-  default: (await import('@/components/admin/PurchaseLinkPanel')).PurchaseLinkPanel,
 }));
 const LazyAIModelPanel = lazy(async () => ({
   default: (await import('@/components/admin/AIModelPanel')).AIModelPanel,
@@ -105,14 +97,12 @@ export function AdminAnnouncementsContent() {
   );
 }
 
-type AdminFeatureTab = 'toggles' | 'pause' | 'keys' | 'links';
+type AdminFeatureTab = 'toggles' | 'keys';
 type AdminAITab = 'models' | 'gateways';
 
 function resolveAdminFeatureTab(value: string | null | undefined): AdminFeatureTab {
   switch (value) {
-    case 'pause':
     case 'keys':
-    case 'links':
       return value;
     default:
       return 'toggles';
@@ -160,20 +150,16 @@ export function AdminFeaturesContent() {
   };
 
   return (
-    <Section title="功能与支付" description="统一管理功能开关、支付暂停、激活码与购买链接。">
+    <Section title="功能与激活码" description="统一管理功能开关与激活码发放。">
       <div className="flex flex-wrap gap-2">
         <SubtabButton active={activeTab === 'toggles'} onClick={() => switchTab('toggles')} icon={<Settings2 className="h-4 w-4" />} label="功能开关" />
-        <SubtabButton active={activeTab === 'pause'} onClick={() => switchTab('pause')} icon={<ToggleLeft className="h-4 w-4" />} label="支付管理" />
         <SubtabButton active={activeTab === 'keys'} onClick={() => switchTab('keys')} icon={<Key className="h-4 w-4" />} label="激活码" />
-        <SubtabButton active={activeTab === 'links'} onClick={() => switchTab('links')} icon={<Link2 className="h-4 w-4" />} label="购买链接" />
       </div>
 
       <Suspense fallback={<PanelFallback />}>
         <div className="rounded-lg border border-border bg-background p-4">
           {activeTab === 'toggles' && <LazyFeatureTogglePanel />}
-          {activeTab === 'pause' && <LazyPaymentPausePanel />}
           {activeTab === 'keys' && <LazyKeyManagementPanel />}
-          {activeTab === 'links' && <LazyPurchaseLinkPanel />}
         </div>
       </Suspense>
     </Section>

@@ -12,6 +12,8 @@ CREATE TABLE public.activation_keys (
   used_at timestamp with time zone,
   created_by uuid NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  source text NOT NULL DEFAULT 'admin'::text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT activation_keys_pkey PRIMARY KEY (id),
   CONSTRAINT activation_keys_used_by_fkey FOREIGN KEY (used_by) REFERENCES auth.users(id),
   CONSTRAINT activation_keys_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
@@ -141,12 +143,12 @@ CREATE TABLE public.bazi_charts (
   birth_date date NOT NULL,
   birth_time text,
   birth_place text,
-  longitude double precision,
   created_at timestamp with time zone DEFAULT now(),
   calendar_type text DEFAULT 'solar'::text,
   is_leap_month boolean DEFAULT false,
   day_master text,
   day_branch text,
+  longitude double precision,
   CONSTRAINT bazi_charts_pkey PRIMARY KEY (id),
   CONSTRAINT bazi_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -240,10 +242,14 @@ CREATE TABLE public.credit_transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   amount integer NOT NULL,
-  type text NOT NULL CHECK (type = ANY (ARRAY['earn'::text, 'spend'::text, 'reward'::text])),
+  type text NOT NULL CHECK (type = ANY (ARRAY['earn'::text, 'spend'::text, 'refund'::text])),
   source text NOT NULL,
   description text,
   created_at timestamp with time zone DEFAULT now(),
+  balance_after integer,
+  reference_type text,
+  reference_id text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT credit_transactions_pkey PRIMARY KEY (id),
   CONSTRAINT credit_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -251,7 +257,6 @@ CREATE TABLE public.daily_checkins (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   checkin_date date NOT NULL,
-  streak_days integer DEFAULT 1,
   reward_credits integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT daily_checkins_pkey PRIMARY KEY (id),
@@ -454,18 +459,6 @@ CREATE TABLE public.notifications (
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
-CREATE TABLE public.orders (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  product_type text NOT NULL CHECK (product_type = ANY (ARRAY['plus'::text, 'pro'::text, 'pay_per_use'::text])),
-  amount numeric NOT NULL,
-  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'paid'::text, 'cancelled'::text, 'refunded'::text])),
-  payment_method text,
-  created_at timestamp with time zone DEFAULT now(),
-  paid_at timestamp with time zone,
-  CONSTRAINT orders_pkey PRIMARY KEY (id),
-  CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
-);
 CREATE TABLE public.palm_readings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -477,38 +470,24 @@ CREATE TABLE public.palm_readings (
   CONSTRAINT palm_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT palm_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
-CREATE TABLE public.purchase_links (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  link_type text NOT NULL UNIQUE CHECK (link_type = ANY (ARRAY['plus'::text, 'pro'::text, 'credits'::text])),
-  url text NOT NULL,
-  description text,
-  updated_by uuid,
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT purchase_links_pkey PRIMARY KEY (id),
-  CONSTRAINT purchase_links_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
 CREATE TABLE public.qimen_charts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   question text,
   chart_time timestamp with time zone NOT NULL,
-  year integer NOT NULL,
-  month integer NOT NULL,
-  day integer NOT NULL,
-  hour integer NOT NULL,
-  minute integer NOT NULL,
-  timezone text NOT NULL DEFAULT 'Asia/Shanghai'::text,
   dun_type text NOT NULL CHECK (dun_type = ANY (ARRAY['yang'::text, 'yin'::text])),
   ju_number integer NOT NULL CHECK (ju_number >= 1 AND ju_number <= 9),
   pan_type text NOT NULL DEFAULT 'zhuan'::text CHECK (pan_type = 'zhuan'::text),
   ju_method text NOT NULL DEFAULT 'chaibu'::text CHECK (ju_method = ANY (ARRAY['chaibu'::text, 'maoshan'::text])),
-  zhi_fu_ji_gong text NOT NULL DEFAULT 'ji_liuyi'::text CHECK (zhi_fu_ji_gong = ANY (ARRAY['ji_liuyi'::text, 'ji_wugong'::text])),
   conversation_id uuid,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT qimen_charts_month_check CHECK (month >= 1 AND month <= 12),
-  CONSTRAINT qimen_charts_day_check CHECK (day >= 1 AND day <= 31),
-  CONSTRAINT qimen_charts_hour_check CHECK (hour >= 0 AND hour <= 23),
-  CONSTRAINT qimen_charts_minute_check CHECK (minute >= 0 AND minute <= 59),
+  year integer NOT NULL,
+  month integer NOT NULL CHECK (month >= 1 AND month <= 12),
+  day integer NOT NULL CHECK (day >= 1 AND day <= 31),
+  hour integer NOT NULL CHECK (hour >= 0 AND hour <= 23),
+  minute integer NOT NULL CHECK (minute >= 0 AND minute <= 59),
+  timezone text NOT NULL DEFAULT 'Asia/Shanghai'::text,
+  zhi_fu_ji_gong text NOT NULL DEFAULT 'ji_liuyi'::text CHECK (zhi_fu_ji_gong = ANY (ARRAY['ji_liuyi'::text, 'ji_wugong'::text])),
   CONSTRAINT qimen_charts_pkey PRIMARY KEY (id),
   CONSTRAINT qimen_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT qimen_charts_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
@@ -519,8 +498,7 @@ CREATE TABLE public.rate_limits (
   endpoint character varying NOT NULL,
   request_count integer DEFAULT 1,
   window_start timestamp with time zone DEFAULT now(),
-  CONSTRAINT rate_limits_pkey PRIMARY KEY (id),
-  CONSTRAINT rate_limits_identifier_endpoint_key UNIQUE (identifier, endpoint)
+  CONSTRAINT rate_limits_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.reminder_subscriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -544,7 +522,6 @@ CREATE TABLE public.scheduled_reminders (
   sent_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT scheduled_reminders_pkey PRIMARY KEY (id),
-  CONSTRAINT scheduled_reminders_user_id_reminder_type_scheduled_for_key UNIQUE (user_id, reminder_type, scheduled_for),
   CONSTRAINT scheduled_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.tarot_readings (
@@ -559,24 +536,6 @@ CREATE TABLE public.tarot_readings (
   CONSTRAINT tarot_readings_pkey PRIMARY KEY (id),
   CONSTRAINT tarot_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT tarot_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
-);
-CREATE TABLE public.user_achievements (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  achievement_key text NOT NULL,
-  unlocked_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT user_achievements_pkey PRIMARY KEY (id),
-  CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.user_levels (
-  user_id uuid NOT NULL,
-  level integer DEFAULT 1,
-  experience integer DEFAULT 0,
-  total_experience integer DEFAULT 0,
-  title text DEFAULT '初学者'::text,
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT user_levels_pkey PRIMARY KEY (user_id),
-  CONSTRAINT user_levels_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.user_oauth_providers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -603,11 +562,11 @@ CREATE TABLE public.user_settings (
   default_bazi_chart_id uuid,
   default_ziwei_chart_id uuid,
   custom_instructions text,
-  chart_prompt_detail_level text DEFAULT 'default'::text CHECK (chart_prompt_detail_level = ANY (ARRAY['default'::text, 'more'::text, 'full'::text])),
   expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
   user_profile jsonb DEFAULT '{}'::jsonb,
   prompt_kb_ids jsonb DEFAULT '[]'::jsonb,
   visualization_settings jsonb DEFAULT '{}'::jsonb,
+  chart_prompt_detail_level text NOT NULL DEFAULT 'default'::text CHECK (chart_prompt_detail_level = ANY (ARRAY['default'::text, 'more'::text, 'full'::text])),
   CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT user_settings_default_bazi_chart_id_fkey FOREIGN KEY (default_bazi_chart_id) REFERENCES public.bazi_charts(id),
@@ -619,10 +578,9 @@ CREATE TABLE public.users (
   avatar_url text,
   membership text DEFAULT 'free'::text CHECK (membership = ANY (ARRAY['free'::text, 'plus'::text, 'pro'::text])),
   membership_expires_at timestamp with time zone,
-  ai_chat_count integer DEFAULT 3,
+  ai_chat_count integer DEFAULT 1,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  last_credit_restore_at timestamp with time zone DEFAULT now(),
   is_admin boolean DEFAULT false,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
@@ -633,13 +591,12 @@ CREATE TABLE public.ziwei_charts (
   name text NOT NULL,
   gender text,
   birth_date date NOT NULL,
-  birth_time text NOT NULL,
-  birth_place text,
-  longitude double precision,
+  birth_time text NOT NULL CHECK (btrim(birth_time) <> ''::text),
   calendar_type text DEFAULT 'solar'::text,
   created_at timestamp with time zone DEFAULT now(),
   is_leap_month boolean DEFAULT false,
-  CONSTRAINT ziwei_charts_birth_time_nonempty CHECK ((btrim(birth_time) <> ''::text)),
+  birth_place text,
+  longitude double precision,
   CONSTRAINT ziwei_charts_pkey PRIMARY KEY (id),
   CONSTRAINT ziwei_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

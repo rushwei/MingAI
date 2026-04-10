@@ -62,7 +62,7 @@ test('buildMembershipInfo returns defaults for null source', () => {
     const info = buildMembershipInfo(null);
     assert.equal(info.type, 'free');
     assert.equal(info.isActive, true);
-    assert.equal(info.aiChatCount, 3);
+    assert.equal(info.aiChatCount, 1);
 });
 
 test('getUserAuthInfo returns null when DB query fails', async () => {
@@ -101,7 +101,6 @@ test('getUserAuthInfo returns hasCredits=false when credits are 0', async () => 
                         data: {
                             ai_chat_count: 0,
                             membership: 'free',
-                            last_credit_restore_at: null,
                             membership_expires_at: null,
                         },
                         error: null,
@@ -145,20 +144,17 @@ test('useCredit returns null when RPC fails', async () => {
     }
 });
 
-test('getPlanConfig returns correct limits for each tier', () => {
+test('getPlanConfig returns correct credit caps for each tier', () => {
     const { getPlanConfig } = require('../lib/user/membership') as typeof import('../lib/user/membership');
 
     const free = getPlanConfig('free');
-    assert.equal(free.creditLimit, 3);
-    assert.equal(free.restorePeriod, 'daily');
+    assert.equal(free.creditLimit, 10);
 
     const plus = getPlanConfig('plus');
-    assert.equal(plus.creditLimit, 50);
-    assert.equal(plus.restorePeriod, 'daily');
+    assert.equal(plus.creditLimit, 20);
 
     const pro = getPlanConfig('pro');
-    assert.equal(pro.creditLimit, 200);
-    assert.equal(pro.restorePeriod, 'hourly');
+    assert.equal(pro.creditLimit, 50);
 });
 
 test('resolveRateLimitResetAt uses earliest window start', () => {
