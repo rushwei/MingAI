@@ -6,6 +6,14 @@
  */
 'use client';
 
+function buildLinuxDoLoginUrl() {
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const params = new URLSearchParams({
+        returnTo,
+    });
+    return `/api/auth/linuxdo?${params.toString()}`;
+}
+
 export function OAuthButtons() {
     return (
         <>
@@ -16,7 +24,7 @@ export function OAuthButtons() {
             </div>
             <button
                 type="button"
-                onClick={() => { window.location.href = '/api/auth/linuxdo'; }}
+                onClick={() => { window.location.href = buildLinuxDoLoginUrl(); }}
                 className="w-full py-3 rounded-xl border border-border bg-background-secondary hover:bg-background-secondary/80 font-medium transition-colors flex items-center justify-center gap-2 text-sm"
             >
                 <svg width="20" height="20" viewBox="5 5 90 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

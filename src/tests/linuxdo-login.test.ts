@@ -115,6 +115,113 @@ test('exchangeCode should retry backup token endpoint when primary host fails', 
   assert.equal(token.refresh_token, 'refresh-from-backup');
 });
 
+test('linuxdo route should sanitize external returnTo before storing oauth state', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as any;
+  const routePath = require.resolve('../app/api/auth/linuxdo/route');
+
+  const originalGenerateState = linuxdoModule.generateState;
+  const originalGeneratePKCE = linuxdoModule.generatePKCE;
+  const originalBuildAuthUrl = linuxdoModule.buildAuthUrl;
+
+  linuxdoModule.generateState = () => 'oauth-state';
+  linuxdoModule.generatePKCE = () => ({
+    codeVerifier: 'code-verifier',
+    codeChallenge: 'code-challenge',
+  });
+  linuxdoModule.buildAuthUrl = () => 'https://connect.linux.do/oauth2/authorize?mock=1';
+
+  t.after(() => {
+    linuxdoModule.generateState = originalGenerateState;
+    linuxdoModule.generatePKCE = originalGeneratePKCE;
+    linuxdoModule.buildAuthUrl = originalBuildAuthUrl;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/auth/linuxdo/route') as typeof import('../app/api/auth/linuxdo/route');
+  const response = await routeModule.GET(new NextRequest('http://localhost/api/auth/linuxdo?intent=membership-claim&returnTo=%2F%2Fevil.com%2Fpwn'));
+
+  assert.equal(response.status, 307);
+  const oauthStateCookie = response.cookies.get('linuxdo-oauth-state');
+  assert.ok(oauthStateCookie?.value);
+  const parsed = JSON.parse(oauthStateCookie!.value) as {
+    state: string;
+    codeVerifier: string;
+    intent: string;
+    returnTo: string;
+  };
+  assert.equal(parsed.state, 'oauth-state');
+  assert.equal(parsed.codeVerifier, 'code-verifier');
+  assert.equal(parsed.intent, 'membership-claim');
+  assert.equal(parsed.returnTo, '/');
+});
+
+test('linuxdo callback should redirect oauth errors back to sanitized returnTo when state cookie is present', async (t) => {
+  const routePath = require.resolve('../app/api/auth/linuxdo/callback/route');
+
+  t.after(() => {
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/auth/linuxdo/callback/route') as typeof import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+    intent: 'membership-claim',
+    returnTo: '/user/upgrade',
+  }));
+
+  const response = await routeModule.GET(new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?error=access_denied',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  ));
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?error=oauth_denied');
+});
+
+test('linuxdo callback should preserve returnTo when token exchange fails after state validation', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as any;
+  const routePath = require.resolve('../app/api/auth/linuxdo/callback/route');
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+
+  linuxdoModule.exchangeCode = async () => {
+    throw new Error('token exchange failed');
+  };
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/auth/linuxdo/callback/route') as typeof import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+    intent: 'membership-claim',
+    returnTo: '/user/upgrade',
+  }));
+
+  const response = await routeModule.GET(new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  ));
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?error=token_exchange_failed');
+});
+
 test('linuxdo callback should not reject login when email_verified claim is missing', async (t) => {
   const linuxdoModule = require('../lib/oauth/linuxdo') as {
     exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
@@ -773,4 +880,282 @@ test('linuxdo callback should surface signup failure when auth user creation is 
     response.headers.get('location'),
     'http://localhost/?error=signup_failed',
   );
+});
+
+test('linuxdo callback should claim monthly membership and redirect back to membership center', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as any;
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const authSessionModule = require('../lib/auth-session') as any;
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-claim',
+    preferred_username: 'claim-user',
+    name: 'Claim User',
+    email: 'claim@example.com',
+    email_verified: true,
+    trust_level: 2,
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'deterministic-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signInWithPassword: async () => ({
+        data: {
+          session: {
+            user: { id: 'user-claim' },
+          },
+        },
+        error: null,
+      }),
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => ({
+    auth: {
+      admin: {
+        getUserById: async () => ({
+          data: {
+            user: {
+              id: 'user-claim',
+              email: 'claim@example.com',
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+        updateUserById: async () => ({
+          data: {
+            user: {
+              id: 'user-claim',
+              email: 'claim@example.com',
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+      },
+    },
+  });
+
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { user_id: 'user-claim' }, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: { id: 'user-claim' }, error: null }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      rpcCall = { fn, args };
+      return {
+        data: { status: 'ok' },
+        error: null,
+      };
+    },
+  });
+
+  authSessionModule.setSessionCookies = () => {};
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+    intent: 'membership-claim',
+    returnTo: '/user/upgrade',
+  }));
+  const request = new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  );
+
+  const response = await GET(request);
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?claim=ok');
+  assert.equal(rpcCall?.fn, 'claim_linuxdo_membership_as_service');
+  assert.deepEqual(rpcCall?.args, {
+    p_user_id: 'user-claim',
+    p_plan_id: 'plus',
+    p_trust_level: 2,
+    p_provider_user_id: 'linuxdo-user-claim',
+  });
+});
+
+test('linuxdo callback should short-circuit monthly claim when trust level is insufficient', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as any;
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const authSessionModule = require('../lib/auth-session') as any;
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  let rpcCalls = 0;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-free',
+    preferred_username: 'free-user',
+    name: 'Free User',
+    email: 'free@example.com',
+    email_verified: true,
+    trust_level: 1,
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'deterministic-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signInWithPassword: async () => ({
+        data: {
+          session: {
+            user: { id: 'user-free' },
+          },
+        },
+        error: null,
+      }),
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => ({
+    auth: {
+      admin: {
+        getUserById: async () => ({
+          data: {
+            user: {
+              id: 'user-free',
+              email: 'free@example.com',
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+        updateUserById: async () => ({
+          data: {
+            user: {
+              id: 'user-free',
+              email: 'free@example.com',
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+      },
+    },
+  });
+
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { user_id: 'user-free' }, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: { id: 'user-free' }, error: null }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+    rpc: async () => {
+      rpcCalls += 1;
+      return {
+        data: { status: 'ok' },
+        error: null,
+      };
+    },
+  });
+
+  authSessionModule.setSessionCookies = () => {};
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+    intent: 'membership-claim',
+    returnTo: '/user/upgrade',
+  }));
+  const request = new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  );
+
+  const response = await GET(request);
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?claim=no_eligibility');
+  assert.equal(rpcCalls, 0);
 });

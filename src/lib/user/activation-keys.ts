@@ -118,6 +118,7 @@ export async function getAllActivationKeys(
         let query = supabase
             .from('activation_keys')
             .select('*')
+            .neq('source', 'linuxdo_monthly')
             .order('created_at', { ascending: false });
 
         if (filters?.isUsed !== undefined) {

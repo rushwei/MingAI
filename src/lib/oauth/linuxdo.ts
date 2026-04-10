@@ -47,6 +47,24 @@ export function generateState(): string {
   return randomBytes(32).toString('hex');
 }
 
+export function normalizeLinuxDoReturnTo(value: string | null | undefined): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '/';
+  }
+
+  try {
+    const parsed = new URL(value, 'http://localhost');
+    if (parsed.origin !== 'http://localhost') {
+      return '/';
+    }
+
+    const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return normalized || '/';
+  } catch {
+    return '/';
+  }
+}
+
 // --- URL builder ---
 
 export function buildAuthUrl(state: string, codeChallenge: string, redirectUri: string): string {

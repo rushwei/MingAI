@@ -216,6 +216,165 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
   );
 });
 
+test('linuxdo callback should recover a missing public user row for bound providers after auth sync', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as {
+    exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
+    fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+    generateDeterministicPassword: (sub: string) => string;
+  };
+  const apiUtilsModule = require('../lib/api-utils') as {
+    createAnonClient: () => {
+      auth: {
+        signInWithPassword: (credentials: { email: string; password: string }) => Promise<SessionResult>;
+      };
+    };
+    getAuthAdminClient: () => {
+      auth: {
+        admin: {
+          getUserById: (id: string) => Promise<{ data: { user: AuthAdminUser | null }; error: null }>;
+          updateUserById: (
+            id: string,
+            payload: Record<string, unknown>,
+          ) => Promise<{ data: { user: AuthAdminUser | null }; error: null }>;
+        };
+      };
+    } | null;
+    getSystemAdminClient: () => {
+      from: (table: string) => Record<string, unknown>;
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { status: string }; error: null }>;
+    };
+  };
+  const authSessionModule = require('../lib/auth-session') as {
+    setSessionCookies: (response: Response, session: unknown) => void;
+  };
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  let signInEmail = '';
+  let signInPassword = '';
+  let didSync = false;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-bound-recover',
+    preferred_username: 'bound-recover',
+    name: 'Bound Recover',
+    email: 'fresh-relay@example.com',
+    email_verified: true,
+    picture: 'https://cdn.example.com/recover.png',
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'rotated-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signInWithPassword: async ({ email, password }) => {
+        signInEmail = email;
+        signInPassword = password;
+        return {
+          data: {
+            session: {
+              user: { id: 'bound-recover-id' },
+            },
+          },
+          error: null,
+        };
+      },
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => ({
+    auth: {
+      admin: {
+        getUserById: async () => ({
+          data: {
+            user: {
+              id: 'bound-recover-id',
+              email: 'stored-auth@example.com',
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+        updateUserById: async () => {
+          didSync = true;
+          return {
+            data: {
+              user: {
+                id: 'bound-recover-id',
+                email: 'stored-auth@example.com',
+                user_metadata: {},
+              },
+            },
+            error: null,
+          };
+        },
+      },
+    },
+  });
+
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { user_id: 'bound-recover-id' }, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: didSync ? { id: 'bound-recover-id' } : null,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+    rpc: async () => ({
+      data: { status: 'ok' },
+      error: null,
+    }),
+  });
+
+  authSessionModule.setSessionCookies = () => {};
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const response = await GET(buildCallbackRequest());
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/');
+  assert.equal(didSync, true);
+  assert.equal(signInEmail, 'stored-auth@example.com');
+  assert.equal(signInPassword, 'rotated-password');
+});
+
 test('linuxdo callback should reject bound providers when public user row is missing and auth sync is unavailable', async (t) => {
   const linuxdoModule = require('../lib/oauth/linuxdo') as {
     exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
