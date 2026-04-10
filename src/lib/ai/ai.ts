@@ -385,6 +385,7 @@ async function runWithSourceFallback<T>(
             const result = await run(runtimeConfig);
             return result;
         } catch (error) {
+            console.warn(`[ai] source=${source.sourceKey} model=${config.id} failed:`, error instanceof Error ? error.message : error);
             lastError = error;
         }
     }

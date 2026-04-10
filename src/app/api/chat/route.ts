@@ -10,6 +10,7 @@
 import { NextRequest } from 'next/server';
 import { isTextUIPart } from 'ai';
 import { callAI, callAIUIMessageResult } from '@/lib/ai/ai';
+import { extractAIErrorMessage } from '@/lib/ai/ai-error';
 import { addCredits } from '@/lib/user/credits';
 import { jsonError, jsonOk } from '@/lib/api-utils';
 import {
@@ -101,6 +102,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('AI API 错误:', error);
-    return jsonError('服务暂时不可用', 500);
+    return jsonError(extractAIErrorMessage(error), 500);
   }
 }
