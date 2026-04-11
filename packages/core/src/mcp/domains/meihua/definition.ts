@@ -2,7 +2,7 @@ import type { ToolDefinition } from '../../contract.js';
 
 export const meihuaDefinition: ToolDefinition = {
   name: 'meihua',
-  description: '梅花易数 - 按《梅花易数》主线进行起卦与断卦，支持年月日時、物数/声数、字占、丈尺尺寸、方位/常见原典类象，以及现代两数/三数报数扩展法。输出包含：本卦/互卦/变卦/错卦/综卦、动爻、体卦/用卦、体用生克、月令旺衰、克应层次、应期线索、定性吉凶判断。禁止混入六爻纳甲/六亲/六神语义。',
+  description: '梅花易数 - 按《梅花易数》主线进行起卦与断卦，支持年月日時、物数/声数、字占、丈尺尺寸、方位/常见原典类象，以及现代两数/三数报数扩展法。默认输出收敛为主线证据：本卦/互卦/变卦、动爻、体卦/用卦、体用生克、月令环境、阶段推演；detailLevel=full 时再补充错综卦与判断参考。禁止混入六爻纳甲/六亲/六神语义。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -121,7 +121,7 @@ export const meihuaDefinition: ToolDefinition = {
       detailLevel: {
         type: 'string',
         enum: ['default', 'full'],
-        description: '输出细节级别：default=主线结论；full=补充更多方法与克应说明。',
+        description: '输出细节级别：default=主线证据；full=补充错综卦、象辞与判断参考。',
         default: 'default',
       },
     },

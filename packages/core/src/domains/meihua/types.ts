@@ -163,7 +163,7 @@ export interface MeihuaOutput {
   ganZhiTime: GanZhiTime;
   mainHexagram: MeihuaHexagramInfo;
   changedHexagram?: MeihuaHexagramInfo;
-  nuclearHexagram?: DerivedHexagramInfo;
+  nuclearHexagram?: MeihuaHexagramInfo;
   oppositeHexagram?: DerivedHexagramInfo;
   reversedHexagram?: DerivedHexagramInfo;
   movingLine: number;

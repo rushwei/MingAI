@@ -1218,11 +1218,7 @@ export function calculateMeihua(input: MeihuaInput): MeihuaOutput {
     ganZhiTime,
     mainHexagram,
     changedHexagram,
-    nuclearHexagram: {
-      name: nuclearHexagramFull.name,
-      guaCi: nuclearHexagramFull.guaCi,
-      xiangCi: nuclearHexagramFull.xiangCi,
-    },
+    nuclearHexagram: nuclearHexagramFull,
     oppositeHexagram,
     reversedHexagram,
     movingLine: cast.movingLine,

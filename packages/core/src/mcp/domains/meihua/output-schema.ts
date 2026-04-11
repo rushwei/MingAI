@@ -40,7 +40,6 @@ export const meihuaOutputSchema: OutputSchema = obj({
       指定动爻: num('指定动爻'),
       数字序列: arr(num(), '数字序列'),
     }),
-    输入摘要: arr(str(), '输入摘要'),
     警告: arr(str(), '提示信息'),
   }),
   卦盘: obj({
@@ -48,19 +47,33 @@ export const meihuaOutputSchema: OutputSchema = obj({
       卦名: str('本卦'),
       上卦: str('上卦'),
       下卦: str('下卦'),
-      五行: str('五行'),
+      上卦五行: str('上卦五行'),
+      下卦五行: str('下卦五行'),
+      整卦五行: str('整卦五行'),
       卦辞: str('卦辞'),
       象辞: str('象辞'),
     }),
     动爻: str('动爻'),
     变卦: obj({
       卦名: str('变卦'),
+      上卦: str('上卦'),
+      下卦: str('下卦'),
+      上卦五行: str('上卦五行'),
+      下卦五行: str('下卦五行'),
+      整卦五行: str('整卦五行'),
       卦辞: str('卦辞'),
       象辞: str('象辞'),
     }),
-    互卦: obj({ 卦名: str('互卦'), 卦辞: str('卦辞'), 象辞: str('象辞') }),
-    错卦: obj({ 卦名: str('错卦'), 卦辞: str('卦辞'), 象辞: str('象辞') }),
-    综卦: obj({ 卦名: str('综卦'), 卦辞: str('卦辞'), 象辞: str('象辞') }),
+    互卦: obj({
+      卦名: str('互卦'),
+      上卦: str('上卦'),
+      下卦: str('下卦'),
+      上卦五行: str('上卦五行'),
+      下卦五行: str('下卦五行'),
+      整卦五行: str('整卦五行'),
+      卦辞: str('卦辞'),
+      象辞: str('象辞'),
+    }),
     体卦: obj({
       卦名: str('体卦'),
       五行: str('五行'),
@@ -71,6 +84,10 @@ export const meihuaOutputSchema: OutputSchema = obj({
       五行: str('五行'),
       所属: str('所属'),
     }),
+    扩展参考: obj({
+      错卦: obj({ 卦名: str('错卦'), 卦辞: str('卦辞'), 象辞: str('象辞') }),
+      综卦: obj({ 卦名: str('综卦'), 卦辞: str('卦辞'), 象辞: str('象辞') }),
+    }),
   }),
   干支时间: arr(obj({
     柱: str('柱'),
@@ -78,8 +95,8 @@ export const meihuaOutputSchema: OutputSchema = obj({
   })),
   体用分析: obj({
     关系: str('体用关系'),
-    判定: str('判定'),
-    月令旺衰: obj({
+    关系表达式: str('关系表达式'),
+    月令环境: obj({
       月支: str('月支'),
       体卦: str('体卦旺衰'),
       用卦: str('用卦旺衰'),
@@ -88,18 +105,13 @@ export const meihuaOutputSchema: OutputSchema = obj({
       变卦: str('变卦旺衰'),
     }),
   }),
-  克应分析: arr(obj({
-    层级: str('层级'),
-    关系: str('关系'),
-    吉凶: str('吉凶'),
-    说明: str('说明'),
-  })),
-  应期提示: arr(obj({
+  阶段推演: arr(obj({
     阶段: str('阶段'),
-    触发: str('触发'),
-    说明: str('说明'),
+    落点: str('落点'),
+    关系: str('关系'),
+    表达式: str('表达式'),
   })),
-  结论: obj({
+  判断参考: obj({
     结果: str('结果'),
     总结: str('总结'),
     依据: arr(str(), '依据'),

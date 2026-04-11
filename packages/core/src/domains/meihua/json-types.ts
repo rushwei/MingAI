@@ -4,11 +4,22 @@ import type {
 
 // ===== 梅花易数 =====
 
+export interface MeihuaHexagramTrackJSON {
+  卦名: string;
+  上卦: string;
+  下卦: string;
+  上卦五行: string;
+  下卦五行: string;
+  整卦五行: string;
+  卦辞?: string;
+  象辞?: string;
+}
+
 export interface MeihuaCanonicalJSON {
   起卦信息: {
     问题: string;
     方法: string;
-    方法系: '经典' | '扩展';
+    方法系?: '经典' | '扩展';
     实际子方式?: string;
     起卦时间?: string;
     原始文本?: string;
@@ -38,23 +49,13 @@ export interface MeihuaCanonicalJSON {
       指定动爻?: number;
       数字序列?: number[];
     };
-    输入摘要: string[];
     警告?: string[];
   };
   卦盘: {
-    本卦: {
-      卦名: string;
-      上卦: string;
-      下卦: string;
-      五行: string;
-      卦辞?: string;
-      象辞?: string;
-    };
+    本卦: MeihuaHexagramTrackJSON;
     动爻: string;
-    变卦: DerivedHexagramJSON;
-    互卦?: DerivedHexagramJSON;
-    错卦?: DerivedHexagramJSON;
-    综卦?: DerivedHexagramJSON;
+    变卦: MeihuaHexagramTrackJSON;
+    互卦?: MeihuaHexagramTrackJSON;
     体卦: {
       卦名: string;
       五行: string;
@@ -65,6 +66,10 @@ export interface MeihuaCanonicalJSON {
       五行: string;
       所属: '上卦' | '下卦';
     };
+    扩展参考?: {
+      错卦?: DerivedHexagramJSON;
+      综卦?: DerivedHexagramJSON;
+    };
   };
   干支时间: Array<{
     柱: string;
@@ -72,8 +77,8 @@ export interface MeihuaCanonicalJSON {
   }>;
   体用分析: {
     关系: string;
-    判定: string;
-    月令旺衰: {
+    关系表达式: string;
+    月令环境: {
       月支: string;
       体卦: string;
       用卦: string;
@@ -82,18 +87,13 @@ export interface MeihuaCanonicalJSON {
       变卦?: string;
     };
   };
-  克应分析: Array<{
-    层级: string;
-    关系: string;
-    吉凶: '吉' | '凶';
-    说明: string;
-  }>;
-  应期提示: Array<{
+  阶段推演: Array<{
     阶段: string;
-    触发: string;
-    说明: string;
+    落点: string;
+    关系: string;
+    表达式: string;
   }>;
-  结论: {
+  判断参考?: {
     结果: '吉' | '平' | '凶';
     总结: string;
     依据: string[];

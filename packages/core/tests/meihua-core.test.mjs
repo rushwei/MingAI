@@ -630,11 +630,69 @@ test('meihua tool output should stay on meihua semantics instead of liuyao vocab
   assert.equal(payload.structuredContent.卦盘.用卦.卦名, '离');
   assert.equal(payload.structuredContent.起卦信息.实际子方式, 'number_pair');
   assert.equal(payload.structuredContent.起卦信息.方法, '两数报数法');
+  assert.equal(payload.structuredContent.卦盘.扩展参考, undefined);
+  assert.equal(payload.structuredContent.判断参考, undefined);
+  assert.equal(payload.structuredContent.克应分析, undefined);
   assert.equal(payload.structuredContent.六爻, undefined);
   assert.equal(payload.structuredContent.用神分析, undefined);
-  assert.match(payload.content[0].text, /# 梅花易数/u);
-  assert.match(payload.content[0].text, /实际子方式/u);
+  assert.match(payload.content[0].text, /# 梅花易数主证据/u);
+  assert.match(payload.content[0].text, /## 阶段推演/u);
+  assert.doesNotMatch(payload.content[0].text, /## 判断参考|结果:|总结:/u);
+  assert.doesNotMatch(payload.content[0].text, /错卦|综卦/u);
   assert.doesNotMatch(payload.content[0].text, /六亲|六神|伏神|世应/u);
+});
+
+test('meihua default classical output should keep text/json visibility aligned for method family metadata', () => {
+  const result = mcpCore.calculateMeihua({
+    question: '默认 classical 对齐',
+    method: 'time',
+    date: '2026-04-04T10:30:00',
+  });
+
+  const json = mcpCore.toMeihuaJson(result);
+  const text = mcpCore.toMeihuaText(result);
+
+  assert.equal(json.起卦信息.方法系, undefined);
+  assert.equal(json.起卦信息.实际子方式, undefined);
+  assert.doesNotMatch(text, /方法系/u);
+  assert.doesNotMatch(text, /实际子方式/u);
+});
+
+test('meihua canonical json should resolve stage expressions by stage name instead of array order', () => {
+  const result = mcpCore.calculateMeihua({
+    question: '阶段顺序审查',
+    method: 'time',
+    date: '2026-04-04T10:30:00',
+  });
+
+  const shuffled = {
+    ...result,
+    interactionReadings: [...result.interactionReadings].reverse(),
+  };
+
+  const json = mcpCore.toMeihuaJson(shuffled);
+
+  assert.equal(json.阶段推演[0]?.阶段, '初段');
+  assert.match(json.阶段推演[0]?.表达式 ?? '', /用卦\(坤土\) 生 体卦\(兑金\)/u);
+  assert.equal(json.阶段推演[1]?.阶段, '中段');
+  assert.match(json.阶段推演[1]?.表达式 ?? '', /体互\(巽木\)/u);
+  assert.match(json.阶段推演[1]?.表达式 ?? '', /用互\(艮土\)/u);
+  assert.equal(json.阶段推演[2]?.阶段, '后段');
+  assert.match(json.阶段推演[2]?.表达式 ?? '', /变卦整卦\(泽水困\/金\)/u);
+});
+
+test('meihua full detail should expose extended references and judgement reference', async () => {
+  const rawResult = await executeTool('meihua', {
+    question: 'full 输出测试',
+    method: 'time',
+    date: '2026-04-04T10:30:00',
+  });
+  const payload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.ok(payload.structuredContent.卦盘.扩展参考, 'full structured content should include extended reference');
+  assert.ok(payload.structuredContent.判断参考, 'full structured content should include judgement reference');
+  assert.match(payload.content[0].text, /## 扩展参考/u);
+  assert.match(payload.content[0].text, /## 判断参考/u);
 });
 
 test('meihua canonical output should preserve date and selected text for multi-clause intent casting', async () => {
@@ -658,7 +716,7 @@ test('meihua canonical output should preserve date and selected text for multi-c
   assert.deepEqual(jsonPayload.structuredContent.起卦信息.原始输入.分句, ['甲乙', '丙丁', '戊己辛']);
   assert.equal(jsonPayload.structuredContent.起卦信息.原始输入.取用文本, '戊己辛');
   assert.equal(jsonPayload.structuredContent.起卦信息.原始输入.取句方式, '末句');
-  assert.match(markdownPayload.content[0].text, /起卦时间: 2026-04-04T10:30:00/u);
+  assert.match(markdownPayload.content[0].text, /时间: 2026-04-04 10:30:00/u);
   assert.match(markdownPayload.content[0].text, /原始文本: 甲乙。丙丁。戊己辛。/u);
   assert.match(markdownPayload.content[0].text, /取用文本: 戊己辛/u);
   assert.match(markdownPayload.content[0].text, /取句方式: 末句/u);
