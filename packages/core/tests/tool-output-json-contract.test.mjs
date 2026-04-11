@@ -90,6 +90,36 @@ test('runtime placeResolutionInfo should merge into ziwei structured output when
   assert.equal(flyingStarPayload.structuredContent.placeResolutionInfo.source, 'birth_place');
 });
 
+test('core astrology tool should allow default approximation without coordinates but keep full strict', async () => {
+  const approximate = await executeTool('astrology', {
+    birthYear: 1990,
+    birthMonth: 1,
+    birthDay: 1,
+    birthHour: 12,
+    birthPlace: 'New York, NY',
+  });
+
+  assert.equal(approximate.chartMeta.calculationMode, 'approximate');
+  assert.equal(approximate.natal.origin.coordinateSource, 'assumed_zero');
+  assert.equal(approximate.natal.angles.length, 0);
+  assert.equal(approximate.natal.houses.length, 0);
+  assert.throws(
+    () => buildToolSuccessPayload('astrology', approximate, 'markdown', { detailLevel: 'full' }),
+    /detailLevel=full.*latitude.*longitude/u,
+  );
+
+  await assert.rejects(
+    () => executeTool('astrology', {
+      birthYear: 1990,
+      birthMonth: 1,
+      birthDay: 1,
+      birthHour: 12,
+      detailLevel: 'full',
+    }),
+    /缺少必填参数 'latitude'.*缺少必填参数 'longitude'/u,
+  );
+});
+
 test('tarot default/full should split slim card text from detailed numerology metadata', async () => {
   const rawResult = await executeTool('tarot', {
     spreadType: 'single',
@@ -151,6 +181,74 @@ test('almanac default/full should keep default compact and full append complete 
   assert.ok(Array.isArray(fullPayload.structuredContent.时辰吉凶));
 });
 
+test('taiyi default/full should keep compact guidance and expose full board only on demand', async () => {
+  const rawResult = await executeTool('taiyi', {
+    mode: 'minute',
+    date: '2026-04-10',
+    hour: 13,
+    minute: 37,
+    timezone: 'Asia/Shanghai',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('taiyi', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('taiyi', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /# 太乙九星主证据/u);
+  assert.match(defaultPayload.content[0].text, /## 九星阵列/u);
+  assert.match(defaultPayload.content[0].text, /## 古典参考/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /当前实现|观测尺度|## 说明/u);
+  assert.match(fullPayload.content[0].text, /## 九星阵列/u);
+  assert.match(fullPayload.content[0].text, /## 古典参考/u);
+  assert.doesNotMatch(fullPayload.content[0].text, /当前实现|观测尺度|## 说明/u);
+  assert.ok(Array.isArray(defaultPayload.structuredContent.九星阵列));
+  assert.equal(typeof defaultPayload.structuredContent.古典参考.主诀原文, 'string');
+  assert.equal(defaultPayload.structuredContent.说明, undefined);
+  assert.equal(defaultPayload.structuredContent.问卜与时空底盘.实现边界, undefined);
+  assert.equal(defaultPayload.structuredContent.问卜与时空底盘.观测尺度, undefined);
+  assert.ok(Array.isArray(fullPayload.structuredContent.九星阵列));
+  assert.equal(typeof fullPayload.structuredContent.古典参考.主诀原文, 'string');
+  assert.equal(fullPayload.structuredContent.说明, undefined);
+});
+
+test('astrology default/full should expose compact chart data while preserving place resolution runtime extras', async () => {
+  const rawResult = await executeTool('astrology', {
+    birthYear: 1990,
+    birthMonth: 1,
+    birthDay: 1,
+    birthHour: 12,
+    birthMinute: 30,
+    latitude: 40.7128,
+    longitude: -74.006,
+    birthPlace: 'New York, NY',
+    transitDateTime: '2026-04-10T09:30:00',
+  });
+
+  const withRuntimeInfo = {
+    ...rawResult,
+    placeResolutionInfo: {
+      requestedPlace: 'New York, NY',
+      resolved: true,
+      provider: 'amap',
+      usedLongitude: -74.006,
+      usedLatitude: 40.7128,
+      source: 'birth_place',
+      locationMode: 'coordinates',
+    },
+  };
+
+  const defaultPayload = buildToolSuccessPayload('astrology', withRuntimeInfo, 'markdown', { detailLevel: 'default' });
+  const morePayload = buildToolSuccessPayload('astrology', withRuntimeInfo, 'markdown', { detailLevel: 'more' });
+  const fullPayload = buildToolSuccessPayload('astrology', withRuntimeInfo, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /# 西方占星主证据/u);
+  assert.equal(defaultPayload.structuredContent.扩展信息, undefined);
+  assert.equal(defaultPayload.structuredContent.placeResolutionInfo.usedLatitude, 40.7128);
+  assert.ok(Array.isArray(morePayload.structuredContent.扩展信息.附加点与交点));
+  assert.ok(Array.isArray(fullPayload.structuredContent.扩展信息.附加点与交点));
+  assert.ok(Array.isArray(fullPayload.structuredContent.扩展信息.宫位宫头));
+  assert.ok(Array.isArray(fullPayload.structuredContent.扩展信息.完整相位矩阵.本命));
+});
+
 test('meihua detailLevel full should reach transport renderers and expose full-only seasonal fields', async () => {
   const rawResult = await executeTool('meihua', {
     question: '这次合作能否谈成？',
@@ -161,19 +259,43 @@ test('meihua detailLevel full should reach transport renderers and expose full-o
   const defaultPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'default' });
   const fullPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'full' });
 
-  assert.doesNotMatch(defaultPayload.content[0].text, /体互旺衰/u);
-  assert.doesNotMatch(defaultPayload.content[0].text, /用互旺衰/u);
-  assert.doesNotMatch(defaultPayload.content[0].text, /变卦旺衰/u);
-  assert.match(fullPayload.content[0].text, /体互旺衰/u);
-  assert.match(fullPayload.content[0].text, /用互旺衰/u);
-  assert.match(fullPayload.content[0].text, /变卦旺衰/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /体互月令/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /用互月令/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /变卦月令/u);
+  assert.match(fullPayload.content[0].text, /体互月令/u);
+  assert.match(fullPayload.content[0].text, /用互月令/u);
+  assert.match(fullPayload.content[0].text, /变卦月令/u);
 
-  assert.equal(defaultPayload.structuredContent.体用分析.月令旺衰.体互, undefined);
-  assert.equal(defaultPayload.structuredContent.体用分析.月令旺衰.用互, undefined);
-  assert.equal(defaultPayload.structuredContent.体用分析.月令旺衰.变卦, undefined);
-  assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.体互, 'string');
-  assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.用互, 'string');
-  assert.equal(typeof fullPayload.structuredContent.体用分析.月令旺衰.变卦, 'string');
+  assert.equal(defaultPayload.structuredContent.体用分析.月令环境.体互, undefined);
+  assert.equal(defaultPayload.structuredContent.体用分析.月令环境.用互, undefined);
+  assert.equal(defaultPayload.structuredContent.体用分析.月令环境.变卦, undefined);
+  assert.equal(typeof fullPayload.structuredContent.体用分析.月令环境.体互, 'string');
+  assert.equal(typeof fullPayload.structuredContent.体用分析.月令环境.用互, 'string');
+  assert.equal(typeof fullPayload.structuredContent.体用分析.月令环境.变卦, 'string');
+});
+
+test('xiaoliuren detailLevel full should keep default compact and append explanation only on demand', async () => {
+  const rawResult = await executeTool('xiaoliuren', {
+    lunarMonth: 3,
+    lunarDay: 15,
+    hour: 8,
+    question: '今日运势如何？',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('xiaoliuren', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('xiaoliuren', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /# 小六壬主证据/u);
+  assert.match(defaultPayload.content[0].text, /## 推演链/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /## 参考释义/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /## 诗诀/u);
+  assert.match(fullPayload.content[0].text, /## 参考释义/u);
+  assert.match(fullPayload.content[0].text, /## 诗诀/u);
+
+  assert.equal(defaultPayload.structuredContent.结果.释义, undefined);
+  assert.equal(defaultPayload.structuredContent.结果.诗诀, undefined);
+  assert.equal(typeof fullPayload.structuredContent.结果.释义, 'string');
+  assert.equal(typeof fullPayload.structuredContent.结果.诗诀, 'string');
 });
 
 test('bazi tool output should keep chart-only boundaries without implicit dayun summary', async () => {

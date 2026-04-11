@@ -28,6 +28,11 @@
       "import": "./dist/mcp/index.js",
       "default": "./dist/mcp/index.js"
     },
+    "./astrology": {
+      "types": "./dist/domains/astrology/index.d.ts",
+      "import": "./dist/domains/astrology/index.js",
+      "default": "./dist/domains/astrology/index.js"
+    },
     "./bazi": {
       "types": "./dist/domains/bazi/index.d.ts",
       "import": "./dist/domains/bazi/index.js",
@@ -78,6 +83,16 @@
       "import": "./dist/domains/tarot/index.js",
       "default": "./dist/domains/tarot/index.js"
     },
+    "./taiyi": {
+      "types": "./dist/domains/taiyi/index.d.ts",
+      "import": "./dist/domains/taiyi/index.js",
+      "default": "./dist/domains/taiyi/index.js"
+    },
+    "./xiaoliuren": {
+      "types": "./dist/domains/xiaoliuren/index.d.ts",
+      "import": "./dist/domains/xiaoliuren/index.js",
+      "default": "./dist/domains/xiaoliuren/index.js"
+    },
     "./daliuren": {
       "types": "./dist/domains/daliuren/index.d.ts",
       "import": "./dist/domains/daliuren/index.js",
@@ -115,12 +130,15 @@
   "keywords": [
     "mcp",
     "mingai",
+    "astrology",
     "bazi",
     "ziwei",
     "liuyao",
     "meihua",
     "qimen",
     "tarot",
+    "taiyi",
+    "xiaoliuren",
     "daliuren",
     "divination"
   ],
@@ -130,6 +148,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "circular-natal-horoscope-js": "^1.1.0",
     "iztro": "^2.5.4",
     "liuren-ts-lib": "^1.9.0",
     "lunar-javascript": "^1.7.7",

@@ -4,7 +4,7 @@ MingAI 的命理术数算法核心库。
 
 它提供两类能力：
 
-- 各术数（八字、紫薇、奇门、大六壬、六爻、梅花易数、塔罗、黄历）的算法、类型，以及规范化 text/json 输出
+- 各术数（八字、紫薇、奇门、大六壬、六爻、梅花易数、塔罗、黄历、小六壬、太乙九星、西方占星）的算法、类型，以及规范化 text/json 输出
 - MCP 工具定义、输入校验、执行入口与统一响应适配
 
 ## 安装
@@ -65,6 +65,7 @@ const rendered = renderToolResult('qimen', result, 'json');
 - `@mingai/core/bazi`
 - `@mingai/core/bazi-dayun`
 - `@mingai/core/bazi-pillars-resolve`
+- `@mingai/core/astrology`
 - `@mingai/core/almanac`
 - `@mingai/core/liuyao`
 - `@mingai/core/meihua`
@@ -72,8 +73,10 @@ const rendered = renderToolResult('qimen', result, 'json');
 - `@mingai/core/ziwei-horoscope`
 - `@mingai/core/ziwei-flying-star`
 - `@mingai/core/qimen`
+- `@mingai/core/taiyi`
 - `@mingai/core/daliuren`
 - `@mingai/core/tarot`
+- `@mingai/core/xiaoliuren`
 
 额外公开的共享子路径：
 
@@ -107,8 +110,11 @@ const rendered = renderToolResult('qimen', result, 'json');
 | `meihua` | 梅花易数起卦与断卦 |
 | `tarot` | 塔罗抽牌 |
 | `almanac` | 黄历与择日信息 |
+| `astrology` | 西方占星命盘与流运 |
 | `qimen` | 奇门遁甲排盘 |
+| `taiyi` | 太乙九星观测 |
 | `daliuren` | 大六壬排盘 |
+| `xiaoliuren` | 小六壬占测 |
 
 ## 输出约定
 

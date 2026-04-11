@@ -1,3 +1,4 @@
+export * from './domains/astrology/json-types.js';
 export * from './domains/bazi-dayun/json-types.js';
 export * from './domains/bazi-pillars-resolve/json-types.js';
 export * from './domains/bazi/json-types.js';
@@ -8,6 +9,8 @@ export * from './domains/meihua/json-types.js';
 export * from './domains/qimen/json-types.js';
 export * from './domains/shared/json-types.js';
 export * from './domains/tarot/json-types.js';
+export * from './domains/taiyi/json-types.js';
+export * from './domains/xiaoliuren/json-types.js';
 export * from './domains/ziwei-flying-star/json-types.js';
 export * from './domains/ziwei-horoscope/json-types.js';
 export * from './domains/ziwei/json-types.js';

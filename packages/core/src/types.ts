@@ -1,3 +1,4 @@
+export * from './domains/astrology/types.js';
 export * from './domains/bazi-dayun/types.js';
 export * from './domains/bazi-pillars-resolve/types.js';
 export * from './domains/bazi/types.js';
@@ -8,6 +9,8 @@ export * from './domains/meihua/types.js';
 export * from './domains/qimen/types.js';
 export * from './domains/shared/types.js';
 export * from './domains/tarot/types.js';
+export * from './domains/taiyi/types.js';
+export * from './domains/xiaoliuren/types.js';
 export * from './domains/ziwei-flying-star/types.js';
 export * from './domains/ziwei-horoscope/types.js';
 export * from './domains/ziwei/types.js';
