@@ -52,6 +52,8 @@ interface ChatLayoutProps {
     onModelChange: (model: string) => void;
     reasoningEnabled: boolean;
     onReasoningChange: (enabled: boolean) => void;
+    customProviderActive: boolean;
+    customProviderLabel: string | null;
     userId: string | null;
     membershipType: MembershipType;
     attachmentState: AttachmentState;
@@ -82,6 +84,7 @@ export function ChatLayout(props: ChatLayoutProps) {
         inputValue, onInputChange, disabled,
         chatMode, onChatModeChange,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange,
+        customProviderActive, customProviderLabel,
         userId, membershipType, attachmentState, onAttachmentChange,
         mentions, onMentionsChange, promptKnowledgeBases,
         dreamContext, dreamContextLoading,
@@ -96,6 +99,7 @@ export function ChatLayout(props: ChatLayoutProps) {
         onInputChange, onSend, onStop, onAuthRequired, disabled,
         chatMode, onChatModeChange,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange,
+        customProviderActive, customProviderLabel,
         userId, membershipType, attachmentState, onAttachmentChange,
         mentions, onMentionsChange, promptKnowledgeBases,
         contextMessages: messages,

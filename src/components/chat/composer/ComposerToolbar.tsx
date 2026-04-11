@@ -6,11 +6,25 @@
  */
 'use client';
 
-import { Paperclip, Orbit, Square, Plus, ArrowUp, BookOpenText, AtSign, Globe, Moon } from 'lucide-react';
+import { useState } from 'react';
+import {
+    ArrowUp,
+    AtSign,
+    BookOpenText,
+    Cpu,
+    Globe,
+    KeyRound,
+    Moon,
+    Orbit,
+    Paperclip,
+    Plus,
+    Square,
+} from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { MembershipType } from '@/lib/user/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { PromptPreview } from '@/components/chat/composer/PromptPreview';
+import { CustomProviderPanel } from '@/components/chat/CustomProviderPanel';
 import type { PromptLayerDiagnostic } from '@/types';
 import { getNavItemById } from '@/lib/navigation/registry';
 import type { ChatMode } from '@/lib/chat/use-chat-state';
@@ -63,6 +77,8 @@ interface ComposerToolbarProps {
     reasoningEnabled: boolean;
     onReasoningChange?: (enabled: boolean) => void;
     membershipType: MembershipType;
+    customProviderActive: boolean;
+    customProviderLabel: string | null;
     // Send
     disabled: boolean;
     isLoading: boolean;
@@ -86,23 +102,25 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
         promptUsageLabel, displayLayers, displayUserMessageTokens, formatLayerLabel,
         promptPreviewTokens, promptPreviewBudget,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange, membershipType,
+        customProviderActive, customProviderLabel,
         disabled, isLoading, isSendingToList, dreamContextLoading, handleButtonClick,
     } = props;
     const BaziNavIcon = getNavItemById('bazi')?.icon ?? Orbit;
     const isDreamMode = chatMode === 'dream';
     const isMangpaiMode = chatMode === 'mangpai';
+    const [customProviderOpen, setCustomProviderOpen] = useState(false);
 
     return (
-        <div className="flex items-center justify-between border-border/50">
+        <div className="flex items-center justify-between gap-3 border-border/50">
             {/* 左侧按钮组 */}
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex min-w-0 items-center gap-1.5 flex-shrink">
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => setMenuOpen(!menuOpen)}
-                        className={`h-10 w-10 rounded-xl transition-all flex items-center justify-center ${menuOpen
-                            ? 'bg-background-tertiary text-foreground'
-                            : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary'
+                        className={`h-9 w-9 rounded-xl transition-all flex items-center justify-center ${menuOpen
+                            ? 'bg-[#f3f0ea] text-[#37352f]'
+                            : 'text-[#37352f]/60 hover:bg-[#f3f0ea] hover:text-[#37352f]'
                             }`}
                         title="更多选项"
                     >
@@ -250,7 +268,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                     />
                 </div>
 
-                <div className="flex items-center gap-2 pl-1 pr-2">
+                <div className="flex h-9 w-9 items-center justify-center">
                     <PromptPreview
                         promptPreviewLoading={promptPreviewLoading}
                         hasPromptDiagnostics={hasPromptDiagnostics}
@@ -267,15 +285,76 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                     />
                 </div>
 
-                <ModelSelector
-                    selectedModel={selectedModel}
-                    onModelChange={onModelChange}
-                    reasoningEnabled={reasoningEnabled}
-                    onReasoningChange={onReasoningChange}
-                    userId={userId}
-                    membershipType={membershipType}
-                    disabled={disabled}
-                />
+                <div className="relative ml-0.5 flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => setCustomProviderOpen((prev) => !prev)}
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150 ${
+                            customProviderOpen
+                                ? 'bg-[#f3f0ea] text-[#37352f]'
+                                : 'text-[#37352f]/60 hover:bg-[#f3f0ea] hover:text-[#37352f]'
+                        }`}
+                        title="自定义模型"
+                    >
+                        <KeyRound className="h-4.5 w-4.5" />
+                    </button>
+
+                    <div className="relative min-h-[36px] min-w-[136px]">
+                        <div
+                            className={`transition-opacity duration-150 ${
+                                customProviderActive
+                                    ? 'pointer-events-none absolute inset-0 opacity-0'
+                                    : 'opacity-100'
+                            }`}
+                        >
+                            <ModelSelector
+                                selectedModel={selectedModel}
+                                onModelChange={onModelChange}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={onReasoningChange}
+                                userId={userId}
+                                membershipType={membershipType}
+                                disabled={disabled}
+                                toolbarStyle
+                            />
+                        </div>
+                        <div
+                            className={`transition-opacity duration-150 ${
+                                customProviderActive
+                                    ? 'opacity-100'
+                                    : 'pointer-events-none absolute inset-0 opacity-0'
+                            }`}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setCustomProviderOpen(true)}
+                                className="flex min-w-0 items-center gap-2 rounded-xl px-3 py-1.5 text-left text-[#37352f] transition-colors duration-150 hover:bg-[#f3f0ea]"
+                                title="查看或修改自定义模型"
+                            >
+                                <span className="flex h-7 w-4.5 flex-shrink-0 items-center justify-center rounded-lg text-foreground-secondary">
+                                    <Cpu className="h-4.5 w-4.5" />
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block max-w-[132px] truncate text-sm font-medium text-[#37352f]">
+                                        {customProviderLabel || '自定义模型'}
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {customProviderOpen && (
+                        <>
+                            <div className="fixed inset-0 z-20" onClick={() => setCustomProviderOpen(false)} />
+                            <div className="hidden md:block absolute bottom-full right-[-4rem] mb-2 z-30 origin-bottom-right">
+                                <CustomProviderPanel onClose={() => setCustomProviderOpen(false)} />
+                            </div>
+                            <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(var(--sab)+0.75rem)] md:hidden">
+                                <CustomProviderPanel onClose={() => setCustomProviderOpen(false)} />
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* 发送/停止按钮 */}

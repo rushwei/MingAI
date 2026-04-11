@@ -47,6 +47,8 @@ interface ChatComposerProps {
     onModelChange?: (modelId: string) => void;
     reasoningEnabled?: boolean;
     onReasoningChange?: (enabled: boolean) => void;
+    customProviderActive?: boolean;
+    customProviderLabel?: string | null;
     userId?: string | null;
     membershipType?: MembershipType;
     attachmentState?: AttachmentState;
@@ -76,6 +78,8 @@ export function ChatComposer({
     onModelChange,
     reasoningEnabled = false,
     onReasoningChange,
+    customProviderActive = false,
+    customProviderLabel = null,
     userId,
     membershipType = 'free',
     attachmentState,
@@ -501,6 +505,8 @@ export function ChatComposer({
                         reasoningEnabled={reasoningEnabled}
                         onReasoningChange={onReasoningChange}
                         membershipType={membershipType}
+                        customProviderActive={customProviderActive}
+                        customProviderLabel={customProviderLabel}
                         disabled={disabled}
                         isLoading={isLoading}
                         isSendingToList={isSendingToList}

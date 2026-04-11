@@ -72,7 +72,7 @@ export default function ChatPage() {
         return () => clearMenuItems();
     }, [aiPersonalizationEnabled, clearMenuItems, knowledgeBaseEnabled, membership?.type, router, setMenuItems]);
 
-    const isCreditLocked = typeof credits === 'number' && credits <= 0;
+    const isCreditLocked = typeof credits === 'number' && credits <= 0 && !state.customProviderActive;
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     return (
@@ -102,6 +102,8 @@ export default function ChatPage() {
                 onModelChange={state.setSelectedModel}
                 reasoningEnabled={state.reasoningEnabled}
                 onReasoningChange={state.setReasoningEnabled}
+                customProviderActive={state.customProviderActive}
+                customProviderLabel={state.customProviderLabel}
                 userId={userId}
                 membershipType={membership?.type || 'free'}
                 attachmentState={state.attachmentState}

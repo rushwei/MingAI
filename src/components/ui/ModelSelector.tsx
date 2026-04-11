@@ -8,11 +8,16 @@
 'use client';
 
 import { useMemo, useEffect, useState } from 'react';
-import { ChevronDown, Lightbulb } from 'lucide-react';
+import { ChevronDown, Cpu, Lightbulb } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { getVendorIcon } from '@/lib/ai/vendor-config';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useAvailableModels } from '@/lib/hooks/useAvailableModels';
+import {
+    CUSTOM_PROVIDER_CHANGED_EVENT,
+    getCustomProvider,
+    getCustomProviderDisplayName,
+} from '@/lib/chat/custom-provider';
 import type { AIVendor } from '@/types';
 import type { MembershipType } from '@/lib/user/membership';
 
@@ -36,6 +41,7 @@ interface ModelSelectorProps {
     membershipType?: MembershipType;
     disabled?: boolean;
     compact?: boolean;
+    toolbarStyle?: boolean;
 }
 
 export function ModelSelector({
@@ -47,15 +53,31 @@ export function ModelSelector({
     membershipType = 'free',
     disabled = false,
     compact = false,
+    toolbarStyle = false,
 }: ModelSelectorProps) {
     const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
     const modelsQuery = useAvailableModels(userId ?? null, {
         enabled: !!onModelChange,
         membershipType,
     });
+    const [customProviderConfig, setCustomProviderConfig] = useState(() => getCustomProvider());
     const models = useMemo(() => (modelsQuery.data ?? []) as ClientModelConfig[], [modelsQuery.data]);
     const modelsLoading = modelsQuery.isLoading;
     const modelsError = modelsQuery.error instanceof Error ? modelsQuery.error.message : null;
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const syncCustomProvider = () => {
+            setCustomProviderConfig(getCustomProvider());
+        };
+        syncCustomProvider();
+        window.addEventListener(CUSTOM_PROVIDER_CHANGED_EVENT, syncCustomProvider);
+        window.addEventListener('storage', syncCustomProvider);
+        return () => {
+            window.removeEventListener(CUSTOM_PROVIDER_CHANGED_EVENT, syncCustomProvider);
+            window.removeEventListener('storage', syncCustomProvider);
+        };
+    }, []);
 
     useEffect(() => {
         if (!models.length || !onModelChange) return;
@@ -118,17 +140,78 @@ export function ModelSelector({
 
     const buttonPadding = compact ? 'px-2 py-1' : 'px-2 py-1.5';
     const textSize = compact ? 'text-xs' : 'text-sm';
+    const selectorButtonClass = toolbarStyle
+        ? `h-9 rounded-xl px-2 ${textSize}`
+        : `${buttonPadding} rounded-lg ${textSize}`;
+    const selectorActiveClass = toolbarStyle
+        ? 'bg-transparent text-[#37352f]/70 hover:bg-[#f3f0ea] hover:text-[#37352f]'
+        : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground';
+    const selectorDisabledClass = toolbarStyle
+        ? 'bg-transparent text-[#37352f]/35 opacity-60 cursor-not-allowed'
+        : 'opacity-50 cursor-not-allowed text-foreground-secondary';
+    const reasoningBaseClass = toolbarStyle
+        ? `h-9 w-10 rounded-xl ${textSize}`
+        : `${buttonPadding} rounded-lg ${textSize}`;
+    const reasoningIdleClass = toolbarStyle
+        ? 'bg-transparent text-[#37352f]/72 hover:bg-[#f3f0ea] hover:text-[#37352f]'
+        : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground';
+    const reasoningActiveClass = toolbarStyle
+        ? 'bg-[#f4efe2] text-[#8a6b00]'
+        : 'text-yellow-600';
+    const reasoningDisabledClass = toolbarStyle
+        ? 'bg-transparent text-[#37352f]/30 opacity-60 cursor-not-allowed'
+        : 'opacity-30 cursor-not-allowed text-foreground-secondary';
+
+    if (customProviderConfig && !toolbarStyle) {
+        const directLabel = getCustomProviderDisplayName(customProviderConfig) || customProviderConfig.modelId;
+        return (
+            <div className="flex items-center">
+                <div
+                    className={`flex items-center gap-2 border border-border/70 bg-background-secondary/40 text-foreground-secondary ${selectorButtonClass}`}
+                    title="当前已启用 BYOK 浏览器直连"
+                >
+                    <Cpu className={compact ? 'w-4 h-4' : 'w-4.5 h-4.5'} />
+                    <span className={`${compact ? 'max-w-[132px]' : 'max-w-[180px]'} truncate`}>
+                        {directLabel}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className={`flex items-center`}>
+        <div className={`flex items-center ${toolbarStyle ? 'gap-2' : ''}`}>
+            {onReasoningChange && toolbarStyle && (
+                <button
+                    type="button"
+                    onClick={handleReasoningToggle}
+                    disabled={disabled || !canToggleReasoning}
+                    className={`flex items-center justify-center transition-all ${reasoningBaseClass} ${disabled || !currentModelConfig?.supportsReasoning || !reasoningAllowed
+                        ? reasoningDisabledClass
+                        : isReasoningForced
+                            ? `${reasoningActiveClass} cursor-default`
+                            : reasoningEnabled
+                                ? reasoningActiveClass
+                                : reasoningIdleClass
+                        }`}
+                    title={reasoningTooltip}
+                >
+                    <Lightbulb className={`${compact ? 'w-4 h-4' : 'w-4.5 h-4.5'} ${(reasoningEnabled || isReasoningForced) ? 'fill-yellow-500' : ''}`} />
+                </button>
+            )}
+
             {onModelChange && (
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                        className={`flex items-center gap-1.5 ${buttonPadding} rounded-lg transition-all ${textSize} ${modelSelectorDisabled
-                            ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
-                            : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
-                            }`}
+                        className={`flex items-center gap-1.5 transition-all ${selectorButtonClass} ${
+                            modelSelectorDisabled
+                                ? selectorDisabledClass
+                                : toolbarStyle && modelDropdownOpen
+                                    ? 'bg-[#f3f0ea] text-[#37352f]'
+                                    : selectorActiveClass
+                        }`}
                         disabled={modelSelectorDisabled}
                     >
                         {modelsLoading ? (
@@ -184,20 +267,20 @@ export function ModelSelector({
                 </div>
             )}
 
-            {onReasoningChange && (
+            {onReasoningChange && !toolbarStyle && (
                 <>
                     {onModelChange && !compact}
                     <button
                         type="button"
                         onClick={handleReasoningToggle}
                         disabled={disabled || !canToggleReasoning}
-                        className={`flex items-center gap-1.5 ${buttonPadding} rounded-lg transition-all ${textSize} ${disabled || !currentModelConfig?.supportsReasoning || !reasoningAllowed
-                            ? 'opacity-30 cursor-not-allowed text-foreground-secondary'
+                        className={`flex items-center gap-1.5 transition-all ${reasoningBaseClass} ${disabled || !currentModelConfig?.supportsReasoning || !reasoningAllowed
+                            ? reasoningDisabledClass
                             : isReasoningForced
-                                ? 'text-yellow-600 cursor-default'
+                                ? `${reasoningActiveClass} cursor-default`
                                 : reasoningEnabled
-                                    ? 'text-yellow-600'
-                                    : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+                                    ? reasoningActiveClass
+                                    : reasoningIdleClass
                             }`}
                         title={reasoningTooltip}
                     >
