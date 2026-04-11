@@ -54,6 +54,9 @@ declare module 'lunar-javascript' {
     getJieQiTable(): Record<string, Solar>;
     getJieQiList(): string[];
     getDayInGanZhi(): string;
+    getYearInGanZhi(): string;
+    getMonthInGanZhi(): string;
+    getTimeInGanZhi(): string;
     getMonthInGanZhiExact(): string;
     // 黄历相关
     getDayYi(): string[];
@@ -88,6 +91,9 @@ declare module 'lunar-javascript' {
     getHou(): string;
     getLiuYao(): string;
     getDayNineStar(): NineStar;
+    getYearNineStar(sect?: number): NineStar;
+    getMonthNineStar(sect?: number): NineStar;
+    getTimeNineStar(): NineStar;
     getDayXunKong(): string;
     // 建除十二值星
     getZhiXing(): string;
@@ -130,12 +136,25 @@ declare module 'lunar-javascript' {
   }
 
   export class NineStar {
+    static fromIndex(index: number): NineStar;
     toString(): string;
     toFullString(): string;
     getNumber(): number;
     getColor(): string;
     getWuXing(): string;
+    getPosition(): string;
     getPositionDesc(): string;
+    getNameInXuanKong(): string;
+    getNameInBeiDou(): string;
+    getNameInQiMen(): string;
+    getNameInTaiYi(): string;
+    getLuckInQiMen(): string;
+    getLuckInXuanKong(): string;
+    getYinYangInQiMen(): string;
+    getTypeInTaiYi(): string;
+    getBaMenInQiMen(): string;
+    getSongInTaiYi(): string;
+    getIndex(): number;
   }
 
   export class LunarMonth {

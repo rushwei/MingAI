@@ -68,6 +68,7 @@ export {
 export { calculateMeihua, toMeihuaJson, toMeihuaText } from './domains/meihua/index.js';
 export { calculateQimen, toQimenJson, toQimenText } from './domains/qimen/index.js';
 export { calculateTarot, toTarotJson, toTarotText } from './domains/tarot/index.js';
+export { calculateTaiyi, toTaiyiJson, toTaiyiText } from './domains/taiyi/index.js';
 export {
   calculateZiwei,
   calculateZiweiDecadalListWithAstrolabe,
