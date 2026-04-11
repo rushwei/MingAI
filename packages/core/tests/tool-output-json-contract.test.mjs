@@ -70,7 +70,7 @@ test('runtime placeResolutionInfo should merge into ziwei structured output when
     provider: 'amap',
     usedLongitude: 114.700215,
     source: 'birth_place',
-    trueSolarTimeApplied: true,
+    locationMode: 'true_solar_time',
   };
 
   const horoscopePayload = buildToolSuccessPayload(

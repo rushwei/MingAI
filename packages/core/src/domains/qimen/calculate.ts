@@ -46,15 +46,15 @@ let taobiConstructorPromise: Promise<TaobiConstructor> | null = null;
 let tzMutexQueue: Promise<void> = Promise.resolve();
 
 function withTzMutex<T>(fn: () => T): Promise<T> {
-  let release: () => void;
+  let release: () => void = () => {};
   const next = new Promise<void>(resolve => { release = resolve; });
   const prev = tzMutexQueue;
   tzMutexQueue = next;
-  return prev.then(() => {
+  return prev.catch(() => {}).then(() =>{
     try {
       return fn();
     } finally {
-      release!();
+      release();
     }
   });
 }
