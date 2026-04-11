@@ -113,7 +113,7 @@ export const NAV_REGISTRY: readonly NavItemDef[] = [
   // ── User ────────────────────────────────────────────────────────────────
   { id: 'user', href: '/user', label: '我的', icon: User, category: 'user' },
   { id: 'user/settings', href: '/user/settings', label: '设置', icon: Settings, category: 'user' },
-  { id: 'user/upgrade', href: '/user/upgrade', label: '订阅', icon: CircleStar, featureId: 'upgrade', category: 'user' },
+  { id: 'user/upgrade', href: '/user/upgrade', label: '会员与积分', icon: CircleStar, featureId: 'upgrade', category: 'user' },
   { id: 'user/charts', href: '/user/charts', label: '命盘', icon: Scroll, featureId: 'charts', category: 'user' },
   { id: 'user/notifications', href: '/user/notifications', label: '通知', icon: Bell, featureId: 'notifications', category: 'user' },
   { id: 'user/credits', href: '/user/credits', label: '积分流水', icon: CreditCard, featureId: 'credits', category: 'user' },
@@ -152,7 +152,7 @@ export function getSidebarNavItems() {
 
 /** Sidebar "工具" items (tool category). */
 export function getSidebarToolItems() {
-  return NAV_REGISTRY.filter((n) => n.category === 'tool');
+  return NAV_REGISTRY.filter((n) => n.category === 'tool' && n.id !== 'checkin');
 }
 
 /** MobileNav — all items keyed by id. */
@@ -211,7 +211,7 @@ const adminLabelOverride: Record<string, string> = {
   'knowledge-base': '知识库',
   'ai-personalization': '个性化',
   notifications: '消息通知',
-  upgrade: '订阅',
+  upgrade: '会员与积分',
   help: '帮助',
   charts: '我的命盘',
   credits: '积分流水',

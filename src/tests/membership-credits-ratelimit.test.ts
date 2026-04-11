@@ -65,6 +65,24 @@ test('buildMembershipInfo returns defaults for null source', () => {
     assert.equal(info.aiChatCount, 1);
 });
 
+test('normalizeMembershipInfo converts serialized expiresAt back to Date', () => {
+    const { normalizeMembershipInfo } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    const iso = '2026-04-12T00:00:00.000Z';
+    const info = normalizeMembershipInfo({
+        type: 'plus',
+        expiresAt: iso,
+        isActive: true,
+        aiChatCount: 12,
+    });
+
+    assert.ok(info);
+    assert.ok(info.expiresAt instanceof Date);
+    assert.equal(info.expiresAt?.toISOString(), iso);
+    assert.equal(info.type, 'plus');
+    assert.equal(info.aiChatCount, 12);
+});
+
 test('getUserAuthInfo returns null when DB query fails', async () => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const creditsModule = require('../lib/user/credits') as typeof import('../lib/user/credits');

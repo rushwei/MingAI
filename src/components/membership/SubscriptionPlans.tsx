@@ -1,12 +1,11 @@
 /**
  * 订阅套餐展示组件
  *
- * 展示 Free/Plus/Pro 三个套餐
- * 手机端支持 Tab 切换选择
+ * 使用简洁的文档块布局展示 Free/Plus/Pro 三个套餐。
  */
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import { Check, ChevronDown, Crown, Sparkles, Zap } from 'lucide-react';
 import { pricingPlans, type PricingPlan, type MembershipType } from '@/lib/user/membership';
 
@@ -15,21 +14,39 @@ interface SubscriptionPlansProps {
     onSelectPlan: (plan: PricingPlan) => void;
 }
 
+const PLAN_COPY: Record<MembershipType, { summary: string; action: string }> = {
+    free: {
+        summary: '适合偶尔查看命盘与基础 AI 体验。',
+        action: '免费使用',
+    },
+    plus: {
+        summary: '适合稳定使用签到、知识库与更多 AI 能力。',
+        action: '查看获取方式',
+    },
+    pro: {
+        summary: '适合重度使用与更高积分上限需求。',
+        action: '查看获取方式',
+    },
+};
+
+function PlanIcon({ planId }: { planId: MembershipType }) {
+    if (planId === 'pro') {
+        return <Sparkles className="h-4 w-4" />;
+    }
+    if (planId === 'plus') {
+        return <Crown className="h-4 w-4" />;
+    }
+    return <Zap className="h-4 w-4" />;
+}
+
 export function SubscriptionPlans({
     currentPlan,
     onSelectPlan,
 }: SubscriptionPlansProps) {
-    // 手机端默认选中推荐的套餐
-    const getDefaultTab = (): MembershipType => {
-        if (currentPlan === 'free') return 'plus';
-        if (currentPlan === 'plus') return 'pro';
-        return 'pro';
-    };
-    const [selectedTab, setSelectedTab] = useState<MembershipType>(getDefaultTab);
-    const [expandedPlans, setExpandedPlans] = useState<Set<MembershipType>>(new Set());
+    const [expandedPlans, setExpandedPlans] = useState<Set<MembershipType>>(new Set([currentPlan]));
 
-    const toggleExpand = useCallback((planId: MembershipType) => {
-        setExpandedPlans(prev => {
+    const toggleExpand = (planId: MembershipType) => {
+        setExpandedPlans((prev) => {
             const next = new Set(prev);
             if (next.has(planId)) {
                 next.delete(planId);
@@ -38,149 +55,82 @@ export function SubscriptionPlans({
             }
             return next;
         });
-    }, []);
-
-    const getIcon = (planId: MembershipType) => {
-        switch (planId) {
-            case 'free': return <Zap className="w-5 h-5" />;
-            case 'plus': return <Crown className="w-5 h-5" />;
-            case 'pro': return <Sparkles className="w-5 h-5" />;
-        }
-    };
-
-    const getPlanColor = (planId: MembershipType) => {
-        switch (planId) {
-            case 'free': return 'gray';
-            case 'plus': return 'amber';
-            case 'pro': return 'purple';
-        }
-    };
-
-    // 根据当前会员等级确定推荐的套餐
-    const recommendedPlan = useMemo((): MembershipType | null => {
-        switch (currentPlan) {
-            case 'free': return 'plus';
-            case 'plus': return 'pro';
-            case 'pro': return null; // 已是最高级
-        }
-    }, [currentPlan]);
-
-    // 渲染单个套餐卡片
-    const renderPlanCard = (plan: PricingPlan) => {
-        const color = getPlanColor(plan.id);
-        const isCurrent = currentPlan === plan.id;
-        const isRecommended = plan.id === recommendedPlan;
-
-        return (
-            <div
-                key={plan.id}
-                className={`relative rounded-xl border p-4 transition-all ${
-                    isRecommended ? 'border-accent bg-accent/5' : 'border-border hover:border-accent/50'
-                } ${isCurrent ? 'ring-2 ring-green-500' : ''}`}
-            >
-                {isRecommended && (
-                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent text-white text-xs font-medium whitespace-nowrap z-10">
-                        推荐升级
-                    </div>
-                )}
-                {/* 头部：图标、名称、价格同一排 */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg bg-${color}-500/10 text-${color}-500`}>
-                            {getIcon(plan.id)}
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-base">{plan.name}</h3>
-                                {isCurrent && (
-                                    <span className="text-xs text-green-500">当前</span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-sm font-semibold text-foreground">
-                            {plan.id === 'free' ? '常驻' : '月度权益'}
-                        </div>
-                        <div className="text-foreground-secondary text-xs">{plan.period}</div>
-                    </div>
-                </div>
-                <ul className="space-y-1.5 mb-3 text-sm">
-                    {(expandedPlans.has(plan.id) ? plan.features : plan.features.slice(0, 3)).map((feature, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                            <Check className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
-                            <span className="text-foreground-secondary leading-tight">{feature}</span>
-                        </li>
-                    ))}
-                    {plan.features.length > 3 && (
-                        <li
-                            onClick={() => toggleExpand(plan.id)}
-                            className="flex items-center gap-1 text-xs text-accent cursor-pointer hover:text-accent/80 pl-6"
-                        >
-                            <span>{expandedPlans.has(plan.id) ? '收起' : `+${plan.features.length - 3} 项更多功能`}</span>
-                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandedPlans.has(plan.id) ? 'rotate-180' : ''}`} />
-                        </li>
-                    )}
-                </ul>
-                <button
-                    onClick={() => onSelectPlan(plan)}
-                    disabled={isCurrent || plan.id === 'free'}
-                    className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all ${plan.id === 'free'
-                        ? 'bg-background text-foreground-secondary cursor-not-allowed'
-                        : isCurrent
-                            ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
-                            : isRecommended
-                                ? 'bg-accent text-white hover:bg-accent/90'
-                                : 'bg-background-secondary hover:bg-accent hover:text-white'
-                        }`}
-                >
-                    {plan.id === 'free' ? '免费' : isCurrent ? '已开通' : '查看获取方式'}
-                </button>
-            </div>
-        );
     };
 
     return (
-        <>
-            {/* 手机端 Tab 切换 */}
-            <div className="sm:hidden">
-                {/* Tab 选择器 */}
-                <div className="flex bg-background-secondary rounded-xl p-1 mb-4">
-                    {pricingPlans.map((plan) => {
-                        const isSelected = selectedTab === plan.id;
-                        const isCurrentPlan = currentPlan === plan.id;
-                        return (
-                            <button
-                                key={plan.id}
-                                onClick={() => setSelectedTab(plan.id)}
-                                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                    isSelected
-                                        ? 'bg-background shadow-sm text-foreground'
-                                        : 'text-foreground-secondary'
-                                }`}
-                            >
-                                <span className="flex items-center justify-center gap-1.5">
-                                    {plan.name}
-                                    {isCurrentPlan && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                    )}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-                {/* 选中的套餐卡片 */}
-                <div className="pt-2">
-                    {pricingPlans
-                        .filter((plan) => plan.id === selectedTab)
-                        .map((plan) => renderPlanCard(plan))}
-                </div>
-            </div>
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            {pricingPlans.map((plan, index) => {
+                const isCurrent = currentPlan === plan.id;
+                const isExpanded = expandedPlans.has(plan.id);
 
-            {/* 桌面端网格布局 */}
-            <div className="hidden sm:grid sm:grid-cols-3 gap-4 max-w-5xl mx-auto pt-4">
-                {pricingPlans.map((plan) => renderPlanCard(plan))}
-            </div>
-        </>
+                return (
+                    <section
+                        key={plan.id}
+                        className={`group relative transition-colors duration-150 hover:bg-[#efedea] ${
+                            index > 0 ? 'border-t border-gray-200' : ''
+                        }`}
+                    >
+                        <div className="pointer-events-none absolute left-3 top-4 text-xs tracking-[0.2em] text-[#37352f]/0 transition-opacity duration-150 group-hover:text-[#37352f]/30">
+                            ⋮⋮
+                        </div>
+
+                        <div className="px-8 py-4 sm:px-10">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0 space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#f7f6f3] text-[#37352f]/65">
+                                            <PlanIcon planId={plan.id} />
+                                        </span>
+                                        <h3 className="text-base font-semibold text-[#37352f]">{plan.name}</h3>
+                                    </div>
+
+                                    <p className="text-sm text-[#37352f]/65">{PLAN_COPY[plan.id].summary}</p>
+                                </div>
+
+                                <div className="flex flex-col items-start gap-2 sm:items-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelectPlan(plan)}
+                                        disabled={isCurrent || plan.id === 'free'}
+                                        className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors duration-150 ${
+                                            plan.id === 'free'
+                                                ? 'cursor-not-allowed border-gray-200 bg-[#f7f6f3] text-[#37352f]/45'
+                                                : isCurrent
+                                                    ? 'cursor-not-allowed border-[#d8e6df] bg-[#f2f8f5] text-[#0f7b6c]'
+                                                    : 'border-gray-200 bg-transparent text-[#37352f] hover:bg-[#efedea] active:bg-[#e3e1db]'
+                                        }`}
+                                    >
+                                        {isCurrent ? '已开通' : PLAN_COPY[plan.id].action}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleExpand(plan.id)}
+                                        className="inline-flex items-center gap-1 text-xs text-[#37352f]/55 transition-colors duration-150 hover:text-[#37352f]"
+                                    >
+                                        <span>{isExpanded ? '收起权益' : '展开权益'}</span>
+                                        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {isExpanded ? (
+                                <ul className="mt-4 grid gap-2 border-t border-dashed border-gray-200 pt-4 sm:grid-cols-2">
+                                    {plan.features.map((feature, featureIndex) => (
+                                        <li
+                                            key={`${plan.id}-${featureIndex}`}
+                                            className="flex items-start gap-2 text-sm text-[#37352f]/70"
+                                        >
+                                            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#37352f]/45" />
+                                            <span>{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
+                        </div>
+                    </section>
+                );
+            })}
+        </div>
     );
 }

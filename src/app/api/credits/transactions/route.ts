@@ -34,12 +34,40 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false })
             .limit(limit);
 
+        const now = new Date();
+        const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const startOfTomorrowUtc = new Date(startOfTodayUtc);
+        startOfTomorrowUtc.setUTCDate(startOfTomorrowUtc.getUTCDate() + 1);
+
+        const { data: todaySpendRows, error: todaySpendError } = await supabase
+            .from('credit_transactions')
+            .select('amount')
+            .eq('user_id', auth.user.id)
+            .lt('amount', 0)
+            .gte('created_at', startOfTodayUtc.toISOString())
+            .lt('created_at', startOfTomorrowUtc.toISOString());
+
         if (error) {
             console.error('[credits/transactions] Failed to load transactions:', error);
             return jsonError('获取积分流水失败', 500);
         }
 
-        return jsonOk({ data: (data || []) as CreditTransactionRow[] });
+        if (todaySpendError) {
+            console.error('[credits/transactions] Failed to load today spend summary:', todaySpendError);
+            return jsonError('获取积分流水失败', 500);
+        }
+
+        const todaySpent = (todaySpendRows || []).reduce((sum, row) => {
+            const amount = typeof row?.amount === 'number' ? row.amount : 0;
+            return sum + Math.abs(amount);
+        }, 0);
+
+        return jsonOk({
+            data: (data || []) as CreditTransactionRow[],
+            summary: {
+                todaySpent,
+            },
+        });
     } catch (error) {
         console.error('[credits/transactions] Error:', error);
         return jsonError('服务器错误', 500);

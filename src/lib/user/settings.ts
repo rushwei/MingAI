@@ -14,7 +14,7 @@ export const DEFAULT_NAV_ORDER = [
 ] as const;
 
 export const DEFAULT_TOOL_ORDER = [
-  'checkin', 'chat', 'records', 'community',
+  'chat', 'records', 'community',
 ] as const;
 
 export const DEFAULT_MOBILE_MAIN_ITEMS = [
@@ -22,9 +22,9 @@ export const DEFAULT_MOBILE_MAIN_ITEMS = [
 ] as const;
 
 export const DEFAULT_MOBILE_DRAWER_ORDER = [
-  'bazi', 'checkin', 'records', 'community', 'hepan', 'ziwei', 'tarot', 'qimen', 'daliuren',
+  'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot', 'qimen', 'daliuren',
   'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-  'user/upgrade', 'user/credits',
+  'user/upgrade',
   'user/settings/ai', 'user/knowledge-base', 'user/help',
   'user/charts',
 ] as const;

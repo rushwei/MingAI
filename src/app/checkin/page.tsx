@@ -26,7 +26,7 @@ function CheckinPageContent() {
             router.back();
             return;
         }
-        router.replace('/user/credits');
+        router.replace('/user/upgrade');
     };
 
     return (

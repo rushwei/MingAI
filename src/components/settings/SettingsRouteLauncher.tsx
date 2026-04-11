@@ -13,18 +13,27 @@ import {
 interface SettingsRouteLauncherProps {
   tab: SettingsCenterTab;
   preserveExistingHash?: boolean;
+  preserveExistingSearch?: boolean;
   subpath?: string;
 }
 
-export function SettingsRouteLauncher({ tab, preserveExistingHash = false, subpath }: SettingsRouteLauncherProps) {
+export function SettingsRouteLauncher({
+  tab,
+  preserveExistingHash = false,
+  preserveExistingSearch = false,
+  subpath,
+}: SettingsRouteLauncherProps) {
   const router = useRouter();
 
   useEffect(() => {
     if (preserveExistingHash && parseSettingsCenterHash(window.location.hash)) {
       return;
     }
-    router.replace(getSettingsCenterRouteTarget(tab, { subpath }));
-  }, [preserveExistingHash, router, subpath, tab]);
+    router.replace(getSettingsCenterRouteTarget(tab, {
+      subpath,
+      search: preserveExistingSearch ? window.location.search : undefined,
+    }));
+  }, [preserveExistingHash, preserveExistingSearch, router, subpath, tab]);
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center bg-background">

@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import {
   BookOpenText,
   Bot,
+  CircleStar,
   CircleQuestionMark,
   Key,
   Megaphone,
@@ -35,6 +36,9 @@ import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequir
 
 const LazyGeneralSettingsContent = lazy(async () => ({
   default: (await import('@/app/user/settings/page')).GeneralSettingsContent,
+}));
+const LazyUpgradeContent = lazy(async () => ({
+  default: (await import('@/app/user/upgrade/page')).UpgradeContent,
 }));
 const LazyAISettingsContent = lazy(async () => ({
   default: (await import('@/app/user/ai-settings/page')).AISettingsContent,
@@ -78,6 +82,8 @@ export type SettingsCenterTabItem = {
 const TAB_ICONS: Record<SettingsCenterTab, ComponentType<{ className?: string }>> = {
   profile: User,
   general: Settings,
+  upgrade: CircleStar,
+  credits: CircleStar,
   personalization: MessageCircleHeart,
   help: CircleQuestionMark,
   charts: Scroll,
@@ -193,6 +199,10 @@ function renderSettingsCenterPanel(
       return renderLazyPanel(<LazyProfileContent embedded />);
     case 'general':
       return renderLazyPanel(<LazyGeneralSettingsContent embedded />);
+    case 'upgrade':
+      return renderLazyPanel(<LazyUpgradeContent embedded />);
+    case 'credits':
+      return renderLazyPanel(<LazyUpgradeContent embedded />);
     case 'personalization':
       return renderLazyPanel(<LazyAISettingsContent embedded />);
     case 'help':
@@ -265,6 +275,8 @@ export function SettingsCenterHost() {
 
   const flags = useMemo<SettingsCenterFlags>(
     () => ({
+      upgradeEnabled: isFeatureEnabled('upgrade') || isFeatureEnabled('credits'),
+      creditsEnabled: isFeatureEnabled('credits'),
       chartsEnabled: isFeatureEnabled('charts'),
       knowledgeBaseEnabled: isFeatureEnabled('knowledge-base'),
       mcpServiceEnabled: isFeatureEnabled('mcp-service'),

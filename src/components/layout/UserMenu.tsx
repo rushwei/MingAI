@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
+  CircleStar,
   CircleQuestionMark,
   LayoutPanelTop,
   LogOut,
@@ -79,6 +80,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
   const isDesktopSidebar = useIsDesktopSidebar();
   const { isFeatureEnabled } = useFeatureToggles();
   const { profile, loading: profileLoading, resolved: profileResolved } = useCurrentUserProfile({ enabled: isDesktopSidebar });
+  const upgradeEnabled = isFeatureEnabled('upgrade') || isFeatureEnabled('credits');
   const personalizationEnabled = isFeatureEnabled('ai-personalization');
   const chartsEnabled = isFeatureEnabled('charts');
   const helpEnabled = isFeatureEnabled('help');
@@ -156,6 +158,17 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
 
                         {/* 设置选项 */}
                         <div className="flex flex-col">
+                            {upgradeEnabled && (
+                                <SettingsCenterLink
+                                    tab="upgrade"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                                >
+                                    <CircleStar className="h-4 w-4 text-[#37352f]/40" />
+                                    <span>会员与积分</span>
+                                </SettingsCenterLink>
+                            )}
+
                             {personalizationEnabled && (
                                 <SettingsCenterLink
                                     tab="personalization"

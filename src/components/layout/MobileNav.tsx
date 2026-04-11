@@ -21,6 +21,13 @@ import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
 
 const ALL_NAV_ITEMS = getMobileItemsRecord();
 
+function isMergedMembershipNavEnabled(id: string, isFeatureEnabled: (featureId: string) => boolean) {
+    if (id === 'user/upgrade') {
+        return isFeatureEnabled('upgrade') || isFeatureEnabled('credits');
+    }
+    return isFeatureEnabled(toFeatureId(id));
+}
+
 const GRID_COLS_CLASS: Record<number, string> = {
     0: 'grid-cols-1',
     1: 'grid-cols-2',
@@ -37,7 +44,7 @@ export function MobileNav() {
     // 底部导航栏项目（硬编码默认顺序）
     const mainNavItems = useMemo(() => {
         return [...DEFAULT_MOBILE_MAIN_ITEMS]
-            .filter(id => isFeatureEnabled(toFeatureId(id)))
+            .filter(id => isMergedMembershipNavEnabled(id, isFeatureEnabled))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
     }, [isFeatureEnabled]);
@@ -46,7 +53,7 @@ export function MobileNav() {
     const drawerNavItems = useMemo(() => {
         const mainSet = new Set<string>(DEFAULT_MOBILE_MAIN_ITEMS);
         return [...DEFAULT_MOBILE_DRAWER_ORDER]
-            .filter(id => !mainSet.has(id) && isFeatureEnabled(toFeatureId(id)))
+            .filter(id => !mainSet.has(id) && isMergedMembershipNavEnabled(id, isFeatureEnabled))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
     }, [isFeatureEnabled]);

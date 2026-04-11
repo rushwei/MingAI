@@ -18,6 +18,13 @@ export interface MembershipInfo {
     aiChatCount: number;
 }
 
+type MembershipInfoPayload = {
+    type?: MembershipType | null;
+    expiresAt?: string | Date | null;
+    isActive?: boolean | null;
+    aiChatCount?: number | null;
+};
+
 export type MembershipLookupResult = {
     ok: boolean;
     info: MembershipInfo | null;
@@ -28,6 +35,27 @@ export type MembershipInfoSource = {
     membership_expires_at?: string | null;
     ai_chat_count?: number | null;
 };
+
+export function normalizeMembershipInfo(input: MembershipInfoPayload | MembershipInfo | null): MembershipInfo | null {
+    if (!input) {
+        return null;
+    }
+
+    const membershipType = input.type === 'plus' || input.type === 'pro' ? input.type : 'free';
+    const expiresAtRaw = input.expiresAt;
+    const expiresAt = expiresAtRaw instanceof Date
+        ? expiresAtRaw
+        : typeof expiresAtRaw === 'string' && expiresAtRaw.length > 0
+            ? new Date(expiresAtRaw)
+            : null;
+
+    return {
+        type: membershipType,
+        expiresAt: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
+        isActive: typeof input.isActive === 'boolean' ? input.isActive : membershipType === 'free' || expiresAt === null || expiresAt > new Date(),
+        aiChatCount: typeof input.aiChatCount === 'number' ? input.aiChatCount : 1,
+    };
+}
 
 /**
  * 判断付费会员是否已过期
@@ -140,7 +168,7 @@ export async function getMembershipInfoResult(userId: string): Promise<Membershi
 
     return {
         ok: true,
-        info: result.data?.membership ?? null,
+        info: normalizeMembershipInfo(result.data?.membership ?? null),
     };
 }
 

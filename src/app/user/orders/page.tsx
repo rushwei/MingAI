@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function OrdersRedirectPage() {
-    redirect('/user/credits');
+    redirect('/user/upgrade');
 }
