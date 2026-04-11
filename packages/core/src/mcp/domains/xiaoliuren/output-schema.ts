@@ -6,22 +6,24 @@ import{
 } from '../../schema-builders.js';
 
 export const xiaoliurenOutputSchema: OutputSchema = obj({
-  monthStatus: str('月上起的状态'),
-  dayStatus: str('日上起的状态'),
-  hourStatus: str('时上起的最终状态'),
-  result: obj({
-    name: str('最终状态名称'),
-    element: str('五行'),
-    direction: str('方位'),
-    nature: str('吉凶性质'),
-    description: str('释义'),
-    poem: str('诗诀'),
+  起课信息: obj({
+    占问: str('占问事项'),
+    农历月: num('农历月'),
+    农历日: num('农历日'),
+    时辰: str('时辰名称'),
+    时辰序号: num('时辰序号'),
   }),
-  input: obj({
-    lunarMonth: num('农历月'),
-    lunarDay: num('农历日'),
-    hour: num('时辰序号'),
-    shichen: str('时辰名称'),
+  推演链: obj({
+    月上起: str('月上起落点'),
+    日上落: str('日上落点'),
+    时上落: str('时上最终落点'),
   }),
-  question: str('占问事项'),
+  结果: obj({
+    落宫: str('最终落宫'),
+    五行: str('五行'),
+    方位: str('方位'),
+    性质: str('性质'),
+    释义: str('释义'),
+    诗诀: str('诗诀'),
+  }),
 });

@@ -9,7 +9,7 @@ import type { XiaoliurenInput, XiaoliurenOutput } from '../../../domains/xiaoliu
 export const xiaoliurenManifest = defineToolContract<XiaoliurenInput, XiaoliurenOutput>({
   definition: xiaoliurenDefinition,
   execute: calculateXiaoliurenData,
-  renderText: (output) => toXiaoliurenText(output),
-  renderJSON: (output) => toXiaoliurenJson(output),
+  renderText: (output, options) => toXiaoliurenText(output, options),
+  renderJSON: (output, options) => toXiaoliurenJson(output, options),
   outputSchema: xiaoliurenOutputSchema,
 });

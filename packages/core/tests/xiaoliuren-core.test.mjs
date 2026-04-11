@@ -61,24 +61,42 @@ test('xiaoliuren result info has all required fields', () => {
 test('xiaoliuren toJson produces valid JSON structure', () => {
   const output = calculateXiaoliurenData({ lunarMonth: 2, lunarDay: 15, hour: 6 });
   const json = toXiaoliurenJson(output);
-  assert.equal(typeof json.monthStatus, 'string');
-  assert.equal(typeof json.dayStatus, 'string');
-  assert.equal(typeof json.hourStatus, 'string');
-  assert.equal(typeof json.result.name, 'string');
-  assert.equal(typeof json.input.lunarMonth, 'number');
+  assert.equal(typeof json.推演链.月上起, 'string');
+  assert.equal(typeof json.推演链.日上落, 'string');
+  assert.equal(typeof json.推演链.时上落, 'string');
+  assert.equal(typeof json.结果.落宫, 'string');
+  assert.equal(typeof json.起课信息.农历月, 'number');
+  assert.equal(json.结果.释义, undefined);
+  assert.equal(json.结果.诗诀, undefined);
 });
 
-test('xiaoliuren toText produces non-empty text with poem', () => {
+test('xiaoliuren toJson full should append description and poem', () => {
+  const output = calculateXiaoliurenData({ lunarMonth: 2, lunarDay: 15, hour: 6 });
+  const json = toXiaoliurenJson(output, { detailLevel: 'full' });
+  assert.equal(typeof json.结果.释义, 'string');
+  assert.equal(typeof json.结果.诗诀, 'string');
+});
+
+test('xiaoliuren toText default should keep only main evidence', () => {
   const output = calculateXiaoliurenData({ lunarMonth:4, lunarDay: 8, hour: 10 });
   const text = toXiaoliurenText(output);
-  assert.ok(text.includes('小六壬占卜结果'));
-  assert.ok(text.includes('诗诀'));
+  assert.ok(text.includes('小六壬主证据'));
+  assert.ok(text.includes('## 推演链'));
   assert.ok(text.includes(output.result.name));
+  assert.ok(!text.includes('诗诀'));
+  assert.ok(!text.includes('参考释义'));
 });
 
-test('xiaoliuren toText without poem', () => {
+test('xiaoliuren toText full should include poem and description', () => {
   const output = calculateXiaoliurenData({ lunarMonth: 4, lunarDay: 8, hour: 10 });
-  const text = toXiaoliurenText(output, { showPoem: false });
+  const text = toXiaoliurenText(output, { detailLevel: 'full' });
+  assert.ok(text.includes('诗诀'));
+  assert.ok(text.includes('参考释义'));
+});
+
+test('xiaoliuren toText should still allow explicitly hiding poem in full mode', () => {
+  const output = calculateXiaoliurenData({ lunarMonth: 4, lunarDay: 8, hour: 10 });
+  const text = toXiaoliurenText(output, { detailLevel: 'full', showPoem: false });
   assert.ok(!text.includes('诗诀'));
 });
 

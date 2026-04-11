@@ -2,7 +2,7 @@ import type { ToolDefinition } from '../../contract.js';
 
 export const xiaoliurenDefinition: ToolDefinition = {
   name: 'xiaoliuren',
-  description: '小六壬占卜 - 根据农历月日时辰起卦，通过大安、留连、速喜、赤口、小吉、空亡六种状态推演吉凶',
+  description: '小六壬占卜 - 根据农历月日时辰起课，通过大安、留连、速喜、赤口、小吉、空亡六种状态顺推结果。默认输出主证据：起课信息、推演链、最终落点；detailLevel=full 时补充释义与诗诀。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -15,6 +15,12 @@ export const xiaoliurenDefinition: ToolDefinition = {
         enum: ['json', 'markdown'],
         description: '响应格式：json=结构化数据，markdown=人类可读文本',
         default: 'json',
+      },
+      detailLevel: {
+        type: 'string',
+        enum: ['default', 'full'],
+        description: '输出细节级别：default=主证据；full=补充释义与诗诀。',
+        default: 'default',
       },
     },
     required: ['lunarMonth', 'lunarDay', 'hour'],
