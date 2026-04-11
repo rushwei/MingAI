@@ -41,6 +41,7 @@ export { calculateBaziDayun, toBaziDayunJson, toBaziDayunText } from './domains/
 export { resolveBaziPillars, toBaziPillarsResolveJson, toBaziPillarsResolveText } from './domains/bazi-pillars-resolve/index.js';
 export { calculateDaliuren, toDaliurenJson, toDaliurenText } from './domains/daliuren/index.js';
 export { calculateDailyAlmanac, toAlmanacJson, toAlmanacText } from './domains/almanac/index.js';
+export { calculateAstrology, toAstrologyJson, toAstrologyText } from './domains/astrology/index.js';
 export { calculateLiuyao, toLiuyaoCanonicalJson, toLiuyaoCanonicalText, toLiuyaoJson, toLiuyaoText } from './domains/liuyao/index.js';
 export {
   calculateDerivedHexagrams,

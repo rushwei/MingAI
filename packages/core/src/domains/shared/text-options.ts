@@ -52,3 +52,11 @@ export type AlmanacCanonicalTextOptions = {
 export type MeihuaCanonicalTextOptions = {
   detailLevel?: DetailLevel;
 };
+
+export type TaiyiCanonicalTextOptions = {
+  detailLevel?: DetailLevel;
+};
+
+export type AstrologyCanonicalTextOptions = {
+  detailLevel?: DetailLevel;
+};
