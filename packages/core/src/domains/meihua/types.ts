@@ -3,7 +3,6 @@ import type {
   DetailLevel,
   DiZhi,
   GanZhiTime,
-  ResponseFormat,
   WuXing
 } from '../shared/types.js';
 
@@ -59,7 +58,6 @@ export interface MeihuaInput {
   movingLine?: number;
   hexagramName?: string;
   numbers?: number[];
-  responseFormat?: ResponseFormat;
   detailLevel?: DetailLevel;
 }
 

@@ -6,6 +6,7 @@ import { listToolDefinitions } from '@mingai/core/mcp';
 
 // 工具名到中文显示名的映射
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  astrology: '西方占星',
   bazi: '八字排盘',
   bazi_pillars_resolve: '四柱反推',
   bazi_dayun: '大运计算',
@@ -15,9 +16,11 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   liuyao: '六爻分析',
   meihua: '梅花易数',
   tarot: '塔罗占卜',
+  taiyi: '太乙九星观测',
   almanac: '每日运势',
   qimen: '奇门遁甲',
   daliuren: '大六壬',
+  xiaoliuren: '小六壬',
 };
 
 function getToolChips(): { count: number; html: string } {

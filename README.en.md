@@ -84,8 +84,11 @@ Add to your Claude Desktop / Cherry Studio MCP config — no manual download nee
 | `meihua` | Meihua Yishu divination (time casting, count/sound, text casting, measure casting, classifier cues, modern number casting) | "Cast a Meihua Yishu reading for whether this cooperation will succeed." |
 | `tarot` | Draw Tarot cards (9 spreads, 78 cards with independent reversed keywords, astrological/elemental correspondences) | "Please draw a Tarot card for my recent love fortune." |
 | `almanac` | Daily almanac & calendar query (directions, 12 hourly fortunes, 28 mansions) | "How is today's almanac? Is it suitable for a proposal?" |
+| `astrology` | Western astrology natal and transit charting (Big Three, natal anchors, major transit triggers) | "What are the key astrology transit themes for me right now?" |
 | `qimen` | Qimen Dunjia charting (palaces, gates, stars, gods, dun type, ju number, explicit timezone) | "Use Qimen Dunjia to see whether today's negotiation is favorable." |
+| `taiyi` | Taiyi nine-star observation (external temporal environment, nine-star array, energy interaction) | "Use Taiyi nine-star observation to review this project's momentum." |
 | `daliuren` | Da Liu Ren charting (four lessons, three transmissions, heavenly plate, generals, explicit timezone) | "Use Da Liu Ren to analyze the outcome of this matter." |
+| `xiaoliuren` | Xiao Liu Ren divination (result state, palace landing, core interpretive clues) | "Use Xiao Liu Ren to see whether today's trip will go smoothly." |
 
 ### SDK
 

@@ -36,9 +36,8 @@ server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const toolArgs = args === undefined ? {} : args;
     const result = await executeTool(name, toolArgs);
-    const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
     const detailLevel = normalizeTransportDetailLevel(args?.detailLevel);
-    return buildToolSuccessPayload(name, result, responseFormat, { detailLevel });
+    return buildToolSuccessPayload(name, result, { detailLevel });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {

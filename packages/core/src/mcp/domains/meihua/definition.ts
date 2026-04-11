@@ -2,32 +2,32 @@ import type { ToolDefinition } from '../../contract.js';
 
 export const meihuaDefinition: ToolDefinition = {
   name: 'meihua',
-  description: '梅花易数 - 按《梅花易数》主线进行起卦与断卦，支持年月日時、物数/声数、字占、丈尺尺寸、方位/常见原典类象，以及现代两数/三数报数扩展法。默认输出收敛为主线证据：本卦/互卦/变卦、动爻、体卦/用卦、体用生克、月令环境、阶段推演；detailLevel=full 时再补充错综卦与判断参考。禁止混入六爻纳甲/六亲/六神语义。',
+  description: '梅花易数起卦 - 根据时间、字占、物数、报数等方式起卦，输出起卦信息、卦盘与体用推演。',
   inputSchema: {
     type: 'object',
     properties: {
       question: {
         type: 'string',
         minLength: 1,
-        description: '占卜问题，必须明确、非空。',
+        description: '占卜问题',
       },
       date: {
         type: 'string',
-        description: '起卦日期时间，按墙上时间解释，格式 YYYY-MM-DDTHH:MM[:SS]。当前不支持时区偏移后缀。',
+        description: '起卦日期时间（YYYY-MM-DDTHH:MM[:SS]）',
       },
       method: {
         type: 'string',
         enum: ['time', 'count_with_time', 'text_split', 'measure', 'classifier_pair', 'select', 'number_pair', 'number_triplet'],
-        description: '起卦方式：time=年月日時；count_with_time=物数/声数；text_split=字占；measure=丈尺尺寸；classifier_pair=方位/常见原典类象；select=指定卦；number_pair/number_triplet=现代报数扩展法。',
+        description: '起卦方式（time=时间，count_with_time=物数或声数，text_split=字占，measure=丈尺尺寸，classifier_pair=类象对，select=指定卦，number_pair/number_triplet=报数）',
       },
       count: {
         type: 'number',
-        description: '物数/声数起卦时的数量，必须为正整数。',
+        description: '物数或声数起卦的数量',
       },
       countCategory: {
         type: 'string',
         enum: ['item', 'sound'],
-        description: 'count_with_time 必填：数量来源。item=物数占（下卦取时数），sound=声音占（下卦取数量加时数）。',
+        description: '数量来源（item=物数，sound=声数）',
       },
       text: {
         type: 'string',
@@ -36,92 +36,86 @@ export const meihuaDefinition: ToolDefinition = {
       textSplitMode: {
         type: 'string',
         enum: ['auto', 'count', 'sentence_pair', 'stroke'],
-        description: '字占分割方式：auto=经典优先，优先句占，其次四至十字平上去入；若多于两句，则按经典来意占取首句或末句；count=显式按字数平分/少上多下；sentence_pair=以前后两句分上下；stroke=单字左右拆笔画（需提供笔画数）。',
+        description: '字占拆分方式（auto=自动，count=按字数，sentence_pair=按句，stroke=按笔画）',
       },
       multiSentenceStrategy: {
         type: 'string',
         enum: ['first', 'last'],
-        description: 'text_split.auto 在检测到多于两句文本时的取句方式：first=取首句，last=取末句。多于两句时必须显式提供。',
+        description: '多句文本的取句方式（first=首句，last=末句）',
       },
       sentences: {
         type: 'array',
         items: { type: 'string' },
         minItems: 2,
         maxItems: 2,
-        description: 'sentence_pair 模式下的两句文本，第一句为上卦，第二句为下卦。',
+        description: '上下卦对应的两句文本',
       },
       leftStrokeCount: {
         type: 'number',
-        description: 'stroke 模式：单字左半边或上半边笔画数。',
+        description: '左半边或上半边笔画数',
       },
       rightStrokeCount: {
         type: 'number',
-        description: 'stroke 模式：单字右半边或下半边笔画数。',
+        description: '右半边或下半边笔画数',
       },
       measureKind: {
         type: 'string',
         enum: ['丈尺', '尺寸'],
-        description: 'measure 模式必填：丈尺=合丈尺之数取爻；尺寸=合尺寸之数加时取爻。',
+        description: '量法（丈尺=丈尺，尺寸=尺寸）',
       },
       majorValue: {
         type: 'number',
-        description: 'measure 模式的大单位数值（丈或尺）。',
+        description: '大单位数值',
       },
       minorValue: {
         type: 'number',
-        description: 'measure 模式的小单位数值（尺或寸）。',
+        description: '小单位数值',
       },
       upperCue: {
         type: 'string',
-        description: 'classifier_pair 模式：上卦类象，如天、西北、老人、火、南等。当前内置常见原典类象，可配合类别参数消歧。',
+        description: '上卦类象提示词',
       },
       upperCueCategory: {
         type: 'string',
         enum: ['direction', 'color', 'weather', 'person', 'body', 'animal', 'object', 'shape', 'trigram'],
-        description: 'classifier_pair 模式：上卦类象类别。可选，用于消除类象歧义。',
+        description: '上卦类象类别',
       },
       lowerCue: {
         type: 'string',
-        description: 'classifier_pair 模式：下卦类象，如地、西南、少男、水、北等。当前内置常见原典类象，可配合类别参数消歧。',
+        description: '下卦类象提示词',
       },
       lowerCueCategory: {
         type: 'string',
         enum: ['direction', 'color', 'weather', 'person', 'body', 'animal', 'object', 'shape', 'trigram'],
-        description: 'classifier_pair 模式：下卦类象类别。可选，用于消除类象歧义。',
+        description: '下卦类象类别',
       },
       hexagramName: {
         type: 'string',
-        description: 'select 模式：指定本卦卦名或 6 位卦码。',
+        description: '指定本卦卦名或卦码',
       },
       upperTrigram: {
         type: 'string',
-        description: 'select 模式：指定上卦类象或八卦名。',
+        description: '指定上卦',
       },
       lowerTrigram: {
         type: 'string',
-        description: 'select 模式：指定下卦类象或八卦名。',
+        description: '指定下卦',
       },
       movingLine: {
         type: 'number',
-        description: 'select 模式：指定动爻（1-6）。',
+        description: '指定动爻 (1-6)',
       },
       numbers: {
         type: 'array',
         items: { type: 'number' },
         minItems: 2,
         maxItems: 3,
-        description: '现代报数扩展法：number_pair 传 2 个数字，number_triplet 传 3 个数字。',
-      },
-      responseFormat: {
-        type: 'string',
-        enum: ['json', 'markdown'],
-        description: '响应格式：json=结构化数据，markdown=人类可读文本',
-        default: 'json',
+        description: '报数序列',
       },
       detailLevel: {
         type: 'string',
         enum: ['default', 'full'],
-        description: '输出细节级别：default=主线证据；full=补充错综卦、象辞与判断参考。',
+        description: '输出细节级别。',
         default: 'default',
       },
     },

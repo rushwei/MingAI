@@ -67,7 +67,7 @@ const DEFAULT_SAMPLE = {
 };
 
 test('liuyao tool markdown defaults to the compact board text', () => {
-  const markdown = renderToolResult('liuyao', DEFAULT_SAMPLE, 'markdown', { detailLevel: 'default' }).content[0].text;
+  const markdown = renderToolResult('liuyao', DEFAULT_SAMPLE, { detailLevel: 'default' }).content[0].text;
 
   assert.match(markdown, /# 六爻盘面/u);
   assert.match(markdown, /## 卦盘总览/u);
@@ -90,7 +90,7 @@ test('liuyao more detail level should expose expanded board details without comp
     question: '这次事业编能不能进面试',
     date: '2026-03-25T11:10',
   });
-  const payload = buildToolSuccessPayload('liuyao', result, 'markdown', { detailLevel: 'more' });
+  const payload = buildToolSuccessPayload('liuyao', result, { detailLevel: 'more' });
 
   assert.equal(payload.structuredContent.元信息.细节级别, '扩展');
   assert.equal(payload.structuredContent.卦盘.卦身.地支, '寅');
@@ -113,7 +113,7 @@ test('liuyao full detail level should expose complete board details and computed
     question: '这次事业编能不能进面试',
     date: '2026-03-25T11:10',
   });
-  const payload = buildToolSuccessPayload('liuyao', result, 'markdown', { detailLevel: 'full' });
+  const payload = buildToolSuccessPayload('liuyao', result, { detailLevel: 'full' });
 
   assert.equal(payload.structuredContent.元信息.细节级别, '完整');
   assert.equal('toolVersion' in payload.structuredContent.元信息, false);

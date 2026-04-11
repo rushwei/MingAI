@@ -1,8 +1,6 @@
 import type { ListedToolDefinition, RenderOptions } from './contract.js';
 import { getToolContract, listToolDefinitions } from './execute.js';
 
-export type ToolResponseFormat = 'json' | 'markdown';
-
 export type ToolContentItem = {
   type: 'text';
   text: string;
@@ -26,11 +24,8 @@ function stringifyResult(result: unknown): string {
 export function renderToolResult(
   toolName: string,
   result: unknown,
-  _responseFormat: ToolResponseFormat = 'json',
   options?: RenderOptions,
 ): RenderedToolResult {
-  void _responseFormat;
-
   const tool = getToolContract(toolName);
   if (!tool) {
     return {
@@ -62,10 +57,9 @@ export function buildListToolsPayload(): ToolListPayload {
 export function buildToolSuccessPayload(
   toolName: string,
   result: unknown,
-  responseFormat: ToolResponseFormat = 'json',
   options?: RenderOptions,
 ) {
-  const rendered = renderToolResult(toolName, result, responseFormat, options);
+  const rendered = renderToolResult(toolName, result, options);
 
   if (rendered.structuredContent !== undefined) {
     return {

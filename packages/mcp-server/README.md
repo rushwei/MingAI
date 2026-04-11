@@ -20,27 +20,19 @@ npm install @mingai/mcp-server
 
 ## 核心特性
 
-- 复用 `@mingai/core` 的 11 个工具能力
+- 复用 `@mingai/core` 的 15 个工具能力
 - Streamable HTTP 入口：`/mcp`
 - OAuth 2.1 + PKCE + 动态客户端注册
 - `Authorization: Bearer <token>` 与 `x-api-key` 双认证链路
 - 基于共享 transport 的 `structuredContent + content` 响应策略
 - OAuth 授权页内置当前工具清单展示
-- 八字 / 紫微相关工具支持仅传地点名，由在线服务运行时通过高德解析经度；解析失败时自动退化为不采用真太阳时
 
 ## 输出约定
 
 在线 MCP 响应分成两条通道：
 
+- `content[0].text`: canonical text，适合直接阅读或继续交给 AI
 - `structuredContent`: canonical JSON，并与工具公开 `outputSchema` 对齐，适合客户端按 schema 消费
-- `content`: 文本通道
-  - `responseFormat=json` 时，`content[0].text` 是 canonical text
-  - `responseFormat=markdown` 时，`content[0].text` 是 canonical text / markdown
-
-`liuyao` 额外支持 `detailLevel`：
-
-- `safe`（默认）：返回 AI-safe 降噪结构
-- `debug`：在 safe 结构外附带 `debug.rawCanonical` 与 `debug.rawText`
 
 注意：
 
@@ -84,7 +76,7 @@ pnpm -C packages/mcp-server start
 | `MCP_MAX_SSE_PER_USER` | 每用户 SSE 并发上限 |
 | `MCP_TRUST_PROXY` | 反向代理后设为 `true` |
 | `MINGAI_SITE_URL` | OAuth 授权页 Logo 与站点链接来源 |
-| `AMAP_WEB_SERVICE_KEY` | 可选。为八字 / 紫微工具开启“仅传地点名”运行时解析；未配置时自动退化为不采用真太阳时 |
+| `AMAP_WEB_SERVICE_KEY` | 可选。出生地点解析服务所需的高德 Web Service Key |
 
 ### OAuth 2.1
 
@@ -98,14 +90,6 @@ pnpm -C packages/mcp-server start
 | `MCP_OAUTH_DEBUG` | OAuth 调试日志开关 |
 
 ## MCP 客户端示例
-
-## 出生地点与真太阳时
-
-- 在线 `@mingai/mcp-server` 支持在八字 / 紫微相关工具中只传 `birthPlace`。
-- 当未显式提供 `longitude` 时，服务端会尝试通过高德把地点名解析为经度。
-- 解析成功且精度达到 `市 / 区县` 时，会自动启用真太阳时。
-- 解析失败、只到 `省` 级、或未配置 `AMAP_WEB_SERVICE_KEY` 时，会自动退化为不采用真太阳时。
-- 若同时提供 `longitude` 和 `birthPlace`，优先使用显式 `longitude`。
 
 ### OAuth / Streamable HTTP
 

@@ -60,3 +60,50 @@ test('root core entry should expose canonical json/text option types for newly a
     assert.match(rootIndex, new RegExp(`\\b${typeName}\\b`), `${typeName} should be exported from src/index.ts`);
   }
 });
+
+test('tool schemas should encode runtime defaults and conditional requirements structurally', () => {
+  const toolMap = new Map(listToolDefinitions().map((item) => [item.name, item]));
+  const almanac = toolMap.get('almanac');
+  const astrology = toolMap.get('astrology');
+  const liuyao = toolMap.get('liuyao');
+  const qimen = toolMap.get('qimen');
+  const taiyi = toolMap.get('taiyi');
+  const tarot = toolMap.get('tarot');
+  const ziweiHoroscope = toolMap.get('ziwei_horoscope');
+
+  assert.match(almanac?.inputSchema?.properties?.date?.description ?? '', /省略时取当前日期/u);
+
+  assert.equal(astrology?.inputSchema?.properties?.birthMinute?.default, 0);
+  assert.equal(astrology?.inputSchema?.properties?.houseSystem?.default, 'placidus');
+  assert.match(astrology?.inputSchema?.properties?.transitDateTime?.description ?? '', /省略时取当前时刻/u);
+
+  assert.equal(liuyao?.inputSchema?.properties?.method?.default, 'auto');
+  assert.ok(Array.isArray(liuyao?.inputSchema?.allOf));
+  assert.match(JSON.stringify(liuyao?.inputSchema?.allOf), /"method":\{"const":"number"\}/u);
+  assert.match(JSON.stringify(liuyao?.inputSchema?.allOf), /"required":\["numbers"\]/u);
+  assert.match(JSON.stringify(liuyao?.inputSchema?.allOf), /"method":\{"const":"select"\}/u);
+  assert.match(JSON.stringify(liuyao?.inputSchema?.allOf), /"required":\["hexagramName"\]/u);
+
+  assert.equal(qimen?.inputSchema?.properties?.minute?.default, 0);
+  assert.equal(qimen?.inputSchema?.properties?.timezone?.default, 'Asia/Shanghai');
+  assert.equal(qimen?.inputSchema?.properties?.panType?.default, 'zhuan');
+  assert.equal(qimen?.inputSchema?.properties?.juMethod?.default, 'chaibu');
+  assert.equal(qimen?.inputSchema?.properties?.zhiFuJiGong?.default, 'ji_liuyi');
+
+  assert.equal(taiyi?.inputSchema?.properties?.hour?.default, 12);
+  assert.equal(taiyi?.inputSchema?.properties?.minute?.default, 0);
+  assert.equal(taiyi?.inputSchema?.properties?.timezone?.default, 'Asia/Shanghai');
+  assert.ok(Array.isArray(taiyi?.inputSchema?.allOf));
+  assert.match(JSON.stringify(taiyi?.inputSchema?.allOf), /"mode":\{"const":"hour"\}/u);
+  assert.match(JSON.stringify(taiyi?.inputSchema?.allOf), /"required":\["hour"\]/u);
+  assert.match(JSON.stringify(taiyi?.inputSchema?.allOf), /"mode":\{"const":"minute"\}/u);
+  assert.match(JSON.stringify(taiyi?.inputSchema?.allOf), /"required":\["hour","minute"\]/u);
+
+  assert.equal(tarot?.inputSchema?.properties?.spreadType?.default, 'single');
+  assert.equal(tarot?.inputSchema?.properties?.allowReversed?.default, true);
+
+  assert.equal(ziweiHoroscope?.inputSchema?.properties?.birthMinute?.default, 0);
+  assert.equal(ziweiHoroscope?.inputSchema?.properties?.calendarType?.default, 'solar');
+  assert.equal(ziweiHoroscope?.inputSchema?.properties?.isLeapMonth?.default, false);
+  assert.match(ziweiHoroscope?.inputSchema?.properties?.targetDate?.description ?? '', /省略时取当前日期/u);
+});

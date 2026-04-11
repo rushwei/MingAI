@@ -624,7 +624,7 @@ test('meihua tool output should stay on meihua semantics instead of liuyao vocab
     numbers: [3, 8],
     date: '2026-04-04T10:30:00',
   });
-  const payload = buildToolSuccessPayload('meihua', rawResult, 'markdown');
+  const payload = buildToolSuccessPayload('meihua', rawResult);
 
   assert.equal(payload.structuredContent.卦盘.体卦.卦名, '坤');
   assert.equal(payload.structuredContent.卦盘.用卦.卦名, '离');
@@ -687,7 +687,7 @@ test('meihua full detail should expose extended references and judgement referen
     method: 'time',
     date: '2026-04-04T10:30:00',
   });
-  const payload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'full' });
+  const payload = buildToolSuccessPayload('meihua', rawResult, { detailLevel: 'full' });
 
   assert.ok(payload.structuredContent.卦盘.扩展参考, 'full structured content should include extended reference');
   assert.ok(payload.structuredContent.判断参考, 'full structured content should include judgement reference');
@@ -703,8 +703,8 @@ test('meihua canonical output should preserve date and selected text for multi-c
     multiSentenceStrategy: 'last',
     date: '2026-04-04T10:30:00',
   });
-  const markdownPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown');
-  const jsonPayload = buildToolSuccessPayload('meihua', rawResult, 'json');
+  const markdownPayload = buildToolSuccessPayload('meihua', rawResult);
+  const jsonPayload = buildToolSuccessPayload('meihua', rawResult);
 
   assert.equal(jsonPayload.structuredContent.起卦信息.起卦时间, '2026-04-04T10:30:00');
   assert.equal(jsonPayload.structuredContent.起卦信息.原始文本, '甲乙。丙丁。戊己辛。');
@@ -748,9 +748,9 @@ test('meihua canonical output should preserve structured raw inputs for non-text
     date: '2026-04-04T10:30:00',
   });
 
-  const classifierPayload = buildToolSuccessPayload('meihua', classifierRaw, 'json');
-  const countPayload = buildToolSuccessPayload('meihua', countRaw, 'json');
-  const measurePayload = buildToolSuccessPayload('meihua', measureRaw, 'json');
+  const classifierPayload = buildToolSuccessPayload('meihua', classifierRaw);
+  const countPayload = buildToolSuccessPayload('meihua', countRaw);
+  const measurePayload = buildToolSuccessPayload('meihua', measureRaw);
 
   assert.equal(classifierPayload.structuredContent.起卦信息.原始输入.上卦类象, '老人');
   assert.equal(classifierPayload.structuredContent.起卦信息.原始输入.上卦类象类别, 'person');
@@ -775,7 +775,7 @@ test('meihua canonical output should preserve stroke split counts in structured 
     rightStrokeCount: 2,
     date: '2026-04-04T10:30:00',
   });
-  const payload = buildToolSuccessPayload('meihua', rawResult, 'json');
+  const payload = buildToolSuccessPayload('meihua', rawResult);
 
   assert.equal(payload.structuredContent.起卦信息.原始输入.文本, '天');
   assert.equal(payload.structuredContent.起卦信息.原始输入.左半笔画, 4);
@@ -789,7 +789,10 @@ test('meihua tool schema should expose method-specific requirements and multi-se
   assert.ok(meihua);
   assert.deepEqual(meihua.inputSchema.properties.multiSentenceStrategy.enum, ['first', 'last']);
   assert.deepEqual(meihua.inputSchema.properties.measureKind.enum, ['丈尺', '尺寸']);
-  assert.match(meihua.inputSchema.properties.multiSentenceStrategy.description, /必须显式提供/u);
+  assert.equal(
+    meihua.inputSchema.properties.multiSentenceStrategy.description,
+    '多句文本的取句方式（first=首句，last=末句）',
+  );
   assert.ok(Array.isArray(meihua.inputSchema.allOf));
 
   const serializedRules = JSON.stringify(meihua.inputSchema.allOf);

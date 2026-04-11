@@ -54,7 +54,7 @@ const houseSchema = obj({
 export const astrologyOutputSchema: OutputSchema = obj({
   基础坐标: obj({
     计算模式: str('计算模式'),
-    说明: str('近似或降级说明'),
+    说明: str('补充说明'),
     出生地: str('出生地'),
     坐标: str('坐标'),
     本命时区: str('本命时区'),

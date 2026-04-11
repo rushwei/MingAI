@@ -57,7 +57,7 @@ export const qimenCalculateOutputSchema: OutputSchema = obj({
   }),
   十干月令旺衰: {
     type: 'object',
-    description: '十干月令旺衰',
+    description: '十天干在月令中的旺衰',
     additionalProperties: { type: 'string' },
   },
   全局格局: arr(str(), '全局格局'),

@@ -38,36 +38,22 @@ MingAI 的本地 `stdio` MCP Server，适合直接接入 Claude Desktop、Cursor
 | `meihua` | 梅花易数起卦与断卦 |
 | `tarot` | 塔罗抽牌 |
 | `almanac` | 黄历查询 |
+| `astrology` | 西方占星命盘与流运 |
 | `qimen` | 奇门遁甲排盘 |
+| `taiyi` | 太乙九星观测 |
 | `daliuren` | 大六壬排盘 |
+| `xiaoliuren` | 小六壬占测 |
 
-所有工具都支持 `responseFormat`：
+## 返回结构
 
-- `json`: `content[0].text` 返回 canonical text
-- `markdown`: `content[0].text` 返回适合直接展示给 AI 的规范文本
+本地 `@mingai/mcp` 的工具结果统一分成两条通道：
 
-`liuyao` 额外支持 `detailLevel`：
+- `content[0].text`
+  - 始终返回 canonical text，适合人类直接阅读或交给 AI 继续消费
+- `structuredContent`
+  - 当工具声明了 `outputSchema` 时返回 canonical JSON，字段结构与 `outputSchema` 对齐，适合程序消费
 
-- `safe`（默认）：返回 AI-safe 降噪结构
-- `debug`：在 safe 结构外附带 `debug.rawCanonical` 与 `debug.rawText`
-
-当工具定义存在 `outputSchema` 时，本地 MCP 响应会统一返回：
-
-- `structuredContent`: canonical JSON，并与工具 `outputSchema` 对齐
-- `content`: 文本通道；`responseFormat=json` 与 `responseFormat=markdown` 都承载 canonical text
-
-这套响应策略由 `@mingai/core/transport` 统一提供。
-
-注意：
-
-- canonical JSON 在 `structuredContent`
-- `content[0].text` 只用于人类/AI 阅读，不再作为 JSON 通道
-
-关于出生地点与真太阳时：
-
-- 本地 `@mingai/mcp` 当前不做在线地理编码。
-- 若需要真太阳时，请显式传入 `longitude`。
-- 若你只有地点名，需要由调用方先做地理编码，再把经度传给工具。
+如果你要稳定的结构化结果，请始终读取 `structuredContent`。
 
 ## 其他安装方式
 
@@ -104,7 +90,11 @@ node packages/mcp/dist/index.js
 
 | 版本 | 批次说明 |
 |------|----------|
-| `3.0.0` | 新增 `meihua` 梅花易数，优化架构 |
+| `3.4.0` | 新增 `astrology` 西方占星命盘与流运 |
+| `3.3.0` | 新增 `taiyi` 太乙九星观测 |
+| `3.2.0` | 新增 `xiaoliuren` 小六壬占测 |
+| `3.1.0` | 新增 `meihua` 梅花易数起卦与断卦 |
+| `3.0.0` | 重构包结构，优化输出与函数暴露接口 |
 | `2.0.0` | 规范输出结构：`content` 输出规范文本，`structuredContent` 输出 JSON |
 | `1.5.0` | 同步导出、共享、结构化输出策略与在线服务对齐 |
 | `1.4.0` | 新增 `daliuren` 大六壬 |

@@ -1,6 +1,6 @@
 import type { ToolInputSchema, ToolSchema } from './contract.js';
 
-const TRANSPORT_FIELDS = new Set(['responseFormat', 'detailLevel', 'seedScope']);
+const TRANSPORT_FIELDS = new Set(['detailLevel', 'seedScope']);
 
 type ValidationIssue = {
   path: string;

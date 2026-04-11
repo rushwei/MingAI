@@ -8,8 +8,6 @@ export type Gender = 'male' | 'female';
 
 export type CalendarType = 'solar' | 'lunar';
 
-export type ResponseFormat = 'json' | 'markdown';
-
 export type DetailLevel = 'default' | 'more' | 'full';
 
 // ===== 公共出生时间类型 =====

@@ -1,7 +1,8 @@
-import type { ToolListPayload, ToolResponseFormat } from '@mingai/core/mcp';
+import type { ToolListPayload, ToolSchema } from '@mingai/core/mcp';
 
 const AMAP_GEOCODE_ENDPOINT = 'https://restapi.amap.com/v3/geocode/geo';
 const PLACE_RESOLUTION_TOOLS = new Set([
+  'astrology',
   'bazi',
   'ziwei',
   'ziwei_horoscope',
@@ -15,6 +16,8 @@ export type RuntimePlaceResolutionFallbackReason =
   | 'precision_too_low'
   | 'invalid_location';
 
+export type RuntimePlaceResolutionMode = 'coordinates' | 'true_solar_time';
+
 export type RuntimePlaceResolutionInfo = {
   requestedPlace?: string;
   resolved: boolean;
@@ -23,9 +26,10 @@ export type RuntimePlaceResolutionInfo = {
   formattedAddress?: string;
   adcode?: string;
   usedLongitude?: number;
-  source: 'manual_longitude' | 'birth_place' | 'fallback';
+  usedLatitude?: number;
+  source: 'manual_input' | 'birth_place' | 'fallback';
   fallbackReason?: RuntimePlaceResolutionFallbackReason;
-  trueSolarTimeApplied: boolean;
+  locationMode: RuntimePlaceResolutionMode;
 };
 
 type PreparedToolArgs = {
@@ -54,6 +58,10 @@ function isPlaceResolutionTool(toolName: string): boolean {
   return PLACE_RESOLUTION_TOOLS.has(toolName);
 }
 
+function getPlaceResolutionMode(toolName: string): RuntimePlaceResolutionMode {
+  return toolName === 'astrology' ? 'coordinates' : 'true_solar_time';
+}
+
 function parseLongitude(value: unknown): number | undefined {
   if (typeof value === 'number') {
     return Number.isFinite(value) && value >= -180 && value <= 180 ? value : undefined;
@@ -61,6 +69,15 @@ function parseLongitude(value: unknown): number | undefined {
   if (typeof value !== 'string' || value.trim() === '') return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= -180 && parsed <= 180 ? parsed : undefined;
+}
+
+function parseLatitude(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= -90 && value <= 90 ? value : undefined;
+  }
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= -90 && parsed <= 90 ? parsed : undefined;
 }
 
 function isAmapPrecisionSufficient(level?: string): boolean {
@@ -81,13 +98,14 @@ function isAmapPrecisionSufficient(level?: string): boolean {
 function buildFallbackInfo(
   requestedPlace: string | undefined,
   reason: RuntimePlaceResolutionFallbackReason,
+  locationMode: RuntimePlaceResolutionMode,
 ): RuntimePlaceResolutionInfo {
   return {
     requestedPlace,
     resolved: false,
     source: 'fallback',
     fallbackReason: reason,
-    trueSolarTimeApplied: false,
+    locationMode,
   };
 }
 
@@ -102,10 +120,13 @@ function parseCoordinate(location?: string): { longitude: number; latitude: numb
   return { longitude, latitude };
 }
 
-async function geocodeBirthPlace(place: string): Promise<RuntimePlaceResolutionInfo> {
+async function geocodeBirthPlace(
+  place: string,
+  locationMode: RuntimePlaceResolutionMode,
+): Promise<RuntimePlaceResolutionInfo> {
   const key = process.env.AMAP_WEB_SERVICE_KEY?.trim();
   if (!key) {
-    return buildFallbackInfo(place, 'geocoder_disabled');
+    return buildFallbackInfo(place, 'geocoder_disabled', locationMode);
   }
 
   try {
@@ -119,27 +140,27 @@ async function geocodeBirthPlace(place: string): Promise<RuntimePlaceResolutionI
     });
 
     if (!response.ok) {
-      return buildFallbackInfo(place, 'geocode_failed');
+      return buildFallbackInfo(place, 'geocode_failed', locationMode);
     }
 
     const payload = await response.json() as AmapGeocodeResponse;
     if (payload.status !== '1') {
-      return buildFallbackInfo(place, 'geocode_failed');
+      return buildFallbackInfo(place, 'geocode_failed', locationMode);
     }
 
     const geocode = payload.geocodes?.[0];
     if (!geocode) {
-      return buildFallbackInfo(place, 'geocode_failed');
+      return buildFallbackInfo(place, 'geocode_failed', locationMode);
     }
 
     const coordinate = parseCoordinate(geocode.location);
     if (!coordinate) {
-      return buildFallbackInfo(place, 'invalid_location');
+      return buildFallbackInfo(place, 'invalid_location', locationMode);
     }
 
     if (!isAmapPrecisionSufficient(geocode.level)) {
       return {
-        ...buildFallbackInfo(place, 'precision_too_low'),
+        ...buildFallbackInfo(place, 'precision_too_low', locationMode),
         provider: 'amap',
         level: geocode.level,
         formattedAddress: geocode.formatted_address,
@@ -155,33 +176,107 @@ async function geocodeBirthPlace(place: string): Promise<RuntimePlaceResolutionI
       formattedAddress: geocode.formatted_address,
       adcode: geocode.adcode,
       usedLongitude: coordinate.longitude,
+      usedLatitude: coordinate.latitude,
       source: 'birth_place',
-      trueSolarTimeApplied: true,
+      locationMode,
     };
   } catch {
-    return buildFallbackInfo(place, 'geocode_failed');
+    return buildFallbackInfo(place, 'geocode_failed', locationMode);
   }
 }
 
-function describeFallbackReason(reason?: RuntimePlaceResolutionFallbackReason): string {
+function describeFallbackReason(
+  reason: RuntimePlaceResolutionFallbackReason | undefined,
+): string {
   switch (reason) {
     case 'no_birth_place':
-      return '未提供出生地点，未启用真太阳时';
+      return '未提供出生地点';
     case 'geocoder_disabled':
-      return '未配置高德地理编码，未启用真太阳时';
+      return '地点解析不可用';
     case 'geocode_failed':
-      return '出生地点解析失败，未启用真太阳时';
+      return '地点解析失败';
     case 'precision_too_low':
-      return '出生地点精度不足，未启用真太阳时';
+      return '地点精度不足';
     case 'invalid_location':
-      return '出生地点坐标无效，未启用真太阳时';
+      return '地点坐标无效';
     default:
-      return '未启用真太阳时';
+      return '未完成地点解析';
   }
 }
 
-function withDescriptionSuffix(text: string | undefined, suffix: string): string {
-  return text ? `${text} ${suffix}` : suffix;
+function isAstrologyFullDetailRule(branch: Record<string, unknown> | undefined): boolean {
+  if (!branch) return false;
+  const condition = branch.if;
+  if (!condition || typeof condition !== 'object') return false;
+  const detailLevel = (condition as { properties?: Record<string, unknown>; }).properties?.detailLevel;
+  return !!detailLevel
+    && typeof detailLevel === 'object'
+    && 'const' in detailLevel
+    && (detailLevel as { const?: unknown; }).const === 'full';
+}
+
+function buildAstrologyRuntimeInputSchema(
+  inputSchema: ToolListPayload['tools'][number]['inputSchema'],
+  inputProperties: ToolListPayload['tools'][number]['inputSchema']['properties'],
+): ToolListPayload['tools'][number]['inputSchema'] {
+  const baseAllOf = inputSchema.allOf || [];
+  let replacedFullRule = false;
+  const allOf: ToolSchema[] = baseAllOf.map((branch) => {
+    if (!isAstrologyFullDetailRule(branch)) {
+      return branch;
+    }
+    replacedFullRule = true;
+    return {
+      ...branch,
+      then: {
+        type: 'object',
+        anyOf: [
+          {
+            type: 'object',
+            required: ['latitude', 'longitude'],
+          },
+          {
+            type: 'object',
+            required: ['birthPlace'],
+          },
+        ],
+      },
+    } satisfies ToolSchema;
+  });
+
+  if (!replacedFullRule) {
+    allOf.push({
+      if: {
+        properties: {
+          detailLevel: { const: 'full' },
+        },
+        required: ['detailLevel'],
+      },
+      then: {
+        type: 'object',
+        anyOf: [
+          {
+            type: 'object',
+            required: ['latitude', 'longitude'],
+          },
+          {
+            type: 'object',
+            required: ['birthPlace'],
+          },
+        ],
+      },
+    } satisfies ToolSchema);
+  }
+
+  return {
+    ...inputSchema,
+    properties: inputProperties,
+    allOf,
+  };
+}
+
+function buildBirthPlaceInputDescription(): string {
+  return '出生地点文本';
 }
 
 function appendPlaceResolutionNote(markdown: string, info: RuntimePlaceResolutionInfo): string {
@@ -191,16 +286,19 @@ function appendPlaceResolutionNote(markdown: string, info: RuntimePlaceResolutio
     lines.push(`- **输入地点**: ${info.requestedPlace}`);
   }
 
-  if (info.source === 'manual_longitude') {
-    lines.push(`- **使用方式**: 显式经度优先（${info.usedLongitude}°）`);
-    lines.push('- **真太阳时**: 已启用');
+  if (info.source === 'manual_input') {
+    lines.push(`- **来源**: ${info.locationMode === 'coordinates' ? '显式坐标' : '显式经度'}`);
+    if (info.usedLongitude != null) lines.push(`- **使用经度**: ${info.usedLongitude}°`);
+    if (info.usedLatitude != null) lines.push(`- **使用纬度**: ${info.usedLatitude}°`);
   } else if (info.resolved) {
+    lines.push('- **来源**: 地点解析');
     lines.push(`- **解析结果**: ${info.formattedAddress || info.requestedPlace || '-'}`);
     if (info.level) lines.push(`- **解析级别**: ${info.level}`);
     if (info.usedLongitude != null) lines.push(`- **使用经度**: ${info.usedLongitude}°`);
-    lines.push('- **真太阳时**: 已启用');
+    if (info.usedLatitude != null) lines.push(`- **使用纬度**: ${info.usedLatitude}°`);
   } else {
-    lines.push(`- **解析状态**: ${describeFallbackReason(info.fallbackReason)}`);
+    lines.push('- **解析状态**: 未完成');
+    lines.push(`- **原因**: ${describeFallbackReason(info.fallbackReason)}`);
     if (info.formattedAddress) {
       lines.push(`- **最近结果**: ${info.formattedAddress}`);
     }
@@ -223,19 +321,26 @@ export async function preprocessToolArgsForRuntimePlace(
   }
 
   const manualLongitude = parseLongitude(baseArgs.longitude);
+  const manualLatitude = parseLatitude(baseArgs.latitude);
   const requestedPlace = typeof baseArgs.birthPlace === 'string' && baseArgs.birthPlace.trim()
     ? baseArgs.birthPlace.trim()
     : undefined;
+  const locationMode = getPlaceResolutionMode(toolName);
 
-  if (manualLongitude != null) {
+  if (manualLongitude != null && (toolName !== 'astrology' || manualLatitude != null)) {
     return {
-      toolArgs: baseArgs,
+      toolArgs: {
+        ...baseArgs,
+        longitude: manualLongitude,
+        ...(manualLatitude != null ? { latitude: manualLatitude } : {}),
+      },
       placeResolutionInfo: {
         requestedPlace,
         resolved: true,
         usedLongitude: manualLongitude,
-        source: 'manual_longitude',
-        trueSolarTimeApplied: true,
+        ...(manualLatitude != null ? { usedLatitude: manualLatitude } : {}),
+        source: 'manual_input',
+        locationMode,
       },
     };
   }
@@ -243,16 +348,17 @@ export async function preprocessToolArgsForRuntimePlace(
   if (!requestedPlace) {
     return {
       toolArgs: baseArgs,
-      placeResolutionInfo: buildFallbackInfo(undefined, 'no_birth_place'),
+      placeResolutionInfo: buildFallbackInfo(undefined, 'no_birth_place', locationMode),
     };
   }
 
-  const placeResolutionInfo = await geocodeBirthPlace(requestedPlace);
+  const placeResolutionInfo = await geocodeBirthPlace(requestedPlace, locationMode);
   if (placeResolutionInfo.resolved && placeResolutionInfo.usedLongitude != null) {
     return {
       toolArgs: {
         ...baseArgs,
         longitude: placeResolutionInfo.usedLongitude,
+        ...(placeResolutionInfo.usedLatitude != null ? { latitude: placeResolutionInfo.usedLatitude } : {}),
       },
       placeResolutionInfo,
     };
@@ -277,43 +383,38 @@ export function decorateToolListPayloadForRuntime(payload: ToolListPayload): Too
 
       inputProperties.birthPlace = {
         type: 'string',
-        description: '出生地点（可选。在线 MCP Server 会尝试通过高德把地点名解析为经度；解析失败时自动退化为不采用真太阳时）',
+        description: buildBirthPlaceInputDescription(),
       };
 
-      if (inputProperties.longitude && typeof inputProperties.longitude === 'object' && inputProperties.longitude !== null) {
-        inputProperties.longitude = {
-          ...inputProperties.longitude,
-          description: withDescriptionSuffix(
-            String((inputProperties.longitude as { description?: string }).description || ''),
-            '若同时提供 longitude 和 birthPlace，优先使用 longitude；若只有地点名，在线 MCP Server 会先做地理编码。',
-          ),
-        };
-      }
+      const inputSchema = tool.name === 'astrology'
+        ? buildAstrologyRuntimeInputSchema(tool.inputSchema, inputProperties)
+        : { ...tool.inputSchema, properties: inputProperties };
 
       outputProperties.placeResolutionInfo = {
         type: 'object',
-        description: '出生地点解析与真太阳时启用信息（在线 MCP Server 运行时附加；core 纯算法本身不联网）',
+        description: '出生地点解析信息',
         properties: {
-          requestedPlace: { type: 'string', description: '原始地点输入' },
-          resolved: { type: 'boolean', description: '是否解析成功' },
-          provider: { type: 'string', description: '解析服务提供方' },
-          level: { type: 'string', description: '解析级别，如 市 / 区县 / 省' },
-          formattedAddress: { type: 'string', description: '高德返回的标准化地点文本' },
+          requestedPlace: { type: 'string', description: '原始地点文本' },
+          resolved: { type: 'boolean', description: '解析成功标记' },
+          provider: { type: 'string', description: '解析服务提供方', enum: ['amap'] },
+          level: { type: 'string', description: '解析精度级别' },
+          formattedAddress: { type: 'string', description: '标准化地点文本' },
           adcode: { type: 'string', description: '行政区编码' },
-          usedLongitude: { type: 'number', description: '本次实际用于真太阳时的经度' },
-          source: { type: 'string', description: '经度来源：manual_longitude / birth_place / fallback' },
-          fallbackReason: { type: 'string', description: '退化原因：no_birth_place / geocoder_disabled / geocode_failed / precision_too_low / invalid_location' },
-          trueSolarTimeApplied: { type: 'boolean', description: '本次是否启用了真太阳时' },
+          usedLongitude: { type: 'number', description: '实际采用的经度' },
+          usedLatitude: { type: 'number', description: '实际采用的纬度' },
+          source: { type: 'string', description: '地点来源', enum: ['manual_input', 'birth_place', 'fallback'] },
+          fallbackReason: {
+            type: 'string',
+            description: '未采用地点增强的原因',
+            enum: ['no_birth_place', 'geocoder_disabled', 'geocode_failed', 'precision_too_low', 'invalid_location'],
+          },
+          locationMode: { type: 'string', description: '地点增强用途', enum: ['coordinates', 'true_solar_time'] },
         },
       };
 
       return {
         ...tool,
-        description: withDescriptionSuffix(
-          tool.description,
-          '在线 MCP Server 支持仅传 birthPlace；若未显式提供 longitude，会尝试做地理编码并在失败时自动退化。',
-        ),
-        inputSchema: { ...tool.inputSchema, properties: inputProperties },
+        inputSchema,
         outputSchema: { ...tool.outputSchema, properties: outputProperties },
       };
     }),
@@ -336,9 +437,8 @@ export function attachPlaceResolutionInfoToResult(
 export function attachPlaceResolutionNoteToPayload(
   payload: Record<string, unknown>,
   placeResolutionInfo: RuntimePlaceResolutionInfo | undefined,
-  responseFormat: ToolResponseFormat,
 ): Record<string, unknown> {
-  if (!placeResolutionInfo || responseFormat !== 'markdown') {
+  if (!placeResolutionInfo) {
     return payload;
   }
 

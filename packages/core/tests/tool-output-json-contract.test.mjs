@@ -24,7 +24,7 @@ function createBaziResult() {
 }
 
 test('json response should keep structuredContent aligned with published outputSchema', () => {
-  const payload = buildToolSuccessPayload('bazi', createBaziResult(), 'json');
+  const payload = buildToolSuccessPayload('bazi', createBaziResult());
 
   assert.equal(typeof payload.structuredContent, 'object');
   assert.equal(payload.structuredContent.基本信息.性别, '男');
@@ -35,7 +35,7 @@ test('json response should keep structuredContent aligned with published outputS
 });
 
 test('markdown response should still keep schema-aligned structuredContent', () => {
-  const payload = buildToolSuccessPayload('bazi', createBaziResult(), 'markdown');
+  const payload = buildToolSuccessPayload('bazi', createBaziResult());
 
   assert.equal(typeof payload.structuredContent, 'object');
   assert.equal(payload.structuredContent.基本信息.性别, '男');
@@ -76,12 +76,10 @@ test('runtime placeResolutionInfo should merge into ziwei structured output when
   const horoscopePayload = buildToolSuccessPayload(
     'ziwei_horoscope',
     { ...horoscopeRaw, placeResolutionInfo },
-    'json',
   );
   const flyingStarPayload = buildToolSuccessPayload(
     'ziwei_flying_star',
     { ...flyingStarRaw, placeResolutionInfo },
-    'json',
   );
 
   assert.equal(horoscopePayload.structuredContent.placeResolutionInfo.usedLongitude, 114.700215);
@@ -104,7 +102,7 @@ test('core astrology tool should allow default approximation without coordinates
   assert.equal(approximate.natal.angles.length, 0);
   assert.equal(approximate.natal.houses.length, 0);
   assert.throws(
-    () => buildToolSuccessPayload('astrology', approximate, 'markdown', { detailLevel: 'full' }),
+    () => buildToolSuccessPayload('astrology', approximate, { detailLevel: 'full' }),
     /detailLevel=full.*latitude.*longitude/u,
   );
 
@@ -130,8 +128,8 @@ test('tarot default/full should split slim card text from detailed numerology me
     seed: 'tarot-detail',
   });
 
-  const defaultPayload = buildToolSuccessPayload('tarot', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('tarot', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('tarot', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('tarot', rawResult, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /## 牌阵展开/u);
   assert.doesNotMatch(defaultPayload.content[0].text, /塔罗数秘术/u);
@@ -159,8 +157,8 @@ test('almanac default/full should keep default compact and full append complete 
     dayMaster: '戊',
   });
 
-  const defaultPayload = buildToolSuccessPayload('almanac', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('almanac', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('almanac', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('almanac', rawResult, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /# 每日黄历/u);
   assert.match(defaultPayload.content[0].text, /## 基础与个性化坐标/u);
@@ -190,8 +188,8 @@ test('taiyi default/full should keep compact guidance and expose full board only
     timezone: 'Asia/Shanghai',
   });
 
-  const defaultPayload = buildToolSuccessPayload('taiyi', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('taiyi', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('taiyi', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('taiyi', rawResult, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /# 太乙九星主证据/u);
   assert.match(defaultPayload.content[0].text, /## 九星阵列/u);
@@ -236,9 +234,9 @@ test('astrology default/full should expose compact chart data while preserving p
     },
   };
 
-  const defaultPayload = buildToolSuccessPayload('astrology', withRuntimeInfo, 'markdown', { detailLevel: 'default' });
-  const morePayload = buildToolSuccessPayload('astrology', withRuntimeInfo, 'markdown', { detailLevel: 'more' });
-  const fullPayload = buildToolSuccessPayload('astrology', withRuntimeInfo, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('astrology', withRuntimeInfo, { detailLevel: 'default' });
+  const morePayload = buildToolSuccessPayload('astrology', withRuntimeInfo, { detailLevel: 'more' });
+  const fullPayload = buildToolSuccessPayload('astrology', withRuntimeInfo, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /# 西方占星主证据/u);
   assert.equal(defaultPayload.structuredContent.扩展信息, undefined);
@@ -256,8 +254,8 @@ test('meihua detailLevel full should reach transport renderers and expose full-o
     date: '2026-04-04T10:30:00',
   });
 
-  const defaultPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('meihua', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('meihua', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('meihua', rawResult, { detailLevel: 'full' });
 
   assert.doesNotMatch(defaultPayload.content[0].text, /体互月令/u);
   assert.doesNotMatch(defaultPayload.content[0].text, /用互月令/u);
@@ -282,8 +280,8 @@ test('xiaoliuren detailLevel full should keep default compact and append explana
     question: '今日运势如何？',
   });
 
-  const defaultPayload = buildToolSuccessPayload('xiaoliuren', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('xiaoliuren', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('xiaoliuren', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('xiaoliuren', rawResult, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /# 小六壬主证据/u);
   assert.match(defaultPayload.content[0].text, /## 推演链/u);
@@ -309,7 +307,7 @@ test('bazi tool output should keep chart-only boundaries without implicit dayun 
     calendarType: 'solar',
   });
 
-  const payload = buildToolSuccessPayload('bazi', rawResult, 'markdown');
+  const payload = buildToolSuccessPayload('bazi', rawResult);
 
   assert.doesNotMatch(payload.content[0].text, /## 大运轨迹/u);
   assert.equal(typeof payload.structuredContent, 'object');
@@ -327,8 +325,8 @@ test('bazi detailLevel full should restore full metadata while default stays sli
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('bazi', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('bazi', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('bazi', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('bazi', rawResult, { detailLevel: 'full' });
 
   assert.doesNotMatch(defaultPayload.content[0].text, /命主五行/u);
   assert.doesNotMatch(defaultPayload.content[0].text, /胎元/u);
@@ -357,8 +355,8 @@ test('bazi_dayun should expose slim default output and detailed full output', as
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('bazi_dayun', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('bazi_dayun', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('bazi_dayun', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('bazi_dayun', rawResult, { detailLevel: 'full' });
 
   assert.doesNotMatch(defaultPayload.content[0].text, /## 小运/u);
   assert.doesNotMatch(defaultPayload.content[0].text, /### 2012-2021/u);
@@ -385,8 +383,8 @@ test('ziwei should expose compact default output and preserve full detail on dem
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('ziwei', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('ziwei', rawResult, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /## 十二宫位全盘/u);
   assert.match(defaultPayload.content[0].text, /生年四化/u);
@@ -432,8 +430,8 @@ test('ziwei should expose compact default output and keep full board behind deta
     calendarType: 'solar',
   });
 
-  const defaultPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'default' });
-  const fullPayload = buildToolSuccessPayload('ziwei', rawResult, 'markdown', { detailLevel: 'full' });
+  const defaultPayload = buildToolSuccessPayload('ziwei', rawResult, { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('ziwei', rawResult, { detailLevel: 'full' });
 
   assert.match(defaultPayload.content[0].text, /生年四化/u);
   assert.match(defaultPayload.content[0].text, /主星及四化/u);

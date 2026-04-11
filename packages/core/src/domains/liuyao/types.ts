@@ -12,7 +12,6 @@ import type {
   LiuChongGuaInfo,
   LiuHeGuaInfo,
   LiuQinType,
-  ResponseFormat,
   SanHeAnalysisInfo,
   ShenSystemByYongShenInfo,
   TimeRecommendation,
@@ -31,7 +30,6 @@ export interface LiuyaoInput {
   date: string;  // 占卜日期时间，必须包含时间；支持 YYYY-MM-DDTHH:MM[:SS]、YYYY-MM-DD HH:MM[:SS] 及带时区偏移的 ISO 时间
   seed?: string;
   seedScope?: string;
-  responseFormat?: ResponseFormat;
   detailLevel?: DetailLevel;
 }
 
