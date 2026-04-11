@@ -5,8 +5,13 @@
  * 对话列表数据由全局 ConversationListContext 管理。
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ChatMessage, Mention, Conversation, ConversationListItem } from '@/types';
+import type { ChatMessage, Mention, Conversation, ConversationListItem, CustomProviderConfig } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import {
+    CUSTOM_PROVIDER_CHANGED_EVENT,
+    getCustomProvider,
+    getCustomProviderDisplayName,
+} from '@/lib/chat/custom-provider';
 import {
     loadConversation,
     saveConversation,
@@ -66,6 +71,10 @@ export interface ChatStateReturn {
     setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
     reasoningEnabled: boolean;
     setReasoningEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    customProviderActive: boolean;
+    customProviderConfig: CustomProviderConfig | null;
+    setCustomProviderConfig: React.Dispatch<React.SetStateAction<CustomProviderConfig | null>>;
+    customProviderLabel: string | null;
 
     // Attachments & mentions
     attachmentState: AttachmentState;
@@ -162,6 +171,7 @@ export function useChatState({
     // Model & reasoning
     const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const [customProviderConfig, setCustomProviderConfig] = useState<CustomProviderConfig | null>(() => getCustomProvider());
 
     // Attachments & mentions
     const [attachmentState, setAttachmentState] = useState<AttachmentState>({ file: undefined, webSearchEnabled: false });
@@ -180,6 +190,22 @@ export function useChatState({
     // Sync refs
     useEffect(() => { activeConversationIdRef.current = activeConversationId; }, [activeConversationId]);
     useEffect(() => { hasLoadedConversationsRef.current = hasLoadedConversations; }, [hasLoadedConversations]);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const syncCustomProvider = () => {
+            setCustomProviderConfig(getCustomProvider());
+        };
+        syncCustomProvider();
+        window.addEventListener(CUSTOM_PROVIDER_CHANGED_EVENT, syncCustomProvider);
+        window.addEventListener('storage', syncCustomProvider);
+        return () => {
+            window.removeEventListener(CUSTOM_PROVIDER_CHANGED_EVENT, syncCustomProvider);
+            window.removeEventListener('storage', syncCustomProvider);
+        };
+    }, []);
+
+    const customProviderActive = !!customProviderConfig;
+    const customProviderLabel = getCustomProviderDisplayName(customProviderConfig);
 
     const buildConversationDetail = useCallback((
         conversationId: string,
@@ -383,6 +409,10 @@ export function useChatState({
         chatMode, setChatMode,
         selectedModel, setSelectedModel,
         reasoningEnabled, setReasoningEnabled,
+        customProviderActive,
+        customProviderConfig,
+        setCustomProviderConfig,
+        customProviderLabel,
         attachmentState, setAttachmentState,
         mentions, setMentions,
         kbModalOpen, setKbModalOpen,

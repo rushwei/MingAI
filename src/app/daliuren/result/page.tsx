@@ -22,8 +22,8 @@ import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
-import { resolveHistoryConversationId } from '@/lib/history/client';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
@@ -66,7 +66,7 @@ export default function DaliurenResultPage() {
     const hasAutoSavedRef = useRef(false);
 
     const streaming = useStreamingResponse();
-    const { session, userId, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
+    const { userId, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const canonicalResult = useMemo(
@@ -79,8 +79,8 @@ export default function DaliurenResultPage() {
         updateSessionJSON('daliuren_params', (prev) => ({ ...(prev || {}), ...next }));
     }, []);
 
-    const saveDivinationRecord = useCallback(async (params: DaliurenSessionParams, nextResult: DaliurenOutput, token: string) => {
-        const response = await fetch('/api/daliuren', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'save', ...params, resultData: nextResult }) });
+    const saveDivinationRecord = useCallback(async (params: DaliurenSessionParams, nextResult: DaliurenOutput) => {
+        const response = await fetch('/api/daliuren', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save', ...params, resultData: nextResult }) });
         const payload = await response.json() as DaliurenSaveResponse;
         if (payload?.data?.divinationId) { setDivinationId(payload.data.divinationId); persistSessionIds({ divinationId: payload.data.divinationId }); return payload.data.divinationId; }
         return undefined;
@@ -96,12 +96,12 @@ export default function DaliurenResultPage() {
                 const payload = await response.json();
                 if (payload?.data) {
                     setResult(payload.data); if (params.divinationId) setDivinationId(params.divinationId); if (params.conversationId) setConversationId(params.conversationId);
-                    if (!params.divinationId && session?.access_token && !hasAutoSavedRef.current) { hasAutoSavedRef.current = true; await saveDivinationRecord(params, payload.data, session.access_token); }
+                    if (!params.divinationId && userId && !hasAutoSavedRef.current) { hasAutoSavedRef.current = true; await saveDivinationRecord(params, payload.data); }
                 }
             } catch (e) { console.error(e); } finally { setIsLoading(false); }
         };
         void init();
-    }, [router, saveDivinationRecord, session?.access_token, sessionLoading]);
+    }, [router, saveDivinationRecord, sessionLoading, userId]);
 
     const handleCopy = async () => {
         setShowCopyModal(true);
@@ -130,58 +130,70 @@ export default function DaliurenResultPage() {
         return () => clearMenuItems();
     }, [result, isAdmin, canonicalResult, jsonCopied, copyJson, router, setMenuItems, clearMenuItems]);
 
-    useEffect(() => {
-        if (!divinationId || conversationId || streaming.isStreaming) return;
-
-        let cancelled = false;
-
-        const resolveConversation = async () => {
-            const resolvedConversationId = await resolveHistoryConversationId('daliuren', divinationId, 'daliuren_params');
-            if (cancelled || !resolvedConversationId) return;
-            setConversationId(resolvedConversationId);
-            persistSessionIds({ conversationId: resolvedConversationId });
-        };
-
-        void resolveConversation();
-        return () => {
-            cancelled = true;
-        };
-    }, [conversationId, divinationId, persistSessionIds, streaming.isStreaming]);
-
     useAnalysisSnapshot({
         conversationId,
         recordId: divinationId,
         divinationType: 'daliuren',
         sessionKey: 'daliuren_params',
         hasExistingAnalysis: !!interpretation || !!streaming.content,
+        skip: !result || (!conversationId && !divinationId),
         callbacks: {
             onAnalysis: setInterpretation,
-            onReasoning: (reasoning) => {
-                setInterpretationReasoning(reasoning);
-                setReasoningEnabled(true);
-            },
+            onReasoning: setInterpretationReasoning,
+            onReasoningEnabled: setReasoningEnabled,
             onModelId: setModelId,
+            onConversationIdResolved: (resolvedConversationId) => {
+                setConversationId(resolvedConversationId);
+                persistSessionIds({ conversationId: resolvedConversationId });
+            },
         },
     });
 
     const handleInterpret = useCallback(async () => {
-        if (!result || !session?.access_token) { if (!session) setShowAuthModal(true); return; }
+        if (!result || !userId) { if (!userId) setShowAuthModal(true); return; }
         setError(null);
         setInterpretation(null);
         setInterpretationReasoning(null);
-        const streamResult = await streaming.startStream('/api/daliuren', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify({ action: 'interpret', resultData: result, divinationId, modelId, reasoning: reasoningEnabled, stream: true }),
-        });
-        if (streamResult?.error && isCreditsError(streamResult.error)) {
-            setShowCreditsModal(true);
-        } else if (streamResult?.error) {
-            setError(streamResult.error);
-        } else if (streamResult?.content) {
-            setInterpretation(streamResult.content);
-            if (streamResult.reasoning) setInterpretationReasoning(streamResult.reasoning);
+        streaming.reset();
+        try {
+            const analysisResult = await runSharedAnalysisFlow({
+                endpoint: '/api/daliuren',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: { action: 'interpret_prepare', resultData: result, divinationId },
+                    persistBody: { action: 'interpret_persist', resultData: result, divinationId },
+                },
+                streamBody: {
+                    action: 'interpret',
+                    resultData: result,
+                    divinationId,
+                    modelId,
+                    reasoning: reasoningEnabled,
+                    stream: true,
+                },
+            });
+            if (analysisResult.requiresCredits) {
+                setShowCreditsModal(true);
+            } else {
+                if (analysisResult.error) {
+                    setError(analysisResult.error);
+                }
+                if (analysisResult.content) {
+                    setInterpretation(analysisResult.content);
+                }
+                if (analysisResult.reasoning) {
+                    setInterpretationReasoning(analysisResult.reasoning);
+                }
+                if (analysisResult.conversationId) {
+                    setConversationId(analysisResult.conversationId);
+                    persistSessionIds({ conversationId: analysisResult.conversationId });
+                }
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '解读失败');
         }
-    }, [result, session, divinationId, modelId, reasoningEnabled, streaming]);
+    }, [divinationId, modelId, persistSessionIds, reasoningEnabled, result, streaming, userId]);
 
     if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><SoundWaveLoader variant="block" text="正在起课" /></div>;
     if (!result) return <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center"><p className="text-sm text-foreground/40 mb-6">排盘失败</p><button onClick={() => router.back()} className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md transition-colors">返回重试</button></div>;

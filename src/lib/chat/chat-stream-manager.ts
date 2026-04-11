@@ -1,4 +1,5 @@
 import type { AIMessageMetadata, ChatMessage } from '@/types';
+import { normalizeBrowserDirectError } from '@/lib/ai/browser-direct-provider';
 import { saveConversation } from './conversation';
 
 export type ChatStreamTaskStatus = 'running' | 'completed' | 'stopped' | 'failed';
@@ -7,6 +8,7 @@ export type ChatStreamTaskErrorCode =
     | 'CONVERSATION_BUSY'
     | 'INSUFFICIENT_CREDITS'
     | 'AUTH_REQUIRED'
+    | 'PERSIST_FAILED'
     | 'REQUEST_FAILED'
     | 'NETWORK_ERROR';
 
@@ -50,6 +52,7 @@ export interface StartChatStreamTaskParams {
     assistantMessage: ChatMessage;
     /** 保存前的钩子，可修改最终消息列表 */
     onBeforeSave?: BeforeSaveHook;
+    runner?: ChatStreamTaskRunner;
 }
 
 export type ChatStreamStartResult =
@@ -59,6 +62,18 @@ export type ChatStreamStartResult =
 type SaveConversationFn = (conversationId: string, messages: ChatMessage[]) => Promise<boolean>;
 
 type FetcherFn = typeof fetch;
+
+export interface ChatStreamTaskRunnerContext {
+    requestHeaders: Record<string, string>;
+    requestBody: Record<string, unknown>;
+    signal: AbortSignal;
+    fetcher: FetcherFn;
+    appendContentDelta: (delta: string) => void;
+    appendReasoningDelta: (delta: string) => void;
+    setMetadata: (metadata: AIMessageMetadata) => void;
+}
+
+export type ChatStreamTaskRunner = (context: ChatStreamTaskRunnerContext) => Promise<void>;
 
 interface ChatStreamTaskInternal {
     conversationId: string;
@@ -134,8 +149,9 @@ export function classifyApiError(
         };
     }
 
-    const isAuthRequired = status === 401
-        || data?.error?.includes('请先登录') === true;
+    const isAuthRequired = data?.code === 'AUTH_REQUIRED'
+        || data?.error?.includes('请先登录') === true
+        || data?.error?.includes('登录后再使用') === true;
     if (isAuthRequired) {
         return {
             code: 'AUTH_REQUIRED',
@@ -262,6 +278,35 @@ export class ChatStreamManager {
     }
 
     private async runTask(task: ChatStreamTaskInternal, params: StartChatStreamTaskParams): Promise<void> {
+        if (params.runner) {
+            try {
+                await params.runner({
+                    requestHeaders: params.requestHeaders,
+                    requestBody: params.requestBody,
+                    signal: task.controller.signal,
+                    fetcher: this.fetcher,
+                    appendContentDelta: (delta) => this.appendContentDelta(task, delta),
+                    appendReasoningDelta: (delta) => this.appendReasoningDelta(task, delta),
+                    setMetadata: (metadata) => this.setMetadata(task, metadata),
+                });
+
+                if (task.sseError) {
+                    await this.finishWithStatus(task, 'failed', task.sseError);
+                } else {
+                    await this.finishCompleted(task);
+                }
+                return;
+            } catch (error) {
+                if (isAbortError(error) || task.stopRequested) {
+                    await this.finishWithStatus(task, 'stopped');
+                    return;
+                }
+                const classified = this.classifyRunnerError(error);
+                await this.finishWithStatus(task, 'failed', classified);
+                return;
+            }
+        }
+
         const serializedRequest = stringifyRequestBody(params.requestBody);
 
         let response: Response;
@@ -415,29 +460,78 @@ export class ChatStreamManager {
 
         let hasChanges = false;
         if (delta.type === 'reasoning-delta' && typeof delta.delta === 'string' && delta.delta.length > 0) {
-            if (!task.reasoningStartTime) {
-                task.reasoningStartTime = Date.now();
-            }
-            task.reasoning += delta.delta;
-            hasChanges = true;
+            this.appendReasoningDelta(task, delta.delta);
+            hasChanges = false;
         }
 
         // AI SDK toUIMessageStreamResponse 使用 textDelta，自定义 SSE 使用 delta
         const textChunk = typeof delta.textDelta === 'string' ? delta.textDelta
             : typeof delta.delta === 'string' ? delta.delta : '';
         if (delta.type === 'text-delta' && textChunk.length > 0) {
-            task.content += textChunk;
-            if (!task.hasVisibleToken) {
-                task.hasVisibleToken = true;
-                this.emit({ type: 'task_billed', task: this.buildSnapshot(task) });
-            }
-            hasChanges = true;
+            this.appendContentDelta(task, textChunk);
+            hasChanges = false;
         }
 
         if (hasChanges) {
             task.updatedAt = Date.now();
             this.emit({ type: 'task_updated', task: this.buildSnapshot(task) });
         }
+    }
+
+    private appendReasoningDelta(task: ChatStreamTaskInternal, delta: string): void {
+        if (!delta) return;
+        if (!task.reasoningStartTime) {
+            task.reasoningStartTime = Date.now();
+        }
+        task.reasoning += delta;
+        task.updatedAt = Date.now();
+        this.emit({ type: 'task_updated', task: this.buildSnapshot(task) });
+    }
+
+    private appendContentDelta(task: ChatStreamTaskInternal, delta: string): void {
+        if (!delta) return;
+        task.content += delta;
+        if (!task.hasVisibleToken) {
+            task.hasVisibleToken = true;
+            this.emit({ type: 'task_billed', task: this.buildSnapshot(task) });
+        }
+        task.updatedAt = Date.now();
+        this.emit({ type: 'task_updated', task: this.buildSnapshot(task) });
+    }
+
+    private setMetadata(task: ChatStreamTaskInternal, metadata: AIMessageMetadata): void {
+        task.metadata = metadata;
+        task.updatedAt = Date.now();
+        this.emit({ type: 'task_updated', task: this.buildSnapshot(task) });
+    }
+
+    private classifyRunnerError(error: unknown): { code: ChatStreamTaskErrorCode; message: string } {
+        const normalized = normalizeBrowserDirectError(error);
+        if (normalized.status === 401 && normalized.code === 'PREPARE_FAILED') {
+            return {
+                code: 'AUTH_REQUIRED',
+                message: normalized.message,
+            };
+        }
+
+        if (normalized.status === 429) {
+            return {
+                code: 'REQUEST_FAILED',
+                message: normalized.message,
+            };
+        }
+
+        if (normalized.status === 0) {
+            return {
+                code: 'NETWORK_ERROR',
+                message: normalized.message,
+            };
+        }
+
+        return {
+            code: 'REQUEST_FAILED',
+            message: normalized.message,
+        };
     }
 
     private async finishCompleted(task: ChatStreamTaskInternal): Promise<void> {
@@ -459,7 +553,19 @@ export class ChatStreamManager {
             // 使后续 getTaskSnapshot 能返回包含完整版本信息的消息
             task.baseMessages = finalMessages.slice(0, -1);
         }
-        await this.saveConversationFn(task.conversationId, finalMessages);
+        const saved = await this.saveConversationFn(task.conversationId, finalMessages);
+        if (!saved) {
+            task.status = 'failed';
+            task.updatedAt = Date.now();
+            this.emit({
+                type: 'task_failed',
+                task: this.buildSnapshot(task, finalMessages, task.content),
+                errorCode: 'PERSIST_FAILED',
+                errorMessage: '保存对话失败，请稍后重试',
+            });
+            this.scheduleCleanup(task.conversationId);
+            return;
+        }
 
         this.emit({ type: 'task_completed', task: this.buildSnapshot(task, finalMessages, task.content) });
         this.scheduleCleanup(task.conversationId);
@@ -486,7 +592,17 @@ export class ChatStreamManager {
                 // 将 onBeforeSave 处理后的 baseMessages 存回 task
                 task.baseMessages = finalMessages.slice(0, -1);
             }
-            await this.saveConversationFn(task.conversationId, finalMessages);
+            const saved = await this.saveConversationFn(task.conversationId, finalMessages);
+            if (!saved) {
+                this.emit({
+                    type: 'task_failed',
+                    task: this.buildSnapshot(task, finalMessages, task.content),
+                    errorCode: 'PERSIST_FAILED',
+                    errorMessage: '保存对话失败，请稍后重试',
+                });
+                this.scheduleCleanup(task.conversationId);
+                return;
+            }
         }
 
         const eventType: ChatStreamEventType = status === 'stopped' ? 'task_stopped' : 'task_failed';

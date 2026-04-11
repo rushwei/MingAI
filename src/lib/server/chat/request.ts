@@ -10,9 +10,15 @@ import { addCredits, getUserAuthInfo, useCredit as deductCredit } from '@/lib/us
 import type { MembershipType } from '@/lib/user/membership';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
 
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
+const BROWSER_DIRECT_CHAT_RATE_LIMIT_CONFIG = {
+  maxRequests: 20,
+  windowMs: 60_000,
+};
+const BROWSER_DIRECT_CHAT_RATE_LIMIT_KEY = '/api/chat/direct/prepare';
 
 export interface ChatRequestBody {
   messages: ChatMessage[];
@@ -77,7 +83,12 @@ async function resolveUserIdFromRequest(request: NextRequest): Promise<string | 
 }
 
 export async function parseChatRequestBody(request: NextRequest): Promise<ChatRequestBody | Response> {
-  const body = await request.json() as ChatRequestBody;
+  let body: ChatRequestBody;
+  try {
+    body = await request.json() as ChatRequestBody;
+  } catch {
+    return jsonError('请求体不是合法 JSON', 400);
+  }
   if (!body.messages || !Array.isArray(body.messages)) {
     return jsonError('无效的消息格式', 400);
   }
@@ -86,21 +97,22 @@ export async function parseChatRequestBody(request: NextRequest): Promise<ChatRe
   return body;
 }
 
+export function getChatAccessTokenForKnowledgeBase(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader) {
+    return authHeader.replace(/Bearer\s+/i, '');
+  }
+
+  return request.cookies.get('sb-access-token')?.value ?? null;
+}
+
 export async function resolveChatRequest(
   request: NextRequest,
   body: ChatRequestBody,
 ): Promise<ResolvedChatRequest | Response> {
   const canSkipCredit = !!(INTERNAL_SECRET && body.skipCreditCheck && body.internalSecret === INTERNAL_SECRET);
 
-  let accessTokenForKB: string | null = null;
-  const authHeader = request.headers.get('authorization');
-  if (authHeader) {
-    accessTokenForKB = authHeader.replace(/Bearer\s+/i, '');
-  }
-
-  if (!accessTokenForKB) {
-    accessTokenForKB = request.cookies.get('sb-access-token')?.value ?? null;
-  }
+  let accessTokenForKB: string | null = getChatAccessTokenForKnowledgeBase(request);
 
   let userId: string | null = null;
   if (canSkipCredit) {
@@ -185,6 +197,54 @@ export async function resolveChatRequest(
     membershipType,
     reasoningEnabled,
     creditDeducted,
+  };
+}
+
+export async function prepareBrowserDirectChatRequest(
+  request: NextRequest,
+  body: ChatRequestBody,
+): Promise<PreparedChatRequest | Response> {
+  const auth = await requireUserContext(request);
+  if ('error' in auth) {
+    return jsonError(auth.error.message, auth.error.status);
+  }
+
+  const rateLimit = await checkRateLimit(
+    auth.user.id,
+    BROWSER_DIRECT_CHAT_RATE_LIMIT_KEY,
+    BROWSER_DIRECT_CHAT_RATE_LIMIT_CONFIG,
+  );
+  if (!rateLimit.allowed) {
+    return jsonError('请求过于频繁，请稍后再试', 429);
+  }
+
+  let accessTokenForKB = getChatAccessTokenForKnowledgeBase(request);
+  if (!accessTokenForKB) {
+    try {
+      const { data: { session } } = await auth.supabase.auth.getSession();
+      accessTokenForKB = session?.access_token || null;
+    } catch {
+      accessTokenForKB = null;
+    }
+  }
+
+  const authInfo = await getUserAuthInfo(auth.user.id);
+  const requestedModelId = body.model?.trim() || DEFAULT_MODEL_ID;
+  const reasoningEnabled = body.reasoning === true;
+  const resolvedRequest: ResolvedChatRequest = {
+    body,
+    userId: auth.user.id,
+    canSkipCredit: true,
+    accessTokenForKB,
+    requestedModelId,
+    membershipType: authInfo?.effectiveMembership ?? 'free',
+    reasoningEnabled,
+    creditDeducted: false,
+  };
+
+  return {
+    ...resolvedRequest,
+    ...(await buildChatPromptContext(resolvedRequest)),
   };
 }
 

@@ -7,7 +7,7 @@
  */
 import { NextRequest } from 'next/server';
 import { DEFAULT_DIVINATION_TIMEZONE, zonedTimeToUtc } from '@mingai/core/timezone-utils';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import {
     calculateQimenBundle,
     generateQimenChartText,
@@ -16,7 +16,9 @@ import {
     type QimenOutput,
 } from '@/lib/divination/qimen';
 import {
+    createDirectInterpretHandlers,
     createInterpretHandler,
+    type DivinationRouteConfig,
     type InterpretInput,
     type InterpretPromptContext,
 } from '@/lib/api/divination-pipeline';
@@ -24,7 +26,7 @@ import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
 interface QimenRequest {
-    action: 'calculate' | 'interpret' | 'save';
+    action: 'calculate' | 'interpret' | 'interpret_prepare' | 'interpret_persist' | 'save';
     year?: number;
     month?: number;
     day?: number;
@@ -152,9 +154,10 @@ function buildInsertPayload(
     };
 }
 
-const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpretContext>({
+const qimenInterpretConfig: DivinationRouteConfig<QimenInterpretInput, QimenInterpretContext> = {
     sourceType: 'qimen',
     tag: 'qimen',
+    authMethod: 'userContext',
     personality: 'qimen',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.qimen_chart],
     parseInput: (body) => {
@@ -216,7 +219,10 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpr
                 : buildInsertPayload(userId, input, resolvedContext.chart),
         };
     },
-});
+};
+
+const handleInterpret = createInterpretHandler<QimenInterpretInput, QimenInterpretContext>(qimenInterpretConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<QimenInterpretInput, QimenInterpretContext>(qimenInterpretConfig);
 
 export async function POST(request: NextRequest) {
     try {
@@ -229,7 +235,7 @@ export async function POST(request: NextRequest) {
                     return jsonError(parsed.error, parsed.status, { success: false });
                 }
 
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) {
                     return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
@@ -241,13 +247,19 @@ export async function POST(request: NextRequest) {
             case 'interpret':
                 return handleInterpret(request, body as unknown as Record<string, unknown>);
 
+            case 'interpret_prepare':
+                return handleDirectPrepare(request, body as unknown as Record<string, unknown>);
+
+            case 'interpret_persist':
+                return handleDirectPersist(request, body as unknown as Record<string, unknown>);
+
             case 'save': {
                 const parsed = parseQimenInput(body);
                 if (isRouteError(parsed)) {
                     return jsonError(parsed.error, parsed.status, { success: false });
                 }
 
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) {
                     return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }

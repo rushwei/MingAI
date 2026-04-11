@@ -25,6 +25,7 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 type MBTIResultSession = TestResult & {
     conversationId?: string | null;
     readingId?: string | null;
@@ -50,7 +51,7 @@ function MBTIResultContent() {
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const streaming = useStreamingResponse();
-    const { session, user, userId, sessionLoading, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const { user, userId, sessionLoading, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const checkingAuth = sessionLoading || membershipPending;
@@ -84,15 +85,33 @@ function MBTIResultContent() {
     });
 
     const handleGetAIAnalysis = async () => {
-        if (!result || !user || !session?.access_token) { if (!user) setShowAuthModal(true); return; }
+        if (!result || !user) { if (!user) setShowAuthModal(true); return; }
         setLoadingAI(true); streaming.reset(); setError(null); setAnalysisReasoning(null); setAiAnalysis(null);
         try {
-            const streamResult = await streaming.startStream('/api/mbti', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                body: JSON.stringify({ action: 'analyze', type: result.type, scores: result.scores, percentages: result.percentages, readingId: result.readingId, modelId: selectedModel, reasoning: reasoningEnabled, stream: true }),
+            const baseBody = { type: result.type, scores: result.scores, percentages: result.percentages, readingId: result.readingId };
+            const analysisResult = await runSharedAnalysisFlow({
+                endpoint: '/api/mbti',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: { action: 'analyze_prepare', ...baseBody },
+                    persistBody: { action: 'analyze_persist', ...baseBody },
+                },
+                streamBody: {
+                    action: 'analyze',
+                    ...baseBody,
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
+                    stream: true,
+                },
             });
-            if (streamResult?.error && isCreditsError(streamResult.error)) setShowCreditsModal(true);
-            else if (streamResult?.content) { setAiAnalysis(streamResult.content); if (streamResult.reasoning) setAnalysisReasoning(streamResult.reasoning); }
+            if (analysisResult.requiresCredits) setShowCreditsModal(true);
+            else {
+                if (analysisResult.error) setError(analysisResult.error);
+                if (analysisResult.content) setAiAnalysis(analysisResult.content);
+                if (analysisResult.reasoning) setAnalysisReasoning(analysisResult.reasoning);
+                if (analysisResult.conversationId) setConversationId(analysisResult.conversationId);
+            }
         } catch (err) { setError(err instanceof Error ? err.message : '分析失败'); } finally { setLoadingAI(false); }
     };
 

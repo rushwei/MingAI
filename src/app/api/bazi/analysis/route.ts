@@ -7,7 +7,12 @@
 
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError } from '@/lib/api-utils';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import {
+    createDirectInterpretHandlers,
+    createInterpretHandler,
+    type DivinationRouteConfig,
+    type InterpretInput,
+} from '@/lib/api/divination-pipeline';
 import { formatBaziPromptText } from '@/lib/bazi-prompt';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
@@ -66,6 +71,7 @@ const PERSONALITY_PROMPT = `你是一位专业的命理分析师，擅长通过�
 type BaziAnalysisType = 'wuxing' | 'personality';
 
 interface BaziAnalysisRequest {
+    action?: 'direct_prepare' | 'direct_persist';
     chartId?: string;
     type?: BaziAnalysisType;
     modelId?: string;
@@ -108,7 +114,7 @@ function getAllowedChartTypes(type: BaziAnalysisType): ChartType[] {
         : ['personality_petal', 'life_timeline', 'fortune_radar', 'fortune_calendar'];
 }
 
-const handleAnalyze = createInterpretHandler<BaziAnalysisInput, BaziAnalysisContext>({
+const baziAnalysisConfig: DivinationRouteConfig<BaziAnalysisInput, BaziAnalysisContext> = {
     sourceType: (input) => (input.type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality'),
     tag: 'bazi/analysis',
     personality: 'bazi',
@@ -213,11 +219,20 @@ const handleAnalyze = createInterpretHandler<BaziAnalysisInput, BaziAnalysisCont
         reasoning,
         conversationId,
     }),
-});
+};
+
+const handleAnalyze = createInterpretHandler<BaziAnalysisInput, BaziAnalysisContext>(baziAnalysisConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<BaziAnalysisInput, BaziAnalysisContext>(baziAnalysisConfig);
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json() as Record<string, unknown>;
+        const body = await request.json() as Record<string, unknown> & { action?: BaziAnalysisRequest['action'] };
+        if (body.action === 'direct_prepare') {
+            return await handleDirectPrepare(request, body);
+        }
+        if (body.action === 'direct_persist') {
+            return await handleDirectPersist(request, body);
+        }
         return await handleAnalyze(request, body);
     } catch (error) {
         console.error('Analysis API error:', error);

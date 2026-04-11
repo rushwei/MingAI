@@ -4,13 +4,18 @@
  * 提供 AI 性格分析功能
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/divination/mbti';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import {
+    createDirectInterpretHandlers,
+    createInterpretHandler,
+    type DivinationRouteConfig,
+    type InterpretInput,
+} from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface MBTIRequest {
-    action: 'analyze' | 'save' | 'history';
+    action: 'analyze' | 'analyze_prepare' | 'analyze_persist' | 'save';
     type: MBTIType;
     scores: Record<string, number>;
     percentages: {
@@ -34,9 +39,10 @@ interface MBTIInterpretInput extends InterpretInput {
     readingId?: string;
 }
 
-const handleInterpret = createInterpretHandler<MBTIInterpretInput>({
+const mbtiInterpretConfig: DivinationRouteConfig<MBTIInterpretInput> = {
     sourceType: 'mbti',
     tag: 'mbti',
+    authMethod: 'userContext',
     personality: 'mbti',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.mbti_reading],
     parseInput: (body) => {
@@ -87,7 +93,10 @@ ${basic.description}
                 percentages: input.percentages,
             },
     }),
-});
+};
+
+const handleInterpret = createInterpretHandler<MBTIInterpretInput>(mbtiInterpretConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<MBTIInterpretInput>(mbtiInterpretConfig);
 
 export async function POST(request: NextRequest) {
     try {
@@ -98,7 +107,7 @@ export async function POST(request: NextRequest) {
             if (!body.type || !body.percentages) {
                 return jsonError('请提供完整的测试结果', 400, { success: false });
             }
-            const authResult = await requireBearerUser(request);
+            const authResult = await requireUserContext(request);
             if ('error' in authResult) {
                 return jsonError(authResult.error.message, authResult.error.status, { success: false });
             }
@@ -120,22 +129,12 @@ export async function POST(request: NextRequest) {
             return jsonOk({ success: true, data: { readingId: insertedReading?.id } });
         }
 
-        if (action === 'history') {
-            const authResult = await requireBearerUser(request);
-            if ('error' in authResult) {
-                return jsonError(authResult.error.message, authResult.error.status, { success: false });
-            }
-            const serviceClient = getSystemAdminClient();
-            const { data: history, error: historyError } = await serviceClient
-                .from('mbti_readings')
-                .select('*')
-                .eq('user_id', authResult.user.id)
-                .order('created_at', { ascending: false })
-                .limit(20);
-            if (historyError) {
-                return jsonError('获取历史记录失败', 500, { success: false });
-            }
-            return jsonOk({ success: true, data: { history } });
+        if (action === 'analyze_prepare') {
+            return handleDirectPrepare(request, body as unknown as Record<string, unknown>);
+        }
+
+        if (action === 'analyze_persist') {
+            return handleDirectPersist(request, body as unknown as Record<string, unknown>);
         }
 
         if (action !== 'analyze') {

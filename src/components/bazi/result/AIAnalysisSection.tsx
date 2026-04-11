@@ -21,7 +21,10 @@ import type { MembershipType } from '@/lib/user/membership';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { useToast } from '@/components/ui/Toast';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
+import { CUSTOM_PROVIDER_CHANGED_EVENT, getCustomProvider } from '@/lib/chat/custom-provider';
 
 interface AIAnalysisSectionProps {
     chartId: string;
@@ -76,9 +79,12 @@ export function AIAnalysisSection({
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
+    const [hasCustomProvider, setHasCustomProvider] = useState(false);
     const streaming = useStreamingResponse();
+    const { showToast } = useToast();
     const { userId: sessionUserId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
+    const canBypassLockWithCustomProvider = hasCustomProvider && !!userId;
     const membershipType: MembershipType = sessionUserId === userId
         ? (membershipResolved ? (membershipInfo?.type ?? 'free') : 'free')
         : 'free';
@@ -98,6 +104,18 @@ export function AIAnalysisSection({
         if (savedReasoning) setReasoningEnabled(true);
     }, [savedModelId, savedReasoning]);
 
+    useEffect(() => {
+        const syncCustomProvider = () => {
+            setHasCustomProvider(!!getCustomProvider());
+        };
+
+        syncCustomProvider();
+        window.addEventListener(CUSTOM_PROVIDER_CHANGED_EVENT, syncCustomProvider);
+        return () => {
+            window.removeEventListener(CUSTOM_PROVIDER_CHANGED_EVENT, syncCustomProvider);
+        };
+    }, []);
+
     const handleUnlock = async () => {
         setIsUnlocked(true);
         await startAnalysis();
@@ -105,33 +123,54 @@ export function AIAnalysisSection({
 
     const startAnalysis = async () => {
         if (loading) return;
+        if (!userId) {
+            onLoginRequired?.();
+            return;
+        }
         setLoading(true);
         streaming.reset();
         setAnalysis('');
         setAnalysisReasoning(null);
 
         try {
-            const result = await streaming.startStream('/api/bazi/analysis', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chartId, type,
+            const result = await runSharedAnalysisFlow({
+                endpoint: '/api/bazi/analysis',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: {
+                        action: 'direct_prepare',
+                        chartId,
+                        type,
+                    },
+                    persistBody: {
+                        action: 'direct_persist',
+                        chartId,
+                        type,
+                    },
+                },
+                streamBody: {
+                    chartId,
+                    type,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
                     stream: true,
-                }),
+                },
             });
 
-            if (result?.error && isCreditsError(result.error)) {
+            if (result.requiresCredits) {
                 setShowCreditsModal(true);
                 return;
             }
-            if (result?.error) throw new Error(result.error);
 
-            if (result?.content) {
+            if (result.content) {
+                setIsUnlocked(true);
                 setAnalysis(result.content);
                 if (result.reasoning) setAnalysisReasoning(result.reasoning);
                 onSaveAnalysis(result.content);
+            } else if (result.error) {
+                showToast('error', result.error);
+                throw new Error(result.error);
             } else {
                 setAnalysis('分析失败，请点击重新分析按钮重试。');
             }
@@ -252,7 +291,7 @@ export function AIAnalysisSection({
         <div className="space-y-2">
             {modelControls}
             <AIAnalysisLock type={type} title={title} description={lockDescription}
-                isUnlocked={isUnlocked} placeholder={placeholder} userId={userId}
+                isUnlocked={isUnlocked || canBypassLockWithCustomProvider} placeholder={placeholder} userId={userId}
                 credits={credits} onUnlock={handleUnlock} onLoginRequired={onLoginRequired}>
                 {content}
             </AIAnalysisLock>

@@ -8,6 +8,12 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import type { CustomProviderRequest } from '@/types';
+import {
+    buildBrowserDirectMessages,
+    streamBrowserDirectProvider,
+    normalizeBrowserDirectError,
+} from '@/lib/ai/browser-direct-provider';
 import { useStreamingText, type StreamingTextOptions } from './useStreamingText';
 
 export interface StreamingState {
@@ -32,6 +38,15 @@ export interface StreamingCallbacks {
     onReasoningStart?: (startTime: number) => void;
     onComplete?: (content: string, reasoning: string | null) => void;
     onError?: (error: string) => void;
+}
+
+export interface DirectStreamingRequest {
+    provider: CustomProviderRequest;
+    systemPrompt: string;
+    messages: Array<{
+        role: 'system' | 'user' | 'assistant';
+        content: string;
+    }>;
 }
 
 interface ParsedSSEData {
@@ -249,6 +264,113 @@ export function useStreamingResponse(
         };
     }, [callbacks, smoothRendering, contentStreaming, reasoningStreaming]);
 
+    const startDirectStream = useCallback(async (
+        request: DirectStreamingRequest,
+    ): Promise<{ content: string; reasoning: string | null; error?: string } | null> => {
+        setState({
+            content: '',
+            reasoning: null,
+            reasoningStartTime: undefined,
+            reasoningDuration: undefined,
+            isStreaming: true,
+            error: null,
+        });
+        rawContentRef.current = '';
+        rawReasoningRef.current = '';
+        if (smoothRendering) {
+            contentStreaming.reset();
+            reasoningStreaming.reset();
+        }
+
+        abortControllerRef.current = new AbortController();
+
+        let accumulatedContent = '';
+        let accumulatedReasoning = '';
+        let streamReasoningStartTime: number | undefined;
+
+        try {
+            const result = await streamBrowserDirectProvider({
+                provider: request.provider,
+                messages: buildBrowserDirectMessages(request.systemPrompt, request.messages),
+                signal: abortControllerRef.current.signal,
+                onContentDelta: (delta) => {
+                    accumulatedContent += delta;
+                    rawContentRef.current = accumulatedContent;
+                    if (smoothRendering) {
+                        contentStreaming.addCharacters(delta);
+                    } else {
+                        setState((prev) => ({
+                            ...prev,
+                            content: accumulatedContent,
+                        }));
+                    }
+                    callbacks?.onContent?.(accumulatedContent);
+                },
+                onReasoningDelta: (delta) => {
+                    if (!accumulatedReasoning && !streamReasoningStartTime) {
+                        streamReasoningStartTime = Date.now();
+                        setState((prev) => ({
+                            ...prev,
+                            reasoningStartTime: streamReasoningStartTime,
+                        }));
+                        callbacks?.onReasoningStart?.(streamReasoningStartTime);
+                    }
+                    accumulatedReasoning += delta;
+                    rawReasoningRef.current = accumulatedReasoning;
+                    if (smoothRendering) {
+                        reasoningStreaming.addCharacters(delta);
+                    } else {
+                        setState((prev) => ({
+                            ...prev,
+                            reasoning: accumulatedReasoning,
+                        }));
+                    }
+                    callbacks?.onReasoning?.(accumulatedReasoning);
+                },
+            });
+
+            if (smoothRendering) {
+                contentStreaming.flush();
+                reasoningStreaming.flush();
+            }
+
+            const reasoningDuration = streamReasoningStartTime
+                ? Math.floor((Date.now() - streamReasoningStartTime) / 1000)
+                : undefined;
+
+            setState((prev) => ({
+                ...prev,
+                isStreaming: false,
+                error: null,
+                reasoningDuration,
+                content: result.content,
+                reasoning: result.reasoning,
+            }));
+
+            callbacks?.onComplete?.(result.content, result.reasoning);
+            return result;
+        } catch (error) {
+            const normalized = normalizeBrowserDirectError(error);
+            if (normalized.code === 'ABORTED') {
+                setState((prev) => ({ ...prev, isStreaming: false }));
+                return { content: accumulatedContent, reasoning: accumulatedReasoning || null };
+            }
+            setState((prev) => ({
+                ...prev,
+                error: normalized.message,
+                isStreaming: false,
+            }));
+            callbacks?.onError?.(normalized.message);
+            return {
+                content: accumulatedContent,
+                reasoning: accumulatedReasoning || null,
+                error: normalized.message,
+            };
+        } finally {
+            abortControllerRef.current = null;
+        }
+    }, [callbacks, smoothRendering, contentStreaming, reasoningStreaming]);
+
     const startStream = useCallback(async (
         url: string,
         options: RequestInit
@@ -324,6 +446,7 @@ export function useStreamingResponse(
         isContentRendering: smoothRendering ? contentStreaming.isRendering : false,
         isReasoningRendering: smoothRendering ? reasoningStreaming.isRendering : false,
         startStream,
+        startDirectStream,
         processStream,
         reset,
         stop,

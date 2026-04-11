@@ -143,6 +143,7 @@ export async function buildChatPromptContext(
   resolvedRequest: ResolvedChatRequest,
 ): Promise<ChatPromptContextResult> {
   const { body, userId, accessTokenForKB, requestedModelId, reasoningEnabled, membershipType } = resolvedRequest;
+
   const supabase = getSystemAdminClient();
   const knowledgeBaseFeatureEnabled = await isFeatureModuleEnabled('knowledge-base');
 

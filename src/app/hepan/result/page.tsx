@@ -30,6 +30,7 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 export default function HepanResultPage() {
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
@@ -51,7 +52,7 @@ export default function HepanResultPage() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
-    const { session, user, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const { user, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const currentUser = user ? { id: user.id } : null;
@@ -116,40 +117,43 @@ export default function HepanResultPage() {
         setAiAnalysis(null);
 
         try {
-            const streamResult = await streaming.startStream('/api/hepan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token || ''}`,
+            const baseBody = {
+                result,
+                chartId: (result as unknown as { chartId?: string }).chartId,
+            };
+            const analysisResult = await runSharedAnalysisFlow({
+                endpoint: '/api/hepan',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: { action: 'analyze_prepare', ...baseBody },
+                    persistBody: { action: 'analyze_persist', ...baseBody },
                 },
-                body: JSON.stringify({
+                streamBody: {
                     action: 'analyze',
-                    result,
-                    chartId: (result as unknown as { chartId?: string }).chartId,
+                    ...baseBody,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
                     stream: true,
-                }),
+                },
             });
-
-            // 检测积分不足错误（使用返回值而非状态，避免异步问题）
-            if (streamResult?.error && isCreditsError(streamResult.error)) {
+            if (analysisResult.requiresCredits) {
                 setShowCreditsModal(true);
                 return;
             }
-
-            if (streamResult?.error) {
-                throw new Error(streamResult.error);
+            if (analysisResult.error) {
+                throw new Error(analysisResult.error);
             }
-
-            // 更新最终内容
-            if (streamResult?.content) {
-                setAiAnalysis(streamResult.content);
-                if (streamResult.reasoning) {
-                    setAnalysisReasoning(streamResult.reasoning);
-                }
+            if (analysisResult.content) {
+                setAiAnalysis(analysisResult.content);
             } else {
                 setAiAnalysis('分析失败，请重试');
+            }
+            if (analysisResult.reasoning) {
+                setAnalysisReasoning(analysisResult.reasoning);
+            }
+            if (analysisResult.conversationId) {
+                setConversationId(analysisResult.conversationId);
             }
 
         } catch (err) {

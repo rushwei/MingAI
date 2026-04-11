@@ -4,8 +4,13 @@
  * action: calculate | interpret | save
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import {
+    createDirectInterpretHandlers,
+    createInterpretHandler,
+    type DivinationRouteConfig,
+    type InterpretInput,
+} from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 import {
@@ -15,7 +20,7 @@ import {
 } from '@/lib/divination/daliuren';
 
 interface DaliurenRequest {
-    action: 'calculate' | 'interpret' | 'save';
+    action: 'calculate' | 'interpret' | 'interpret_prepare' | 'interpret_persist' | 'save';
     date?: string;
     hour?: number;
     minute?: number;
@@ -44,9 +49,10 @@ function buildDaliurenPrompt(result: DaliurenOutput, question?: string, detailLe
     })}\n\n请详细解读。`;
 }
 
-const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
+const daliurenInterpretConfig: DivinationRouteConfig<DaliurenInterpretInput> = {
     sourceType: 'daliuren',
     tag: 'daliuren',
+    authMethod: 'userContext',
     personality: 'daliuren',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.daliuren_divination],
     parseInput: (body) => {
@@ -85,7 +91,10 @@ const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
             },
         }
         : null,
-});
+};
+
+const handleInterpret = createInterpretHandler<DaliurenInterpretInput>(daliurenInterpretConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<DaliurenInterpretInput>(daliurenInterpretConfig);
 
 export async function POST(request: NextRequest) {
     try {
@@ -105,7 +114,7 @@ export async function POST(request: NextRequest) {
             }
 
             case 'save': {
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) {
                     return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
@@ -142,6 +151,12 @@ export async function POST(request: NextRequest) {
 
             case 'interpret':
                 return handleInterpret(request, body as unknown as Record<string, unknown>);
+
+            case 'interpret_prepare':
+                return handleDirectPrepare(request, body as unknown as Record<string, unknown>);
+
+            case 'interpret_persist':
+                return handleDirectPersist(request, body as unknown as Record<string, unknown>);
 
             default:
                 return jsonError(`未知操作: ${action}`, 400, { success: false });

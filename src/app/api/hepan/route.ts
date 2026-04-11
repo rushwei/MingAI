@@ -2,13 +2,18 @@
  * 关系合盘 API 路由
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { type HepanResult, getHepanTypeName } from '@/lib/divination/hepan';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import {
+    createDirectInterpretHandlers,
+    createInterpretHandler,
+    type DivinationRouteConfig,
+    type InterpretInput,
+} from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface HepanRequest {
-    action: 'analyze' | 'save' | 'list';
+    action: 'analyze' | 'analyze_prepare' | 'analyze_persist' | 'save' | 'list';
     result?: HepanResult;
     chartId?: string;
     modelId?: string;
@@ -23,9 +28,10 @@ interface HepanInterpretInput extends InterpretInput {
     chartId?: string;
 }
 
-const handleInterpret = createInterpretHandler<HepanInterpretInput>({
+const hepanInterpretConfig: DivinationRouteConfig<HepanInterpretInput> = {
     sourceType: 'hepan',
     tag: 'hepan',
+    authMethod: 'userContext',
     personality: 'hepan',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.hepan_chart],
     parseInput: (body) => {
@@ -105,7 +111,10 @@ ${conflictsSummary}
                 result_data: input.result,
             },
     }),
-});
+};
+
+const handleInterpret = createInterpretHandler<HepanInterpretInput>(hepanInterpretConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<HepanInterpretInput>(hepanInterpretConfig);
 
 export async function POST(request: NextRequest) {
     try {
@@ -114,7 +123,7 @@ export async function POST(request: NextRequest) {
 
         if (action === 'save') {
             if (!body.result) return jsonError('请提供合盘结果', 400, { success: false });
-            const authResult = await requireBearerUser(request);
+            const authResult = await requireUserContext(request);
             if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
             const { user } = authResult;
             const result = body.result;
@@ -144,8 +153,16 @@ export async function POST(request: NextRequest) {
             return handleInterpret(request, body as unknown as Record<string, unknown>);
         }
 
+        if (action === 'analyze_prepare') {
+            return handleDirectPrepare(request, body as unknown as Record<string, unknown>);
+        }
+
+        if (action === 'analyze_persist') {
+            return handleDirectPersist(request, body as unknown as Record<string, unknown>);
+        }
+
         if (action === 'list') {
-            const authResult = await requireBearerUser(request);
+            const authResult = await requireUserContext(request);
             if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
             const serviceClient = getSystemAdminClient();
             const { data: charts, error: listError } = await serviceClient

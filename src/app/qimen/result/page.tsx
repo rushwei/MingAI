@@ -22,6 +22,7 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
@@ -100,10 +101,10 @@ export default function QimenResultPage() {
     const [showCopyModal, setShowCopyModal] = useState(false);
     const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
-    const { session, user, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
+    const { user, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
-    const currentUser = user ? { id: user.id } : null;
+    const currentUser = useMemo(() => (user ? { id: user.id } : null), [user]);
     const qimenOutput = result?.output ?? null;
     const canonicalResult = useMemo(
         () => (qimenOutput ? buildQimenCanonicalJSON(qimenOutput) : null),
@@ -132,14 +133,13 @@ export default function QimenResultPage() {
 
             setResult(nextResult);
 
-            if (!nextResult.chartId && session?.access_token && !hasSavedRef.current) {
+            if (!nextResult.chartId && currentUser && !hasSavedRef.current) {
                 hasSavedRef.current = true;
                 try {
                     const res = await fetch('/api/qimen', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session.access_token}`,
                         },
                         body: JSON.stringify({
                             action: 'save',
@@ -155,7 +155,7 @@ export default function QimenResultPage() {
             }
         };
         void init();
-    }, [router, session?.access_token, sessionLoading]);
+    }, [currentUser, router, sessionLoading]);
 
     useEffect(() => {
         const items = [
@@ -176,6 +176,8 @@ export default function QimenResultPage() {
         callbacks: {
             onAnalysis: setInterpretation,
             onReasoning: setInterpretationReasoning,
+            onModelId: setSelectedModel,
+            onReasoningEnabled: setReasoningEnabled,
             onConversationIdResolved: (resolvedId) => {
                 setResult(prev => prev ? { ...prev, conversationId: resolvedId } : prev);
                 updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), conversationId: resolvedId }));
@@ -187,19 +189,52 @@ export default function QimenResultPage() {
         if (!result || !currentUser) return;
         setIsLoading(true); streaming.reset(); setError(null); setInterpretationReasoning(null); setInterpretation(null);
         try {
-            const streamResult = await streaming.startStream('/api/qimen', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-                body: JSON.stringify({
+            const baseBody = {
+                ...buildQimenActionPayload(result),
+                chartId: result.chartId || null,
+            };
+            const analysisResult = await runSharedAnalysisFlow({
+                endpoint: '/api/qimen',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: {
+                        action: 'interpret_prepare',
+                        ...baseBody,
+                    },
+                    persistBody: {
+                        action: 'interpret_persist',
+                        ...baseBody,
+                    },
+                },
+                streamBody: {
                     action: 'interpret',
-                    ...buildQimenActionPayload(result),
+                    ...baseBody,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
                     stream: true,
-                    chartId: result.chartId || null,
-                }),
+                },
             });
-            if (streamResult?.error && isCreditsError(streamResult.error)) setShowCreditsModal(true);
-            else if (streamResult?.content) { setInterpretation(streamResult.content); if (streamResult.reasoning) setInterpretationReasoning(streamResult.reasoning); }
+            if (analysisResult.requiresCredits) {
+                setShowCreditsModal(true);
+                return;
+            }
+            if (analysisResult.error) {
+                setError(analysisResult.error);
+                return;
+            }
+            if (analysisResult.content) {
+                setInterpretation(analysisResult.content);
+            } else {
+                setInterpretation('解读失败');
+            }
+            if (analysisResult.reasoning) {
+                setInterpretationReasoning(analysisResult.reasoning);
+            }
+            if (analysisResult.conversationId) {
+                setResult((prev) => prev ? { ...prev, conversationId: analysisResult.conversationId || undefined } : prev);
+                updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), conversationId: analysisResult.conversationId }));
+            }
         } catch (err) { setError(err instanceof Error ? err.message : '解读失败'); } finally { setIsLoading(false); }
     };
 

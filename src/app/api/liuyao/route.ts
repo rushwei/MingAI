@@ -4,8 +4,13 @@
  * 提供 AI 解卦功能，包含传统六爻分析
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import {
+    createDirectInterpretHandlers,
+    createInterpretHandler,
+    type DivinationRouteConfig,
+    type InterpretInput,
+} from '@/lib/api/divination-pipeline';
 import {
     calculateLiuyaoBundle,
     generateLiuyaoChartText,
@@ -18,7 +23,7 @@ import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface LiuyaoRequest {
-    action: 'interpret' | 'save' | 'history' | 'update';
+    action: 'interpret' | 'interpret_prepare' | 'interpret_persist' | 'save' | 'history' | 'update';
     question?: string;
     yongShenTargets?: LiuQin[];
     hexagram?: Hexagram;
@@ -90,9 +95,10 @@ type LiuyaoInterpretContext = {
     traditionalInfo: string;
 };
 
-const handleInterpret = createInterpretHandler<LiuyaoInterpretInput, LiuyaoInterpretContext>({
+const liuyaoInterpretConfig: DivinationRouteConfig<LiuyaoInterpretInput, LiuyaoInterpretContext> = {
     sourceType: 'liuyao',
     tag: 'liuyao',
+    authMethod: 'userContext',
     personality: 'liuyao',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.liuyao_divination],
     parseInput: (body) => {
@@ -211,7 +217,10 @@ const handleInterpret = createInterpretHandler<LiuyaoInterpretInput, LiuyaoInter
                 changed_lines: input.changedLines,
             },
     }),
-});
+};
+
+const handleInterpret = createInterpretHandler<LiuyaoInterpretInput, LiuyaoInterpretContext>(liuyaoInterpretConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<LiuyaoInterpretInput, LiuyaoInterpretContext>(liuyaoInterpretConfig);
 
 export async function POST(request: NextRequest) {
     try {
@@ -226,7 +235,7 @@ export async function POST(request: NextRequest) {
                 const parsedTargets = parseYongShenTargets(yongShenTargets, { required: needsTargets });
                 if (parsedTargets.error) return jsonError(parsedTargets.error, 400, { success: false });
 
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
 
                 const hexagramCode = yaos?.map(y => y.type).join('') || '';
@@ -247,8 +256,14 @@ export async function POST(request: NextRequest) {
             case 'interpret':
                 return handleInterpret(request, body as unknown as Record<string, unknown>);
 
+            case 'interpret_prepare':
+                return handleDirectPrepare(request, body as unknown as Record<string, unknown>);
+
+            case 'interpret_persist':
+                return handleDirectPersist(request, body as unknown as Record<string, unknown>);
+
             case 'history': {
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 const serviceClient = getSystemAdminClient();
                 const { data: history, error } = await serviceClient
@@ -263,7 +278,7 @@ export async function POST(request: NextRequest) {
                 if (!divinationId) return jsonError('缺少记录 ID', 400, { success: false });
                 const parsedTargets = parseYongShenTargets(yongShenTargets, { required: true });
                 if (parsedTargets.error) return jsonError(parsedTargets.error, 400, { success: false });
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 const serviceClient = getSystemAdminClient();
                 const { data, error } = await serviceClient

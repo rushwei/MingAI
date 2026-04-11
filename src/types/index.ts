@@ -325,6 +325,18 @@ export interface AIModelConfig {
     sources?: AIModelSourceConfig[]; // 运行时可用来源列表（已排序）
 }
 
+/** 自定义Provider (BYOK) 请求配置 */
+export interface CustomProviderRequest {
+    apiUrl: string;
+    apiKey: string;
+    modelId: string;
+}
+
+/** 自定义Provider (BYOK) 客户端配置 */
+export interface CustomProviderConfig extends CustomProviderRequest {
+    modelName?: string;
+}
+
 // ===== 每日运势相关类型 =====
 
 /** 运势等级 */

@@ -10,30 +10,77 @@ import { isNearBottom } from '@/lib/chat/chat-scroll';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import { supabase } from '@/lib/auth';
 import { resolveClientModelName } from '@/lib/ai/model-name-cache';
+import {
+    BrowserDirectProviderError,
+    buildBrowserDirectMessages,
+    streamBrowserDirectProvider,
+} from '@/lib/ai/browser-direct-provider';
+import {
+    getCustomProvider,
+    getCustomProviderDisplayName,
+} from '@/lib/chat/custom-provider';
 import type { ChatStateReturn } from '@/lib/chat/use-chat-state';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { filterMentionsByFeature, getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
 import { readLocalVisualizationSettings } from '@/lib/visualization/settings';
+import type { ChatStreamTaskRunner } from '@/lib/chat/chat-stream-manager';
 
-// AI 生成对话标题
-async function generateAITitle(messages: ChatMessage[]): Promise<string> {
-    const firstUserMessage = messages.find(m => m.role === 'user');
-    if (!firstUserMessage) return DEFAULT_CONVERSATION_TITLE;
-    try {
-        const response = await fetch('/api/chat/title', {
+function shouldShowCheckKeyAction(message?: string): boolean {
+    if (!message) return false;
+    return message.includes('API Key') || message.includes('认证失败');
+}
+
+function createCustomProviderChatRunner(customProvider: NonNullable<ReturnType<typeof getCustomProvider>>): ChatStreamTaskRunner {
+    return async ({
+        requestHeaders,
+        requestBody,
+        signal,
+        fetcher,
+        appendContentDelta,
+        appendReasoningDelta,
+        setMetadata,
+    }) => {
+        const prepareResponse = await fetcher.call(globalThis, '/api/chat/direct/prepare', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages }),
+            headers: requestHeaders,
+            body: JSON.stringify(requestBody),
+            signal,
         });
-        if (!response.ok) {
-            console.warn('Title generation failed:', response.status);
-            return firstUserMessage.content.slice(0, 15);
+
+        if (!prepareResponse.ok) {
+            let errorMessage = '生成直连上下文失败，请稍后重试';
+            try {
+                const data = await prepareResponse.json() as { error?: string };
+                if (typeof data.error === 'string' && data.error.trim()) {
+                    errorMessage = data.error;
+                }
+            } catch {
+                // ignore
+            }
+            throw new BrowserDirectProviderError(errorMessage, {
+                status: prepareResponse.status,
+                code: 'PREPARE_FAILED',
+            });
         }
-        const data = await response.json();
-        return data.title || firstUserMessage.content.slice(0, 15);
-    } catch {
-        return firstUserMessage.content.slice(0, 15);
-    }
+
+        const prepared = await prepareResponse.json() as {
+            systemPrompt: string;
+            sanitizedMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+            metadata?: AIMessageMetadata;
+        };
+
+        if (prepared.metadata) {
+            setMetadata(prepared.metadata);
+        }
+
+        await streamBrowserDirectProvider({
+            provider: customProvider,
+            messages: buildBrowserDirectMessages(prepared.systemPrompt, prepared.sanitizedMessages),
+            signal,
+            onContentDelta: appendContentDelta,
+            onReasoningDelta: appendReasoningDelta,
+        });
+    };
 }
 
 interface UseChatMessagingParams {
@@ -71,6 +118,7 @@ export function useChatMessaging({
         messagesEndRef, messageScrollContainerRef, shouldAutoScrollRef,
         chatMode,
         selectedModel, reasoningEnabled,
+        customProviderConfig,
         attachmentState, setAttachmentState,
         mentions, setMentions,
         dreamContextLoading,
@@ -209,6 +257,13 @@ export function useChatMessaging({
                         role: 'assistant',
                         content: event.errorMessage || '抱歉，服务暂时不可用。请稍后再试。',
                         createdAt: new Date().toISOString(),
+                        model: customProviderConfig ? `custom:${customProviderConfig.modelId}` : undefined,
+                        modelName: customProviderConfig
+                            ? (customProviderConfig.modelName || customProviderConfig.modelId)
+                            : undefined,
+                        metadata: customProviderConfig && shouldShowCheckKeyAction(event.errorMessage)
+                            ? { customProviderErrorAction: 'check-key' }
+                            : undefined,
                     };
                     setMessages([...event.task.messages, errorMessage]);
                 } else {
@@ -232,12 +287,15 @@ export function useChatMessaging({
             if (event.type === 'task_failed' && event.errorCode === 'INSUFFICIENT_CREDITS' && isActiveConversationEvent) {
                 markCreditsExhausted(event.errorMessage);
             }
+            if (event.type === 'task_failed' && event.errorCode === 'PERSIST_FAILED' && isActiveConversationEvent) {
+                showToast('error', event.errorMessage || '保存对话失败，请稍后重试');
+            }
             if (event.type === 'task_failed' && isAuthRequired) {
                 showToast('info', event.errorMessage || '请先登录后再使用 AI 对话');
             }
         });
         return unsubscribe;
-    }, [cacheConversationMessages, markCreditsExhausted, debouncedRefreshViewerState, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext]);
+    }, [cacheConversationMessages, markCreditsExhausted, debouncedRefreshViewerState, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext, customProviderConfig]);
 
     // KB event listeners
     useEffect(() => {
@@ -332,10 +390,13 @@ export function useChatMessaging({
                 dreamInfo,
             };
             const newMessages = [...messages, userMessage];
+            const activeCustomProvider = getCustomProvider();
+            const customProviderLabel = getCustomProviderDisplayName(activeCustomProvider);
+            const effectiveModelId = activeCustomProvider ? `custom:${activeCustomProvider.modelId}` : selectedModel;
             const assistantMessageId = (Date.now() + 1).toString();
             const initialAssistantMessage: ChatMessage = {
-                id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel,
-                modelName: resolveClientModelName(selectedModel, selectedModel),
+                id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: effectiveModelId,
+                modelName: activeCustomProvider ? (customProviderLabel || activeCustomProvider.modelId) : resolveClientModelName(selectedModel, selectedModel),
             };
             const optimisticMessages = [...newMessages, initialAssistantMessage];
             setMessages(optimisticMessages);
@@ -413,15 +474,16 @@ export function useChatMessaging({
                     messages: newMessages,
                     personality: 'general',
                     stream: true,
-                    model: selectedModel,
+                    model: activeCustomProvider ? activeCustomProvider.modelId : selectedModel,
                     mangpaiMode: isMangpaiMode || undefined,
-                    reasoning: reasoningEnabled,
+                    reasoning: activeCustomProvider ? false : reasoningEnabled,
                     difyContext,
                     mentions: messageMentions.map(m => ({ ...m })),
                     dreamMode: isDreamMode || undefined,
                     visualizationSettings,
                 },
                 baseMessages: newMessages, assistantMessage: initialAssistantMessage,
+                runner: activeCustomProvider ? createCustomProviderChatRunner(activeCustomProvider) : undefined,
             });
             if (!startResult.ok) {
                 if (conversationId === activeConversationIdRef.current) setMessages(newMessages);
@@ -469,13 +531,16 @@ export function useChatMessaging({
         if (isTargetActive()) setMessages(newMessages);
 
         const assistantMessageId = (Date.now() + 1).toString();
+        const activeCustomProvider = getCustomProvider();
+        const customProviderLabel = getCustomProviderDisplayName(activeCustomProvider);
+        const effectiveModelId = activeCustomProvider ? `custom:${activeCustomProvider.modelId}` : selectedModel;
         const initialAssistantMessage: ChatMessage = {
             id: assistantMessageId,
             role: 'assistant',
             content: '',
             createdAt: new Date().toISOString(),
-            model: selectedModel,
-            modelName: resolveClientModelName(selectedModel, selectedModel),
+            model: effectiveModelId,
+            modelName: activeCustomProvider ? (customProviderLabel || activeCustomProvider.modelId) : resolveClientModelName(selectedModel, selectedModel),
         };
         if (isTargetActive()) setMessages([...newMessages, initialAssistantMessage]);
 
@@ -493,8 +558,19 @@ export function useChatMessaging({
 
             const startResult = await chatStreamManager.startTask({
                 conversationId: targetConversationId, requestHeaders: headers,
-                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, mangpaiMode: isMangpaiMode || undefined, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode: isDreamMode || undefined, visualizationSettings: readLocalVisualizationSettings(localStorage) },
+                requestBody: {
+                    messages: newMessages,
+                    personality: 'general',
+                    stream: true,
+                    model: activeCustomProvider ? activeCustomProvider.modelId : selectedModel,
+                    mangpaiMode: isMangpaiMode || undefined,
+                    reasoning: activeCustomProvider ? false : reasoningEnabled,
+                    mentions: messageMentions,
+                    dreamMode: isDreamMode || undefined,
+                    visualizationSettings: readLocalVisualizationSettings(localStorage),
+                },
                 baseMessages: newMessages, assistantMessage: initialAssistantMessage, onBeforeSave,
+                runner: activeCustomProvider ? createCustomProviderChatRunner(activeCustomProvider) : undefined,
             });
             if (!startResult.ok) {
                 if (isTargetActive()) setMessages(originalSnapshot);
@@ -545,13 +621,16 @@ export function useChatMessaging({
         }
 
         const assistantMessageId = (Date.now() + 1).toString();
+        const activeCustomProvider = getCustomProvider();
+        const customProviderLabel = getCustomProviderDisplayName(activeCustomProvider);
+        const effectiveModelId = activeCustomProvider ? `custom:${activeCustomProvider.modelId}` : selectedModel;
         const initialAssistantMessage: ChatMessage = {
             id: assistantMessageId,
             role: 'assistant',
             content: '',
             createdAt: new Date().toISOString(),
-            model: selectedModel,
-            modelName: resolveClientModelName(selectedModel, selectedModel),
+            model: effectiveModelId,
+            modelName: activeCustomProvider ? (customProviderLabel || activeCustomProvider.modelId) : resolveClientModelName(selectedModel, selectedModel),
         };
         if (isTargetActive()) setMessages([...updatedPreviousMessages, initialAssistantMessage]);
 
@@ -576,8 +655,19 @@ export function useChatMessaging({
 
             const startResult = await chatStreamManager.startTask({
                 conversationId: targetConversationId, requestHeaders: headers,
-                requestBody: { messages: updatedPreviousMessages, personality: 'general', stream: true, model: selectedModel, mangpaiMode: isMangpaiMode || undefined, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode: isDreamMode || undefined, visualizationSettings: readLocalVisualizationSettings(localStorage) },
+                requestBody: {
+                    messages: updatedPreviousMessages,
+                    personality: 'general',
+                    stream: true,
+                    model: activeCustomProvider ? activeCustomProvider.modelId : selectedModel,
+                    mangpaiMode: isMangpaiMode || undefined,
+                    reasoning: activeCustomProvider ? false : reasoningEnabled,
+                    mentions: messageMentions,
+                    dreamMode: isDreamMode || undefined,
+                    visualizationSettings: readLocalVisualizationSettings(localStorage),
+                },
                 baseMessages: updatedPreviousMessages, assistantMessage: initialAssistantMessage, onBeforeSave,
+                runner: activeCustomProvider ? createCustomProviderChatRunner(activeCustomProvider) : undefined,
             });
             if (!startResult.ok) {
                 if (isTargetActive()) setMessages(originalSnapshot);

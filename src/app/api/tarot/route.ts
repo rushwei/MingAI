@@ -5,13 +5,18 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, generateTarotReadingText, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
-import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import {
+    createDirectInterpretHandlers,
+    createInterpretHandler,
+    type DivinationRouteConfig,
+    type InterpretInput,
+} from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
 interface TarotRequest {
-    action: 'draw' | 'daily' | 'spread' | 'draw-only' | 'save' | 'interpret' | 'list-spreads' | 'list-cards';
+    action: 'draw' | 'daily' | 'spread' | 'draw-only' | 'save' | 'interpret' | 'interpret_prepare' | 'interpret_persist' | 'list-spreads' | 'list-cards';
     spreadId?: string;
     count?: number;
     question?: string;
@@ -106,9 +111,10 @@ async function insertTarotReading(
     );
 }
 
-const handleInterpret = createInterpretHandler<TarotInterpretInput>({
+const tarotInterpretConfig: DivinationRouteConfig<TarotInterpretInput> = {
     sourceType: 'tarot',
     tag: 'tarot',
+    authMethod: 'userContext',
     personality: 'tarot',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.tarot_reading],
     parseInput: (body) => {
@@ -179,7 +185,10 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
                 metadata: buildTarotMetadata(input.birthDate, input.numerology, input.seed) || null,
             },
     }),
-});
+};
+
+const handleInterpret = createInterpretHandler<TarotInterpretInput>(tarotInterpretConfig);
+const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<TarotInterpretInput>(tarotInterpretConfig);
 
 async function buildDailyCardResponse(timezone?: string, seedScope?: string): Promise<NextResponse<TarotResponse>> {
     try {
@@ -250,7 +259,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             }
             case 'save': {
                 if (!spreadId || !cards || cards.length === 0) return jsonError('请提供牌阵与抽牌结果', 400, { success: false });
-                const authResult = await requireBearerUser(request);
+                const authResult = await requireUserContext(request);
                 if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 const serviceClient = getSystemAdminClient();
                 const { data, error } = await insertTarotReading(serviceClient, {
@@ -264,6 +273,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             }
             case 'interpret':
                 return handleInterpret(request, body as unknown as Record<string, unknown>);
+            case 'interpret_prepare':
+                return handleDirectPrepare(request, body as unknown as Record<string, unknown>);
+            case 'interpret_persist':
+                return handleDirectPersist(request, body as unknown as Record<string, unknown>);
             default:
                 return jsonError('未知的操作类型', 400, { success: false });
         }

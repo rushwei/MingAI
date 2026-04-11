@@ -13,6 +13,8 @@ interface MockState {
     useCreditCalls: number;
     addCreditCalls: number;
     aiUiCalls: number;
+    rateLimitCalls: number;
+    rateLimitEndpoint: string | null;
 }
 
 function createUIChunkStream(chunks: Array<Record<string, unknown>>): ReadableStream<Record<string, unknown>> {
@@ -83,6 +85,7 @@ function setupRouteMocks(
     streamBody: ReadableStream<unknown>
 ): MockState {
     const routeModulePath = require.resolve('../app/api/chat/route');
+    const directPrepareRouteModulePath = require.resolve('../app/api/chat/direct/prepare/route');
     const requestModulePath = require.resolve('../lib/server/chat/request');
     const aiModule = require('../lib/ai/ai') as any;
     const creditsModule = require('../lib/user/credits') as any;
@@ -91,6 +94,7 @@ function setupRouteMocks(
     const promptBuilderModule = require('../lib/ai/prompt-builder') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const apiUtilsModule = require('../lib/api-utils') as any;
+    const rateLimitModule = require('../lib/rate-limit') as any;
 
     const originalCallAIStream = aiModule.callAIStream;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
@@ -102,16 +106,20 @@ function setupRouteMocks(
     const originalIsModelAllowedForMembership = aiAccessModule.isModelAllowedForMembership;
     const originalIsReasoningAllowedForMembership = aiAccessModule.isReasoningAllowedForMembership;
     const originalBuildPromptWithSources = promptBuilderModule.buildPromptWithSources;
+    const originalBuildMinimalChatSystemPrompt = promptBuilderModule.buildMinimalChatSystemPrompt;
     const originalGetPromptBudget = promptBuilderModule.calculatePromptBudget;
     const originalResolvePersonalities = promptBuilderModule.resolvePersonalities;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalRequireUserContext = apiUtilsModule.requireUserContext;
+    const originalCheckRateLimit = rateLimitModule.checkRateLimit;
 
     const state: MockState = {
         authInfoCalls: 0,
         useCreditCalls: 0,
         addCreditCalls: 0,
         aiUiCalls: 0,
+        rateLimitCalls: 0,
+        rateLimitEndpoint: null,
     };
 
     aiModule.callAIStream = async () => createUIChunkStream([]);
@@ -176,6 +184,10 @@ function setupRouteMocks(
 
     promptBuilderModule.calculatePromptBudget = async () => 1024;
     promptBuilderModule.resolvePersonalities = () => ({ personalities: ['general'] });
+    promptBuilderModule.buildMinimalChatSystemPrompt = () => ({
+        systemPrompt: '',
+        personalities: ['general'],
+    });
     promptBuilderModule.buildPromptWithSources = async () => ({
         userMessagePrefix: '',
         sources: [],
@@ -193,11 +205,28 @@ function setupRouteMocks(
             },
         },
     });
+    rateLimitModule.checkRateLimit = async (_identifier: string, endpoint: string) => {
+        state.rateLimitCalls += 1;
+        state.rateLimitEndpoint = endpoint;
+        return {
+            allowed: true,
+            remaining: 19,
+            resetAt: new Date(Date.now() + 60_000),
+        };
+    };
 
     supabaseServerModule.getSystemAdminClient = () => ({
         auth: {
             getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }),
         },
+        rpc: async () => ({
+            data: {
+                allowed: true,
+                remaining: 19,
+                reset_at: new Date(Date.now() + 60_000).toISOString(),
+            },
+            error: null,
+        }),
         from: (table: string) => {
             if (table === 'user_settings') {
                 return {
@@ -228,6 +257,7 @@ function setupRouteMocks(
     });
 
     delete require.cache[routeModulePath];
+    delete require.cache[directPrepareRouteModulePath];
     delete require.cache[requestModulePath];
 
     t.after(() => {
@@ -241,11 +271,14 @@ function setupRouteMocks(
         aiAccessModule.isModelAllowedForMembership = originalIsModelAllowedForMembership;
         aiAccessModule.isReasoningAllowedForMembership = originalIsReasoningAllowedForMembership;
         promptBuilderModule.buildPromptWithSources = originalBuildPromptWithSources;
+        promptBuilderModule.buildMinimalChatSystemPrompt = originalBuildMinimalChatSystemPrompt;
         promptBuilderModule.calculatePromptBudget = originalGetPromptBudget;
         promptBuilderModule.resolvePersonalities = originalResolvePersonalities;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         apiUtilsModule.requireUserContext = originalRequireUserContext;
+        rateLimitModule.checkRateLimit = originalCheckRateLimit;
         delete require.cache[routeModulePath];
+        delete require.cache[directPrepareRouteModulePath];
         delete require.cache[requestModulePath];
     });
 
@@ -270,6 +303,66 @@ function createChatRequest() {
                 },
             ],
         }),
+    });
+}
+
+function createByokChatRequest() {
+    return new NextRequest('http://localhost/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            stream: true,
+            customProvider: {
+                apiUrl: 'https://8.8.8.8/v1',
+                apiKey: 'sk-test',
+                modelId: 'gpt-4.1-mini',
+            },
+            messages: [
+                {
+                    id: 'm1',
+                    role: 'user',
+                    content: '你好',
+                    createdAt: new Date().toISOString(),
+                },
+            ],
+        }),
+    });
+}
+
+function createDirectPrepareRequest() {
+    return new NextRequest('http://localhost/api/chat/direct/prepare', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            messages: [
+                {
+                    id: 'm1',
+                    role: 'user',
+                    content: '你好',
+                    createdAt: new Date().toISOString(),
+                },
+            ],
+            model: 'gpt-4.1-mini',
+            reasoning: false,
+            stream: true,
+        }),
+    });
+}
+
+function createInvalidJsonRequest(url: string) {
+    return new NextRequest(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test-token',
+        },
+        body: '{invalid-json',
     });
 }
 
@@ -370,4 +463,95 @@ test('chat route keeps charge and does not refund when stream fails after visibl
 
     assert.equal(state.useCreditCalls, 1);
     assert.equal(state.addCreditCalls, 0);
+});
+
+test('chat route no longer uses the legacy BYOK server proxy path', async (t) => {
+    const state = setupRouteMocks(t, createUIChunkStream([
+        { type: 'text-delta', id: 't1', delta: 'ok' },
+    ]));
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createByokChatRequest());
+    await response.text();
+    await waitForMicrotask();
+
+    assert.equal(response.status, 200);
+    assert.equal(state.authInfoCalls, 1);
+    assert.equal(state.useCreditCalls, 1);
+    assert.equal(state.addCreditCalls, 0);
+    assert.equal(state.aiUiCalls, 1);
+});
+
+test('chat route returns 400 for invalid JSON bodies', async (t) => {
+    setupRouteMocks(t, createUIChunkStream([]));
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createInvalidJsonRequest('http://localhost/api/chat'));
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.error, '请求体不是合法 JSON');
+});
+
+test('chat direct prepare builds prompt context without deducting credits', async (t) => {
+    const state = setupRouteMocks(t, createUIChunkStream([]));
+    const { POST } = await import('../app/api/chat/direct/prepare/route');
+
+    const response = await POST(createDirectPrepareRequest());
+    const payload = await response.json() as {
+        systemPrompt?: string;
+        sanitizedMessages?: Array<{ content: string }>;
+        metadata?: Record<string, unknown>;
+        requestedModelId?: string;
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(state.authInfoCalls, 1);
+    assert.equal(state.useCreditCalls, 0);
+    assert.equal(state.addCreditCalls, 0);
+    assert.equal(state.rateLimitCalls, 1);
+    assert.equal(state.rateLimitEndpoint, '/api/chat/direct/prepare');
+    assert.equal(payload.requestedModelId, 'gpt-4.1-mini');
+    assert.equal(Array.isArray(payload.sanitizedMessages), true);
+    assert.equal(payload.sanitizedMessages?.[0]?.content, '你好');
+    assert.equal(typeof payload.metadata, 'object');
+});
+
+test('chat direct prepare returns 429 when BYOK rate limit is exhausted', async (t) => {
+    const state = setupRouteMocks(t, createUIChunkStream([]));
+    const rateLimitModule = require('../lib/rate-limit') as any;
+    rateLimitModule.checkRateLimit = async (_identifier: string, endpoint: string) => {
+        state.rateLimitCalls += 1;
+        state.rateLimitEndpoint = endpoint;
+        return {
+            allowed: false,
+            remaining: 0,
+            resetAt: new Date(Date.now() + 60_000),
+        };
+    };
+
+    const { POST } = await import('../app/api/chat/direct/prepare/route');
+    const response = await POST(createDirectPrepareRequest());
+    const payload = await response.json();
+
+    assert.equal(response.status, 429);
+    assert.equal(payload.error, '请求过于频繁，请稍后再试');
+    assert.equal(state.rateLimitCalls, 1);
+    assert.equal(state.rateLimitEndpoint, '/api/chat/direct/prepare');
+    assert.equal(state.authInfoCalls, 0);
+    assert.equal(state.useCreditCalls, 0);
+});
+
+test('chat direct prepare returns 400 for invalid JSON bodies', async (t) => {
+    const state = setupRouteMocks(t, createUIChunkStream([]));
+    const { POST } = await import('../app/api/chat/direct/prepare/route');
+
+    const response = await POST(createInvalidJsonRequest('http://localhost/api/chat/direct/prepare'));
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.error, '请求体不是合法 JSON');
+    assert.equal(state.rateLimitCalls, 0);
+    assert.equal(state.authInfoCalls, 0);
+    assert.equal(state.useCreditCalls, 0);
 });

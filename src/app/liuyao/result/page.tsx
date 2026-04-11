@@ -41,6 +41,7 @@ import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingRe
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
@@ -77,7 +78,7 @@ export default function ResultPage() {
     const [showCopyModal, setShowCopyModal] = useState(false);
     const streaming = useStreamingResponse();
     const [copied, setCopied] = useState(false);
-    const { session, user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const { user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
 
@@ -170,14 +171,42 @@ export default function ResultPage() {
         if (!result || !user || !canAnalyze) return;
         setIsLoading(true); streaming.reset(); setError(null); setInterpretationReasoning(null); setInterpretation(null);
         try {
-            const streamResult = await streaming.startStream('/api/liuyao', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-                body: JSON.stringify({ action: 'interpret', question: result.question, yongShenTargets: appliedYongShenTargets, hexagram: result.hexagram, changedHexagram: result.changedHexagram, changedLines: result.changedLines, yaos: result.yaos, divinationId, modelId: selectedModel, reasoning: reasoningEnabled, stream: true }),
+            const baseBody = {
+                question: result.question,
+                yongShenTargets: appliedYongShenTargets,
+                hexagram: result.hexagram,
+                changedHexagram: result.changedHexagram,
+                changedLines: result.changedLines,
+                yaos: result.yaos,
+                divinationId,
+            };
+            const analysisResult = await runSharedAnalysisFlow({
+                endpoint: '/api/liuyao',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: { action: 'interpret_prepare', ...baseBody },
+                    persistBody: { action: 'interpret_persist', ...baseBody },
+                },
+                streamBody: {
+                    action: 'interpret',
+                    ...baseBody,
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
+                    stream: true,
+                },
             });
-            if (streamResult?.error && isCreditsError(streamResult.error)) { setShowCreditsModal(true); return; }
-            if (streamResult?.error) throw new Error(streamResult.error);
-            setInterpretation(streamResult?.content || '解读失败');
-            if (streamResult?.reasoning) setInterpretationReasoning(streamResult.reasoning);
+            if (analysisResult.requiresCredits) {
+                setShowCreditsModal(true);
+                return;
+            }
+            if (analysisResult.error) throw new Error(analysisResult.error);
+            setInterpretation(analysisResult.content || '解读失败');
+            if (analysisResult.reasoning) setInterpretationReasoning(analysisResult.reasoning);
+            if (analysisResult.conversationId) {
+                setConversationId(analysisResult.conversationId);
+                updateSessionJSON('liuyao_result', (prev: LiuyaoResultSession | null) => ({ ...(prev || {}), conversationId: analysisResult.conversationId } as LiuyaoResultSession));
+            }
         } catch (err) { setError(err instanceof Error ? err.message : '解读失败'); } finally { setIsLoading(false); }
     };
 
@@ -188,8 +217,8 @@ export default function ResultPage() {
         setError(null);
         setResult(prev => prev ? ({ ...prev, yongShenTargets: normalized }) : null);
         updateSessionJSON('liuyao_result', (prev: LiuyaoResultSession | null) => ({ ...(prev || {}), yongShenTargets: normalized } as LiuyaoResultSession));
-        if (divinationId && session?.access_token) {
-            await fetch('/api/liuyao', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ action: 'update', divinationId, yongShenTargets: normalized }) });
+        if (divinationId && userId) {
+            await fetch('/api/liuyao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', divinationId, yongShenTargets: normalized }) });
         }
     };
 

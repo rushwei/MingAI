@@ -28,6 +28,7 @@ import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingRe
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
+import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 
 type TarotSession = {
     spread?: TarotSpread;
@@ -77,7 +78,7 @@ function TarotResultContent() {
     const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
     const [showCopyModal, setShowCopyModal] = useState(false);
     const streaming = useStreamingResponse();
-    const { session, user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const { user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
 
@@ -153,13 +154,38 @@ function TarotResultContent() {
         if (drawnCards.length === 0 || !user) { if (!user) setShowAuthModal(true); return; }
         setIsInterpreting(true); streaming.reset(); setInterpretationReasoning(null); setInterpretation('');
         try {
-            const result = await streaming.startStream('/api/tarot', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-                body: JSON.stringify({ action: 'interpret', cards: drawnCards, question: question || undefined, birthDate: birthDate || undefined, numerology: numerology || undefined, seed: seed || undefined, spreadId: selectedSpread?.id, readingId: readingId || undefined, modelId: selectedModel, reasoning: reasoningEnabled, stream: true }),
+            const baseBody = {
+                cards: drawnCards,
+                question: question || undefined,
+                birthDate: birthDate || undefined,
+                numerology: numerology || undefined,
+                seed: seed || undefined,
+                spreadId: selectedSpread?.id,
+                readingId: readingId || undefined,
+            };
+            const result = await runSharedAnalysisFlow({
+                endpoint: '/api/tarot',
+                streaming,
+                isCreditsError,
+                direct: {
+                    prepareBody: { action: 'interpret_prepare', ...baseBody },
+                    persistBody: { action: 'interpret_persist', ...baseBody },
+                },
+                streamBody: {
+                    action: 'interpret',
+                    ...baseBody,
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
+                    stream: true,
+                },
             });
-            if (result?.error && isCreditsError(result.error)) setShowCreditsModal(true);
-            else if (result?.error) showToast('error', result.error);
-            else if (result?.content) { setInterpretation(result.content); if (result.reasoning) setInterpretationReasoning(result.reasoning); }
+            if (result.requiresCredits) setShowCreditsModal(true);
+            else {
+                if (result.error) showToast('error', result.error);
+                if (result.content) setInterpretation(result.content);
+                if (result.reasoning) setInterpretationReasoning(result.reasoning);
+                if (result.conversationId) setConversationId(result.conversationId);
+            }
         } catch (e) { console.error(e); } finally { setIsInterpreting(false); }
     };
 

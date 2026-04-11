@@ -277,10 +277,15 @@ test('divination pipeline surfaces an SSE error when stream persistence fails af
 });
 
 test('divination pipeline surfaces an SSE error when stream persistence returns null after content generation', async (t) => {
-  const { aiAnalysisModule, loadPipeline } = setupPipelineMocks(t);
+  const { aiAnalysisModule, credits, loadPipeline } = setupPipelineMocks(t);
   const originalConsoleError = console.error;
+  let refundCalls = 0;
   console.error = () => {};
   aiAnalysisModule.createAIAnalysisConversation = async () => null;
+  credits.addCredits = async () => {
+    refundCalls += 1;
+    return 1;
+  };
 
   t.after(() => {
     console.error = originalConsoleError;
@@ -296,6 +301,7 @@ test('divination pipeline surfaces an SSE error when stream persistence returns 
   assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
   assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
   assert.match(body, /\[DONE\]/u);
+  assert.equal(refundCalls, 1);
 });
 
 test('divination pipeline refunds and returns 500 when non-stream persistence returns null', async (t) => {
@@ -395,4 +401,75 @@ test('divination pipeline skips persistence when streamed response is aborted', 
   assert.equal(response.status, 200);
   assert.deepEqual(createCalls, []);
   assert.deepEqual(persistCalls, []);
+});
+
+test('divination direct persist reuses server context without rerunning precheck or rebuilding prompts', async (t) => {
+  const { createCalls, loadPipeline } = setupPipelineMocks(t);
+  let precheckCalls = 0;
+  let promptContextCalls = 0;
+  let buildPromptsCalls = 0;
+
+  const { createDirectInterpretHandlers } = loadPipeline();
+  const handlers = createDirectInterpretHandlers<Record<string, unknown>, { owner: string }>({
+    sourceType: 'test_divination',
+    tag: 'test-divination',
+    parseInput: (body) => (body ?? {}) as Record<string, unknown>,
+    precheck: async () => {
+      precheckCalls += 1;
+      if (precheckCalls > 1) {
+        return { error: '请求过于频繁，请稍后再试', status: 429 };
+      }
+      return null;
+    },
+    resolvePromptContext: async () => {
+      promptContextCalls += 1;
+      return { owner: 'server' };
+    },
+    buildPrompts: async () => {
+      buildPromptsCalls += 1;
+      if (buildPromptsCalls > 1) {
+        throw new Error('buildPrompts should not be called during direct persist');
+      }
+      return {
+        systemPrompt: 'system prompt',
+        userPrompt: 'user prompt',
+      };
+    },
+    buildSourceData: (_input, modelId, reasoningEnabled, promptContext) => ({
+      modelId,
+      reasoningEnabled,
+      promptOwner: promptContext?.owner ?? null,
+    }),
+    generateTitle: () => 'Shared Pipeline Direct Test',
+  });
+
+  const prepareResponse = await handlers.handleDirectPrepare(createTestRequest(), {
+    action: 'direct_prepare',
+    id: 'input-1',
+  });
+  const preparePayload = await prepareResponse.json();
+
+  assert.equal(prepareResponse.status, 200);
+  assert.equal(preparePayload.data.systemPrompt, 'system prompt');
+  assert.equal(preparePayload.data.userPrompt, 'user prompt');
+
+  const persistResponse = await handlers.handleDirectPersist(createTestRequest(), {
+    action: 'direct_persist',
+    id: 'input-1',
+    content: 'analysis',
+    reasoningText: 'reason',
+    customModelId: 'gpt-4.1-mini',
+  });
+  const persistPayload = await persistResponse.json();
+
+  assert.equal(persistResponse.status, 200);
+  assert.equal(persistPayload.data.conversationId, 'conv-1');
+  assert.equal(precheckCalls, 1);
+  assert.equal(buildPromptsCalls, 1);
+  assert.equal(promptContextCalls, 2);
+  assert.equal(createCalls.length, 1);
+  assert.equal((createCalls[0]?.sourceData as Record<string, unknown>)?.promptOwner, 'server');
+  assert.equal((createCalls[0]?.sourceData as Record<string, unknown>)?.custom_provider, true);
+  assert.equal((createCalls[0]?.sourceData as Record<string, unknown>)?.custom_provider_model_id, 'gpt-4.1-mini');
+  assert.equal((createCalls[0]?.sourceData as Record<string, unknown>)?.reasoning_text, 'reason');
 });

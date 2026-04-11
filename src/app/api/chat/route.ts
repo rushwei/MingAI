@@ -9,8 +9,11 @@
 
 import { NextRequest } from 'next/server';
 import { isTextUIPart } from 'ai';
-import { callAI, callAIUIMessageResult } from '@/lib/ai/ai';
-import { extractAIErrorMessage } from '@/lib/ai/ai-error';
+import {
+  callAI,
+  callAIUIMessageResult,
+} from '@/lib/ai/ai';
+import { extractAIErrorInfo } from '@/lib/ai/ai-error';
 import { addCredits } from '@/lib/user/credits';
 import { jsonError, jsonOk } from '@/lib/api-utils';
 import {
@@ -102,6 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('AI API 错误:', error);
-    return jsonError(extractAIErrorMessage(error), 500);
+    const errorInfo = extractAIErrorInfo(error);
+    return jsonError(errorInfo.message, errorInfo.status, { code: errorInfo.code });
   }
 }

@@ -6,6 +6,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
 
 const { ChatStreamManager } = require('../lib/chat/chat-stream-manager') as typeof import('../lib/chat/chat-stream-manager');
+const { BrowserDirectProviderError } = require('../lib/ai/browser-direct-provider') as typeof import('../lib/ai/browser-direct-provider');
 
 function createUserMessage(): ChatMessage {
     return {
@@ -242,6 +243,45 @@ test('chat stream manager maps HTTP 401 to auth required with server error messa
     const failedEvent = events.find(e => e.type === 'task_failed');
     assert.equal(failedEvent?.errorCode, 'AUTH_REQUIRED');
     assert.equal(failedEvent?.errorMessage, '请先登录后再使用 AI 对话');
+
+    unsubscribe();
+});
+
+test('chat stream manager does not treat upstream auth failures as login required', async () => {
+    const manager = new ChatStreamManager({
+        fetcher: async () => new Response(
+            JSON.stringify({ code: 'AUTH_FAILED', error: '模型认证失败，请检查API Key 是否正确' }),
+            {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' },
+            }
+        ),
+        saveConversation: async () => true,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; errorCode?: string; errorMessage?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({
+            type: event.type,
+            errorCode: event.errorCode,
+            errorMessage: event.errorMessage,
+        });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-byok-auth',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-byok-auth'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_failed'));
+    const failedEvent = events.find(e => e.type === 'task_failed');
+    assert.equal(failedEvent?.errorCode, 'REQUEST_FAILED');
+    assert.equal(failedEvent?.errorMessage, '模型认证失败，请检查API Key 是否正确');
 
     unsubscribe();
 });
@@ -604,6 +644,130 @@ test('chat stream manager reports timeout when stream stays idle too long', asyn
     const failedEvent = events.find(e => e.type === 'task_failed');
     assert.equal(failedEvent?.errorCode, 'NETWORK_ERROR');
     assert.equal(failedEvent?.errorMessage, '流式响应超时，请重试');
+
+    unsubscribe();
+});
+
+test('chat stream manager supports custom runners for browser-direct tasks', async () => {
+    const saved: Array<{ conversationId: string; messages: ChatMessage[] }> = [];
+    const manager = new ChatStreamManager({
+        saveConversation: async (conversationId, messages) => {
+            saved.push({ conversationId, messages: messages as ChatMessage[] });
+            return true;
+        },
+    });
+
+    const baseMessages = [createUserMessage()];
+    const started = await manager.startTask({
+        conversationId: 'conv-direct-runner',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-direct-runner'),
+        runner: async ({ setMetadata, appendReasoningDelta, appendContentDelta }) => {
+            setMetadata({
+                sources: [],
+                kbSearchEnabled: false,
+                kbHitCount: 0,
+            });
+            appendReasoningDelta('思考中');
+            appendContentDelta('直连成功');
+        },
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => manager.getTaskSnapshot('conv-direct-runner')?.status === 'completed');
+    const snapshot = manager.getTaskSnapshot('conv-direct-runner');
+    assert.equal(snapshot?.content, '直连成功');
+    assert.equal(snapshot?.reasoning, '思考中');
+    assert.equal(snapshot?.metadata?.kbHitCount, 0);
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0]?.messages[saved[0].messages.length - 1]?.content, '直连成功');
+});
+
+test('chat stream manager surfaces persist failure instead of reporting false completion', async () => {
+    const manager = new ChatStreamManager({
+        fetcher: async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"text-delta","delta":"hello persist"}\n\n'));
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' },
+            });
+        },
+        saveConversation: async () => false,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; errorCode?: string; errorMessage?: string; content?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({
+            type: event.type,
+            errorCode: event.errorCode,
+            errorMessage: event.errorMessage,
+            content: event.task.content,
+        });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-persist-fail',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-persist-fail'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_failed'));
+    const failedEvent = events.find(e => e.type === 'task_failed');
+    assert.equal(failedEvent?.errorCode, 'PERSIST_FAILED');
+    assert.equal(failedEvent?.errorMessage, '保存对话失败，请稍后重试');
+    assert.equal(failedEvent?.content, 'hello persist');
+    assert.equal(events.some(e => e.type === 'task_completed'), false);
+
+    unsubscribe();
+});
+
+test('chat stream manager maps browser-direct prepare auth failures to AUTH_REQUIRED', async () => {
+    const manager = new ChatStreamManager({
+        saveConversation: async () => true,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; errorCode?: string; errorMessage?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({
+            type: event.type,
+            errorCode: event.errorCode,
+            errorMessage: event.errorMessage,
+        });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-direct-auth',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-direct-auth'),
+        runner: async () => {
+            throw new BrowserDirectProviderError('请先登录后再使用 AI 对话', {
+                status: 401,
+                code: 'PREPARE_FAILED',
+            });
+        },
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_failed'));
+    const failedEvent = events.find(e => e.type === 'task_failed');
+    assert.equal(failedEvent?.errorCode, 'AUTH_REQUIRED');
+    assert.equal(failedEvent?.errorMessage, '请先登录后再使用 AI 对话');
 
     unsubscribe();
 });

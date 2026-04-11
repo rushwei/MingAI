@@ -10,6 +10,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, streamText, type CoreMessage, type LanguageModel, type ProviderOptions, type JSONValue } from 'ai';
 import type { AIModelConfig } from '@/types';
 import type { ChatMessage, AIReasoningEffort } from '@/types';
+import { normalizeCustomProviderBaseUrl } from '@/lib/ai/custom-provider-url';
 
 // AI 请求只需要最小消息结构，避免强制依赖存储/展示字段。
 export type AIRequestMessage = Pick<ChatMessage, 'role' | 'content' | 'model' | 'reasoning'>;
@@ -61,7 +62,7 @@ export function createModelFromConfig(
 }
 
 /**
- * 检查模型配置是否可用（API Key 是否配置）
+ * 检查模型配置是否可用（API Key是否配置）
  */
 export function isModelAvailable(config: AIModelConfig): boolean {
     const key = getApiKey(config.apiKeyEnvVar);
@@ -229,7 +230,7 @@ export function streamWithAISDK(
  */
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
 
-function gatewayFetch(url: string | URL | Request, init?: RequestInit): Promise<Response> {
+function normalizeGatewayHeaders(init?: RequestInit): Headers {
     const headers = new Headers(init?.headers);
     headers.set('User-Agent', BROWSER_UA);
     if (!headers.has('Accept')) {
@@ -241,7 +242,79 @@ function gatewayFetch(url: string | URL | Request, init?: RequestInit): Promise<
         } catch { /* default to stream */ }
         headers.set('Accept', isStream ? 'text/event-stream' : 'application/json');
     }
-    return globalThis.fetch(url, { ...init, headers });
+    return headers;
+}
+
+function mergeAbortSignals(signals: AbortSignal[]): AbortSignal {
+    if (signals.length === 1) {
+        return signals[0];
+    }
+    if (typeof AbortSignal.any === 'function') {
+        return AbortSignal.any(signals);
+    }
+
+    const controller = new AbortController();
+    const abort = (reason?: unknown) => {
+        if (!controller.signal.aborted) {
+            controller.abort(reason);
+        }
+    };
+    for (const signal of signals) {
+        if (signal.aborted) {
+            abort(signal.reason);
+            break;
+        }
+        signal.addEventListener('abort', () => abort(signal.reason), { once: true });
+    }
+    return controller.signal;
+}
+
+async function fetchWithGatewayHeaders(
+    url: string | URL | Request,
+    init?: RequestInit,
+    timeoutMs?: number,
+    connectTimeoutMs?: number,
+): Promise<Response> {
+    const headers = normalizeGatewayHeaders(init);
+    const signalParts: AbortSignal[] = [];
+    if (init?.signal) {
+        signalParts.push(init.signal);
+    }
+    if (typeof timeoutMs === 'number' && typeof AbortSignal.timeout === 'function') {
+        signalParts.push(AbortSignal.timeout(timeoutMs));
+    }
+
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectController: AbortController | null = null;
+    if (typeof connectTimeoutMs === 'number') {
+        connectController = new AbortController();
+        connectTimer = setTimeout(() => {
+            connectController?.abort(new Error('CONNECT_TIMEOUT'));
+        }, connectTimeoutMs);
+        connectTimer.unref?.();
+        signalParts.push(connectController.signal);
+    }
+
+    try {
+        return await globalThis.fetch(url, {
+            ...init,
+            headers,
+            signal: signalParts.length > 0 ? mergeAbortSignals(signalParts) : undefined,
+        });
+    } catch (error) {
+        if (connectController?.signal.aborted && connectController.signal.reason instanceof Error) {
+            throw connectController.signal.reason;
+        }
+        throw error;
+    } finally {
+        if (connectTimer) {
+            clearTimeout(connectTimer);
+        }
+    }
+}
+
+function gatewayFetch(url: string | URL | Request, init?: RequestInit): Promise<Response> {
+    return fetchWithGatewayHeaders(url, init);
 }
 
 /**
@@ -251,20 +324,5 @@ function gatewayFetch(url: string | URL | Request, init?: RequestInit): Promise<
  * - 如果 URL 不含 /v1，补上（NewAPI 等网关需要 /v1 前缀）
  */
 function normalizeBaseUrl(apiUrl: string): string {
-    let url = apiUrl.trim().replace(/\/+$/, '');
-
-    // 截掉 AI SDK 会自动拼接的后缀
-    if (url.endsWith('/v1/chat/completions')) {
-        return url.replace(/\/v1\/chat\/completions$/, '/v1');
-    }
-    if (url.endsWith('/chat/completions')) {
-        url = url.replace(/\/chat\/completions$/, '');
-    }
-
-    // 确保 URL 以版本段结尾（大多数 OpenAI 兼容网关需要 /v1 前缀）
-    if (!/\/v\d+$/.test(url)) {
-        url += '/v1';
-    }
-
-    return url;
+    return normalizeCustomProviderBaseUrl(apiUrl);
 }

@@ -459,5 +459,5 @@ test('bazi analysis route surfaces SSE error when stream persistence returns nul
     assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
     assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
     assert.match(body, /\[DONE\]/u);
-    assert.equal(refundCalls, 0);
+    assert.equal(refundCalls, 1);
 });

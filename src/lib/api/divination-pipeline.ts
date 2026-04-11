@@ -13,8 +13,8 @@
  */
 
 import { type NextRequest } from 'next/server';
-import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
-import { jsonError, requireBearerUser, requireUserContext, SSE_HEADERS } from '@/lib/api-utils';
+import { createUIMessageStream, createUIMessageStreamResponse, type FinishReason } from 'ai';
+import { jsonError, jsonOk, requireBearerUser, requireUserContext, SSE_HEADERS } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
@@ -135,37 +135,63 @@ export function createPersistentStreamResponse({
 }): Response {
   const uiStream = createUIMessageStream({
     execute: async ({ writer }) => {
-      writer.merge(streamResult.toUIMessageStream({
+      const finishPromise = new Promise<{
+        finishReason?: FinishReason;
+        persistenceError?: string | null;
+        aborted: boolean;
+      }>((resolve) => {
+        writer.merge(streamResult.toUIMessageStream({
         sendReasoning: true,
         sendSources: false,
         sendStart: false,
         sendFinish: false,
         onFinish: async ({ responseMessage, finishReason, isAborted }) => {
           if (isAborted) {
+            resolve({ finishReason, aborted: true });
             return;
           }
 
-          let content = '';
-          let reasoning = '';
+          try {
+            let content = '';
+            let reasoning = '';
 
-          for (const part of responseMessage.parts) {
-            if (part.type === 'text') {
-              content += part.text;
-            } else if (part.type === 'reasoning') {
-              reasoning += part.text;
+            for (const part of responseMessage.parts) {
+              if (part.type === 'text') {
+                content += part.text;
+              } else if (part.type === 'reasoning') {
+                reasoning += part.text;
+              }
             }
-          }
 
-          const persistenceResult = await onStreamComplete({
-            content,
-            reasoning: reasoning || null,
-          });
-          if (persistenceResult.error) {
-            writer.write({ type: 'error', errorText: persistenceResult.error });
+            const persistenceResult = await onStreamComplete({
+              content,
+              reasoning: reasoning || null,
+            });
+
+            resolve({
+              finishReason,
+              persistenceError: persistenceResult.error ?? null,
+              aborted: false,
+            });
+          } catch {
+            resolve({
+              finishReason,
+              persistenceError: '保存结果失败，请稍后重试',
+              aborted: false,
+            });
           }
-          writer.write({ type: 'finish', finishReason });
         },
       }));
+      });
+
+      const finishResult = await finishPromise;
+      if (finishResult.aborted) {
+        return;
+      }
+      if (finishResult.persistenceError) {
+        writer.write({ type: 'error', errorText: finishResult.persistenceError });
+      }
+      writer.write({ type: 'finish', finishReason: finishResult.finishReason });
     },
   });
 
@@ -177,6 +203,236 @@ export function createPersistentStreamResponse({
       'X-Accel-Buffering': 'no',
     },
   });
+}
+
+function resolveDirectPersistModelId(value: unknown): string {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+  return 'custom-provider';
+}
+
+export function createDirectInterpretHandlers<
+  T extends InterpretInput,
+  TContext extends InterpretPromptContext = InterpretPromptContext,
+>(
+  config: DivinationRouteConfig<T, TContext>,
+) {
+  const {
+    sourceType,
+    tag,
+    authMethod = 'bearer',
+    parseInput,
+    precheck,
+    buildPrompts,
+    resolvePromptContext,
+    buildSourceData,
+    generateTitle,
+    buildHistoryBinding,
+    persistRecord,
+    allowedChartTypes,
+    emptyResultMessage = 'AI 分析结果为空，请稍后重试',
+  } = config;
+
+  type ResolvedPreparedBase = {
+    input: T;
+    userId: string;
+    promptContext?: TContext;
+  };
+
+  type ResolvedPreparedWithPrompts = ResolvedPreparedBase & {
+    systemPrompt: string;
+    userPrompt: string;
+  };
+
+  const resolvePrepared = async (
+    request: NextRequest,
+    body: Record<string, unknown>,
+    options: {
+      runPrecheck: boolean;
+      includePrompts: boolean;
+    },
+  ): Promise<Response | ResolvedPreparedBase | ResolvedPreparedWithPrompts> => {
+    const { runPrecheck, includePrompts } = options;
+    const parsed = parseInput(body);
+    if (isRouteError(parsed)) {
+      return jsonError(parsed.error, parsed.status, { success: false });
+    }
+    const input = parsed as T;
+
+    const authResult = authMethod === 'userContext'
+      ? await requireUserContext(request)
+      : await requireBearerUser(request);
+    if ('error' in authResult) {
+      return jsonError(authResult.error.message, authResult.error.status, { success: false });
+    }
+
+    if (runPrecheck) {
+      const precheckResult = precheck ? await precheck(request, input, authResult.user.id) : null;
+      if (precheckResult) {
+        return jsonError(precheckResult.error, precheckResult.status, { success: false });
+      }
+    }
+
+    const promptContextResult = resolvePromptContext
+      ? await resolvePromptContext(input, authResult.user.id)
+      : undefined;
+    if (isRouteError(promptContextResult)) {
+      return jsonError(promptContextResult.error, promptContextResult.status, { success: false });
+    }
+    const promptContext = promptContextResult as TContext | undefined;
+
+    if (!includePrompts) {
+      return {
+        input,
+        userId: authResult.user.id,
+        promptContext,
+      };
+    }
+
+    const { systemPrompt: rawSystemPrompt, userPrompt } = await buildPrompts(input, promptContext);
+    const resolvedAllowedChartTypes = typeof allowedChartTypes === 'function'
+      ? allowedChartTypes(input, promptContext)
+      : allowedChartTypes;
+    const systemPrompt = resolvedAllowedChartTypes?.length
+      ? `${rawSystemPrompt}\n\n${buildVisualizationOutputContractPrompt(resolvedAllowedChartTypes)}`
+      : rawSystemPrompt;
+
+    return {
+      input,
+      userId: authResult.user.id,
+      promptContext,
+      systemPrompt,
+      userPrompt,
+    };
+  };
+
+  const persistPreparedResult = async ({
+    input,
+    userId,
+    promptContext,
+    content,
+    reasoningText,
+    customModelId,
+  }: {
+    input: T;
+    userId: string;
+    promptContext?: TContext;
+    content: string;
+    reasoningText: string | null;
+    customModelId: string;
+  }): Promise<string> => {
+    const persistedModelId = `custom:${customModelId}`;
+    const sourceData = buildSourceData(input, persistedModelId, false, promptContext);
+    sourceData.custom_provider = true;
+    sourceData.custom_provider_model_id = customModelId;
+    if (reasoningText) {
+      sourceData.reasoning_text = reasoningText;
+    }
+
+    const resolvedSourceType = typeof sourceType === 'function'
+      ? sourceType(input, promptContext)
+      : sourceType;
+    const conversationId = await createAIAnalysisConversation({
+      userId,
+      sourceType: resolvedSourceType as Parameters<typeof createAIAnalysisConversation>[0]['sourceType'],
+      sourceData,
+      title: generateTitle(input, promptContext),
+      aiResponse: content,
+      historyBinding: buildHistoryBinding
+        ? buildHistoryBinding(input, userId, promptContext)
+        : null,
+    });
+
+    if (typeof conversationId !== 'string' || conversationId.trim().length === 0) {
+      throw new AIAnalysisConversationPersistenceError(
+        resolvedSourceType as Parameters<typeof createAIAnalysisConversation>[0]['sourceType'],
+        'createAIAnalysisConversation returned an invalid conversation id',
+      );
+    }
+
+    if (persistRecord) {
+      await persistRecord(input, userId, conversationId, promptContext);
+    }
+
+    return conversationId;
+  };
+
+  return {
+    async handleDirectPrepare(
+      request: NextRequest,
+      body: Record<string, unknown>,
+    ): Promise<Response> {
+      try {
+        const prepared = await resolvePrepared(request, body, {
+          runPrecheck: true,
+          includePrompts: true,
+        });
+        if (prepared instanceof Response) {
+          return prepared;
+        }
+        if (!('systemPrompt' in prepared) || !('userPrompt' in prepared)) {
+          return jsonError('生成直连上下文失败，请稍后重试', 500, { success: false });
+        }
+
+        return jsonOk({
+          success: true,
+          data: {
+            systemPrompt: prepared.systemPrompt,
+            userPrompt: prepared.userPrompt,
+          },
+        });
+      } catch (error) {
+        console.error(`[${tag}] 直连 prepare 失败:`, error);
+        return jsonError('生成直连上下文失败，请稍后重试', 500, { success: false });
+      }
+    },
+
+    async handleDirectPersist(
+      request: NextRequest,
+      body: Record<string, unknown>,
+    ): Promise<Response> {
+      const prepared = await resolvePrepared(request, body, {
+        runPrecheck: false,
+        includePrompts: false,
+      });
+      if (prepared instanceof Response) {
+        return prepared;
+      }
+
+      const content = typeof body.content === 'string' ? body.content : '';
+      const reasoningText = typeof body.reasoningText === 'string'
+        ? body.reasoningText
+        : typeof body.reasoning === 'string'
+          ? body.reasoning
+          : null;
+
+      if (!content.trim()) {
+        return jsonError(emptyResultMessage, 400, { success: false });
+      }
+
+      try {
+        const conversationId = await persistPreparedResult({
+          input: prepared.input,
+          userId: prepared.userId,
+          promptContext: prepared.promptContext,
+          content,
+          reasoningText,
+          customModelId: resolveDirectPersistModelId(body.customModelId),
+        });
+
+        return jsonOk({
+          success: true,
+          data: {
+            conversationId,
+          },
+        });
+      } catch (error) {
+        console.error(`[${tag}] 直连结果保存失败:`, error);
+        return jsonError('保存结果失败，请稍后重试', 500, { success: false });
+      }
+    },
+  };
 }
 
 // ─── Factory ───
@@ -381,6 +637,11 @@ export function createInterpretHandler<
           }
           return {};
         } catch (err) {
+          try {
+            await addCredits(userId, 1);
+          } catch (refundError) {
+            console.error(`[${tag}] 流式保存失败后的退费失败:`, refundError);
+          }
           console.error(`[${tag}] 流式结果保存失败:`, err);
           return { error: '保存结果失败，请稍后重试' };
         }
@@ -458,6 +719,4 @@ export function createInterpretHandler<
   }
 }
 
-// Re-export jsonOk for use in route files that import from this module
-import { jsonOk } from '@/lib/api-utils';
 export { jsonOk, jsonError };
