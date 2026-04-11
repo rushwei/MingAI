@@ -38,8 +38,6 @@ export interface ChatStateReturn {
     setHasLoadedConversations: React.Dispatch<React.SetStateAction<boolean>>;
     pendingSidebarTitle: string | null;
     setPendingSidebarTitle: React.Dispatch<React.SetStateAction<string | null>>;
-    titleGeneratingConversationIds: Set<string>;
-    setTitleGeneratingConversationIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 
     // Active conversation
     activeConversationId: string | null;
@@ -139,8 +137,6 @@ export function useChatState({
         setHasLoadedConversations,
         pendingSidebarTitle,
         setPendingSidebarTitle,
-        titleGeneratingConversationIds,
-        setTitleGeneratingConversationIds,
         refreshConversationList,
         triggerConversationListLoad,
         manualRenamedConversationIdsRef,
@@ -397,7 +393,6 @@ export function useChatState({
         conversations, setConversations,
         conversationsLoading, conversationLoading, hasLoadedConversations, setHasLoadedConversations,
         pendingSidebarTitle, setPendingSidebarTitle,
-        titleGeneratingConversationIds, setTitleGeneratingConversationIds,
         activeConversationId, setActiveConversationId,
         activeConversationIdRef, conversationValidatedRef,
         conversationSelectRequestRef, hasLoadedConversationsRef,

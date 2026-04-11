@@ -8,14 +8,12 @@
 
 import { memo } from 'react';
 import { Archive, Check, Ellipsis, X } from 'lucide-react';
-import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { ConversationListItem } from '@/types';
 
 interface ConversationItemProps {
     conv: ConversationListItem;
     isActive: boolean;
     isActionActive: boolean;
-    isGeneratingTitle: boolean;
     isSidebarCollapsed: boolean;
     onSelect: (id: string) => void;
     onOpenAction: (conv: ConversationListItem, e: React.MouseEvent) => void;
@@ -32,7 +30,6 @@ export const ConversationItem = memo(function ConversationItem({
     conv,
     isActive,
     isActionActive,
-    isGeneratingTitle,
     isSidebarCollapsed,
     onSelect,
     onOpenAction,
@@ -143,11 +140,6 @@ export const ConversationItem = memo(function ConversationItem({
                 `}
                 onClick={() => onSelect(conv.id)}
             >
-                {isGeneratingTitle && (
-                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-                        <SoundWaveLoader variant="inline" />
-                    </div>
-                )}
                 <div className="flex-1 min-w-0 flex flex-col">
                     <span className="truncate font-medium flex items-center gap-1">
                         <span className="truncate">{mainTitle}</span>
@@ -238,11 +230,6 @@ export const ConversationItem = memo(function ConversationItem({
             `}
             onClick={() => onSelect(conv.id)}
         >
-            {isGeneratingTitle ? (
-                <div className={`w-4 h-4 flex items-center justify-center flex-shrink-0 ${subTitle ? 'mt-0.5' : ''}`}>
-                    <SoundWaveLoader variant="inline" />
-                </div>
-            ) : null}
             <div className="flex-1 min-w-0">
                 <span className="text-sm truncate flex items-center gap-1">
                     <span className="truncate">{mainTitle}</span>

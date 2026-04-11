@@ -20,7 +20,6 @@ interface ConversationGroupProps {
     onToggleGroup: (type: ConversationSourceType) => void;
     activeId?: string;
     actionConvId?: string;
-    generatingTitleConversationIds: ReadonlySet<string>;
     isSidebarCollapsed: boolean;
     onSelect: (id: string) => void;
     onOpenAction: (conv: ConversationListItem, e: React.MouseEvent) => void;
@@ -44,7 +43,6 @@ export function ConversationGroup({
     onToggleGroup,
     activeId,
     actionConvId,
-    generatingTitleConversationIds,
     isSidebarCollapsed,
     onSelect,
     onOpenAction,
@@ -100,7 +98,6 @@ export function ConversationGroup({
                             conv={conv}
                             isActive={activeId === conv.id}
                             isActionActive={actionConvId === conv.id}
-                            isGeneratingTitle={generatingTitleConversationIds.has(conv.id)}
                             isSidebarCollapsed={isSidebarCollapsed}
                             onSelect={onSelect}
                             onOpenAction={onOpenAction}

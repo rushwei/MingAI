@@ -23,8 +23,6 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-groups';
 
-const EMPTY_GENERATING_TITLE_IDS: ReadonlySet<string> = new Set<string>();
-
 export function SidebarConversations() {
     const router = useRouter();
     const pathname = usePathname();
@@ -36,7 +34,6 @@ export function SidebarConversations() {
         hasLoadedConversations,
         hasMoreConversations,
         pendingSidebarTitle,
-        titleGeneratingConversationIds,
         handleDeleteConversation,
         handleRenameConversation,
         triggerConversationListLoad,
@@ -292,7 +289,6 @@ export function SidebarConversations() {
                                         onToggleGroup={toggleGroup}
                                         activeId={activeId}
                                         actionConvId={actionConv?.id}
-                                        generatingTitleConversationIds={titleGeneratingConversationIds ?? EMPTY_GENERATING_TITLE_IDS}
                                         isSidebarCollapsed={false}
                                         onSelect={handleSelect}
                                         onOpenAction={openActionSheet}

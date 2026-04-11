@@ -4,11 +4,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ChatMessage, ConversationListItem, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
-import { createConversation, deleteConversation, renameConversation, DEFAULT_CONVERSATION_TITLE } from '@/lib/chat/conversation';
+import { createConversation, deleteConversation, DEFAULT_CONVERSATION_TITLE } from '@/lib/chat/conversation';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
-import { supabase } from '@/lib/auth';
 import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import {
     BrowserDirectProviderError,
@@ -114,7 +113,7 @@ export function useChatMessaging({
         isSendingToList, setIsSendingToList,
         activeConversationId, setActiveConversationId,
         activeConversationIdRef, conversationValidatedRef,
-        manualRenamedConversationIdsRef, hasLoadedConversationsRef,
+        hasLoadedConversationsRef,
         messagesEndRef, messageScrollContainerRef, shouldAutoScrollRef,
         chatMode,
         selectedModel, reasoningEnabled,
@@ -128,7 +127,6 @@ export function useChatMessaging({
         setConversations,
         setHasLoadedConversations,
         setPendingSidebarTitle,
-        setTitleGeneratingConversationIds,
         setKbModalOpen,
         setKbTargetMessage,
         setShowCreditsModal,
@@ -203,10 +201,7 @@ export function useChatMessaging({
         const fetchDreamContext = async () => {
             setDreamContextLoading(true);
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                const headers: Record<string, string> = {};
-                if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-                const response = await fetch('/api/dream-context', { headers });
+                const response = await fetch('/api/dream-context');
                 if (!response.ok) throw new Error('请求失败');
                 const data = await response.json();
                 if (!isActive) return;
@@ -357,7 +352,6 @@ export function useChatMessaging({
                     setActiveConversationId(newId);
                     if (searchParams.get('id') !== newId) router.replace(`/chat?id=${newId}`);
                     setPendingSidebarTitle(null);
-                    setTitleGeneratingConversationIds(prev => { const next = new Set(prev); next.add(newId); return next; });
                     const nowIso = new Date().toISOString();
                     setConversations(prev => {
                         const nextConversation: ConversationListItem = {
@@ -369,7 +363,6 @@ export function useChatMessaging({
                         return [nextConversation, ...prev.filter(c => c.id !== newId)];
                     });
                     setHasLoadedConversations(true);
-                    void refreshConversationList(userId);
                 } else {
                     setPendingSidebarTitle(null);
                 }
@@ -402,7 +395,6 @@ export function useChatMessaging({
             setMessages(optimisticMessages);
             setInputValue('');
             setMentions([]);
-            const sessionPromise = supabase.auth.getSession();
             const saveSucceeded = await saveMessages(conversationId, newMessages, isNewConversation ? (draftTitle || undefined) : undefined);
             if (!saveSucceeded) {
                 if (isNewConversation) {
@@ -426,24 +418,7 @@ export function useChatMessaging({
                 return;
             }
 
-            if (isNewConversation && draftTitle) {
-                const createdConversationId = conversationId;
-                void (async () => {
-                    try {
-                        const nextTitle = (await generateAITitle([userMessage])).trim();
-                        if (!nextTitle || nextTitle === draftTitle) return;
-                        if (manualRenamedConversationIdsRef.current.has(createdConversationId)) return;
-                        setConversations(prev => prev.map(conv => conv.id === createdConversationId && conv.title === draftTitle ? { ...conv, title: nextTitle } : conv));
-                        await renameConversation(createdConversationId, nextTitle);
-                    } catch { /* ignore */ } finally {
-                        setTitleGeneratingConversationIds(prev => { const next = new Set(prev); next.delete(createdConversationId); return next; });
-                    }
-                })();
-            }
-
-            const { data: { session } } = await sessionPromise;
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
             let difyContext: DifyContext | undefined;
             if (attachmentState.file || attachmentState.webSearchEnabled) {
@@ -452,7 +427,7 @@ export function useChatMessaging({
                 formData.append('mode', mode);
                 formData.append('query', trimmedInput);
                 if (attachmentState.file) formData.append('file', attachmentState.file);
-                const difyResponse = await fetch('/api/dify/enhance', { method: 'POST', headers: { 'Authorization': headers.Authorization || '' }, body: formData });
+                const difyResponse = await fetch('/api/dify/enhance', { method: 'POST', body: formData });
                 if (difyResponse.ok) {
                     const difyResult = await difyResponse.json();
                     if (difyResult.success && difyResult.data) {
@@ -545,9 +520,7 @@ export function useChatMessaging({
         if (isTargetActive()) setMessages([...newMessages, initialAssistantMessage]);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
             const onBeforeSave = (finalMessages: ChatMessage[], assistantContent: string): ChatMessage[] => {
                 const newVersion = { userContent: newContent, mentions: messageMentions.length ? [...messageMentions] : undefined, aiContent: assistantContent || '抱歉，我暂时无法回答这个问题。', createdAt: new Date().toISOString() };
@@ -635,9 +608,7 @@ export function useChatMessaging({
         if (isTargetActive()) setMessages([...updatedPreviousMessages, initialAssistantMessage]);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
             const onBeforeSave = lastUserMessage
                 ? (finalMessages: ChatMessage[], assistantContent: string): ChatMessage[] => {

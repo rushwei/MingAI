@@ -37,8 +37,6 @@ interface ConversationListContextType {
   setHasLoadedConversations: React.Dispatch<React.SetStateAction<boolean>>;
   pendingSidebarTitle: string | null;
   setPendingSidebarTitle: React.Dispatch<React.SetStateAction<string | null>>;
-  titleGeneratingConversationIds: Set<string>;
-  setTitleGeneratingConversationIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   refreshConversationList: (targetUserId?: string | null) => Promise<void>;
   triggerConversationListLoad: () => void;
   loadMoreConversations: () => Promise<void>;
@@ -68,11 +66,11 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
 
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [refreshingConversations, setRefreshingConversations] = useState(false);
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
   const [pendingSidebarTitle, setPendingSidebarTitle] = useState<string | null>(null);
-  const [titleGeneratingConversationIds, setTitleGeneratingConversationIds] = useState<Set<string>>(new Set());
 
   const manualRenamedConversationIdsRef = useRef<Set<string>>(new Set());
   const conversationsRef = useRef(conversations);
@@ -90,7 +88,9 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
   useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
   useEffect(() => { hasLoadedRef.current = hasLoadedConversations; }, [hasLoadedConversations]);
   useEffect(() => { userIdRef.current = userId; }, [userId]);
-  useEffect(() => { loadingRef.current = conversationsLoading; }, [conversationsLoading]);
+  useEffect(() => {
+    loadingRef.current = conversationsLoading || refreshingConversations;
+  }, [conversationsLoading, refreshingConversations]);
   useEffect(() => { loadingMoreRef.current = loadingMoreConversations; }, [loadingMoreConversations]);
 
   const clearScheduledIdleLoad = useCallback(() => {
@@ -118,11 +118,11 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     nextOffsetRef.current = null;
     setConversations([]);
     setConversationsLoading(false);
+    setRefreshingConversations(false);
     setLoadingMoreConversations(false);
     setHasLoadedConversations(false);
     setHasMoreConversations(false);
     setPendingSidebarTitle(null);
-    setTitleGeneratingConversationIds(new Set());
     manualRenamedConversationIdsRef.current.clear();
   }, []);
 
@@ -202,7 +202,12 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     requestControllerRef.current?.abort();
     const controller = new AbortController();
     requestControllerRef.current = controller;
-    setConversationsLoading(true);
+    const shouldShowBlockingLoader = !hasLoadedRef.current || conversationsRef.current.length === 0;
+    if (shouldShowBlockingLoader) {
+      setConversationsLoading(true);
+    } else {
+      setRefreshingConversations(true);
+    }
 
     try {
       const loadedCount = conversationsRef.current.length;
@@ -237,7 +242,11 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       }
 
       if (activeRequestIdRef.current === requestId) {
-        setConversationsLoading(false);
+        if (shouldShowBlockingLoader) {
+          setConversationsLoading(false);
+        } else {
+          setRefreshingConversations(false);
+        }
       }
     }
   }, [userId]);
@@ -343,8 +352,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       setHasLoadedConversations,
       pendingSidebarTitle,
       setPendingSidebarTitle,
-      titleGeneratingConversationIds,
-      setTitleGeneratingConversationIds,
       refreshConversationList,
       triggerConversationListLoad,
       loadMoreConversations,
