@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
 import { getNotificationRetentionCutoffIso } from '@/lib/notification-server';
 
 function parseIds(value: unknown): string[] {
@@ -10,6 +10,8 @@ function parseIds(value: unknown): string[] {
 export async function GET(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+  const db = resolveRequestDbClient(auth);
+  if (!db) return jsonError('获取通知失败', 500);
 
   const unreadOnly = request.nextUrl.searchParams.get('unread') === '1';
   const countOnly = request.nextUrl.searchParams.get('count') === '1';
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
   const cutoffIso = getNotificationRetentionCutoffIso();
 
   if (countOnly) {
-    let countQuery = auth.supabase
+    let countQuery = db
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', auth.user.id)
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
     return jsonOk({ count: count ?? 0 });
   }
 
-  let query = auth.supabase
+  let query = db
     .from('notifications')
     .select('*')
     .eq('user_id', auth.user.id)
@@ -70,6 +72,8 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+  const db = resolveRequestDbClient(auth);
+  if (!db) return jsonError('标记已读失败', 500);
 
   let body: { action?: unknown; id?: unknown; ids?: unknown };
   try {
@@ -80,7 +84,7 @@ export async function PATCH(request: NextRequest) {
 
   const action = typeof body.action === 'string' ? body.action : '';
   if (action === 'mark-one' && typeof body.id === 'string') {
-    const { error } = await auth.supabase
+    const { error } = await db
       .from('notifications')
       .update({ is_read: true })
       .eq('id', body.id)
@@ -91,7 +95,7 @@ export async function PATCH(request: NextRequest) {
 
   if (action === 'mark-all') {
     const cutoffIso = getNotificationRetentionCutoffIso();
-    const { error } = await auth.supabase
+    const { error } = await db
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', auth.user.id)
@@ -104,7 +108,7 @@ export async function PATCH(request: NextRequest) {
   if (action === 'mark-selected') {
     const ids = parseIds(body.ids);
     if (ids.length === 0) return jsonOk({ success: true });
-    const { error } = await auth.supabase
+    const { error } = await db
       .from('notifications')
       .update({ is_read: true })
       .in('id', ids)
@@ -119,6 +123,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+  const db = resolveRequestDbClient(auth);
+  if (!db) return jsonError('删除通知失败', 500);
 
   let ids = parseIds(request.nextUrl.searchParams.getAll('id'));
   if (ids.length === 0) {
@@ -138,7 +144,7 @@ export async function DELETE(request: NextRequest) {
     return jsonError('缺少通知 ID', 400);
   }
 
-  const { error } = await auth.supabase
+  const { error } = await db
     .from('notifications')
     .delete()
     .in('id', ids)

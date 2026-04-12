@@ -4,12 +4,13 @@
  * 提供 AI 解卦功能，包含传统六爻分析
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import {
     createDirectInterpretHandlers,
     createInterpretHandler,
     type DivinationRouteConfig,
     type InterpretInput,
+    saveUserOwnedDivinationRecord,
 } from '@/lib/api/divination-pipeline';
 import {
     calculateLiuyaoBundle,
@@ -23,7 +24,7 @@ import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface LiuyaoRequest {
-    action: 'interpret' | 'interpret_prepare' | 'interpret_persist' | 'save' | 'history' | 'update';
+    action: 'interpret' | 'interpret_prepare' | 'interpret_persist' | 'save' | 'update';
     question?: string;
     yongShenTargets?: LiuQin[];
     hexagram?: Hexagram;
@@ -118,14 +119,17 @@ const liuyaoInterpretConfig: DivinationRouteConfig<LiuyaoInterpretInput, LiuyaoI
             requestedTargets: request.yongShenTargets,
         };
     },
-    resolvePromptContext: async (input, userId) => {
-        const serviceClient = getSystemAdminClient();
+    resolvePromptContext: async (input, auth) => {
+        const { userId, db } = auth;
+        if (!db) {
+            return { error: '认证上下文缺失', status: 500 };
+        }
         let analysisDate = new Date();
         let effectiveQuestion = input.question;
         let persistedTargets = input.requestedTargets;
 
         if (input.divinationId) {
-            const { data } = await serviceClient
+            const { data } = await db
                 .from('liuyao_divinations')
                 .select('created_at, question, yongshen_targets')
                 .eq('id', input.divinationId)
@@ -152,7 +156,7 @@ const liuyaoInterpretConfig: DivinationRouteConfig<LiuyaoInterpretInput, LiuyaoI
             return { error: parsedTargets.error, status: 400 };
         }
 
-        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'liuyao');
+        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'liuyao', { client: db });
         const bundle = input.yaos
             ? calculateLiuyaoBundle({
                 yaos: input.yaos,
@@ -234,23 +238,23 @@ export async function POST(request: NextRequest) {
                 const needsTargets = Boolean(parsedQuestion.question.trim());
                 const parsedTargets = parseYongShenTargets(yongShenTargets, { required: needsTargets });
                 if (parsedTargets.error) return jsonError(parsedTargets.error, 400, { success: false });
-
-                const authResult = await requireUserContext(request);
-                if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
-
                 const hexagramCode = yaos?.map(y => y.type).join('') || '';
                 const changedCode = computeChangedCode(yaos, changedLines, Boolean(changedHexagram));
-                const serviceClient = getSystemAdminClient();
-                const { data, error } = await serviceClient
-                    .from('liuyao_divinations')
-                    .insert({
-                        user_id: authResult.user.id, question: parsedQuestion.question,
+                return saveUserOwnedDivinationRecord({
+                    request,
+                    tag: 'liuyao',
+                    tableName: 'liuyao_divinations',
+                    responseKey: 'divinationId',
+                    input: body as unknown as Record<string, unknown>,
+                    buildInsertPayload: (_input, userId) => ({
+                        user_id: userId,
+                        question: parsedQuestion.question,
                         yongshen_targets: parsedTargets.targets.length > 0 ? parsedTargets.targets : null,
-                        hexagram_code: hexagramCode, changed_hexagram_code: changedCode, changed_lines: changedLines,
-                    })
-                    .select('id').single();
-                if (error) return jsonError('保存记录失败', 500, { success: false });
-                return jsonOk({ success: true, data: { divinationId: data?.id } });
+                        hexagram_code: hexagramCode,
+                        changed_hexagram_code: changedCode,
+                        changed_lines: changedLines,
+                    }),
+                });
             }
 
             case 'interpret':
@@ -262,26 +266,13 @@ export async function POST(request: NextRequest) {
             case 'interpret_persist':
                 return handleDirectPersist(request, body as unknown as Record<string, unknown>);
 
-            case 'history': {
-                const authResult = await requireUserContext(request);
-                if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
-                const serviceClient = getSystemAdminClient();
-                const { data: history, error } = await serviceClient
-                    .from('liuyao_divinations').select('*')
-                    .eq('user_id', authResult.user.id)
-                    .order('created_at', { ascending: false }).limit(20);
-                if (error) return jsonError('获取历史记录失败', 500, { success: false });
-                return jsonOk({ success: true, data: { history } });
-            }
-
             case 'update': {
                 if (!divinationId) return jsonError('缺少记录 ID', 400, { success: false });
                 const parsedTargets = parseYongShenTargets(yongShenTargets, { required: true });
                 if (parsedTargets.error) return jsonError(parsedTargets.error, 400, { success: false });
                 const authResult = await requireUserContext(request);
                 if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
-                const serviceClient = getSystemAdminClient();
-                const { data, error } = await serviceClient
+                const { data, error } = await authResult.db
                     .from('liuyao_divinations')
                     .update({ yongshen_targets: parsedTargets.targets })
                     .eq('id', divinationId).eq('user_id', authResult.user.id).select('id');

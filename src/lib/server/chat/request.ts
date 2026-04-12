@@ -4,9 +4,14 @@ import type { NextRequest } from 'next/server';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
-import { getAuthContext, getSystemAdminClient, jsonError, requireUserContext } from '@/lib/api-utils';
+import { getAuthContext, jsonError, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
 import { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
-import { addCredits, getUserAuthInfo, useCredit as deductCredit } from '@/lib/user/credits';
+import {
+  attemptCreditUse,
+  getUserAuthInfo,
+  refundCreditsOrLog,
+  UserStateResolutionError,
+} from '@/lib/user/credits';
 import type { MembershipType } from '@/lib/user/membership';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
@@ -32,7 +37,7 @@ export interface ChatRequestBody {
   mentions?: Mention[];
   dreamMode?: boolean;
   expressionStyle?: 'direct' | 'gentle';
-  customInstructions?: string;
+  customInstructions?: string | null;
   userProfile?: unknown;
   visualizationSettings?: VisualizationSettings;
 }
@@ -51,36 +56,6 @@ export interface ResolvedChatRequest {
 export type PreparedChatRequest =
   ResolvedChatRequest &
   Awaited<ReturnType<typeof buildChatPromptContext>>;
-
-async function resolveUserIdFromRequest(request: NextRequest): Promise<string | null> {
-  try {
-    const authClient = getSystemAdminClient();
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-      const token = authHeader.replace(/Bearer\s+/i, '');
-      try {
-        const { data: { user } } = await authClient.auth.getUser(token);
-        if (user?.id) return user.id;
-      } catch {
-        // 在受限环境或测试环境中允许降级
-      }
-    }
-
-    const accessToken = request.cookies.get('sb-access-token')?.value;
-    if (accessToken) {
-      try {
-        const { data: { user } } = await authClient.auth.getUser(accessToken);
-        if (user?.id) return user.id;
-      } catch {
-        // ignore
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return null;
-}
 
 export async function parseChatRequestBody(request: NextRequest): Promise<ChatRequestBody | Response> {
   let body: ChatRequestBody;
@@ -113,40 +88,27 @@ export async function resolveChatRequest(
   const canSkipCredit = !!(INTERNAL_SECRET && body.skipCreditCheck && body.internalSecret === INTERNAL_SECRET);
 
   let accessTokenForKB: string | null = getChatAccessTokenForKnowledgeBase(request);
+  let authUser: { id: string; user_metadata?: Record<string, unknown> } | null = null;
+  let authDb: ReturnType<typeof resolveRequestDbClient> = null;
 
   let userId: string | null = null;
   if (canSkipCredit) {
-    try {
-      const { user } = await getAuthContext(request);
-      userId = user?.id || null;
-    } catch {
-      userId = await resolveUserIdFromRequest(request);
+    const auth = await getAuthContext(request);
+    if (auth.authError) {
+      return jsonError(auth.authError.message, auth.authError.status);
     }
+    authUser = auth.user;
+    authDb = resolveRequestDbClient(auth);
+    userId = auth.user?.id || null;
   } else {
-    try {
-      const auth = await requireUserContext(request);
-      if ('error' in auth) {
-        userId = await resolveUserIdFromRequest(request);
-        if (!userId) {
-          return jsonError(auth.error.message, auth.error.status);
-        }
-      } else {
-        userId = auth.user.id;
-        if (!accessTokenForKB) {
-          try {
-            const { data: { session } } = await auth.supabase.auth.getSession();
-            accessTokenForKB = session?.access_token || null;
-          } catch {
-            // ignore
-          }
-        }
-      }
-    } catch {
-      userId = await resolveUserIdFromRequest(request);
-      if (!userId) {
-        return jsonError('请先登录', 401);
-      }
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+      return jsonError(auth.error.message, auth.error.status);
     }
+    authUser = auth.user;
+    authDb = resolveRequestDbClient(auth);
+    userId = auth.user.id;
+    accessTokenForKB = accessTokenForKB || auth.accessToken || null;
   }
 
   const requestedModelId = body.model?.trim() || DEFAULT_MODEL_ID;
@@ -157,9 +119,20 @@ export async function resolveChatRequest(
     return jsonError('无效的模型', 400);
   }
 
-  const authInfo = userId
-    ? await getUserAuthInfo(userId)
-    : null;
+  let authInfo = null;
+  if (userId) {
+    try {
+      authInfo = await getUserAuthInfo(userId, {
+        client: authDb ?? undefined,
+        user: authUser ?? undefined,
+      });
+    } catch (error) {
+      if (error instanceof UserStateResolutionError) {
+        return jsonError(error.message, 500, { code: error.code });
+      }
+      throw error;
+    }
+  }
   const membershipType = authInfo?.effectiveMembership ?? 'free';
   if (!isModelAllowedForMembership(modelConfig, membershipType)) {
     return jsonError('当前会员等级无法使用该模型', 403);
@@ -179,8 +152,17 @@ export async function resolveChatRequest(
     }
 
     // 流式与非流式统一预扣费，避免并发流式请求在完成后扣费时漏计。
-    const remaining = await deductCredit(userId);
-    if (remaining === null) {
+    const creditUse = await attemptCreditUse(userId, {
+      client: authDb ?? undefined,
+      user: authUser ?? undefined,
+    });
+    if (!creditUse.ok) {
+      if (creditUse.reason === 'insufficient_credits') {
+        return jsonError('积分不足，请先通过签到、激活码或会员权益获取积分', 402, {
+          code: 'INSUFFICIENT_CREDITS',
+          needRecharge: true,
+        });
+      }
       return jsonError('积分扣减失败，请重试', 500, {
         code: 'CREDIT_DEDUCTION_FAILED',
       });
@@ -219,16 +201,20 @@ export async function prepareBrowserDirectChatRequest(
   }
 
   let accessTokenForKB = getChatAccessTokenForKnowledgeBase(request);
-  if (!accessTokenForKB) {
-    try {
-      const { data: { session } } = await auth.supabase.auth.getSession();
-      accessTokenForKB = session?.access_token || null;
-    } catch {
-      accessTokenForKB = null;
-    }
-  }
+  accessTokenForKB = accessTokenForKB || auth.accessToken || null;
 
-  const authInfo = await getUserAuthInfo(auth.user.id);
+  let authInfo;
+  try {
+    authInfo = await getUserAuthInfo(auth.user.id, {
+      client: resolveRequestDbClient(auth) ?? undefined,
+      user: auth.user,
+    });
+  } catch (error) {
+    if (error instanceof UserStateResolutionError) {
+      return jsonError(error.message, 500, { code: error.code });
+    }
+    throw error;
+  }
   const requestedModelId = body.model?.trim() || DEFAULT_MODEL_ID;
   const reasoningEnabled = body.reasoning === true;
   const resolvedRequest: ResolvedChatRequest = {
@@ -237,7 +223,7 @@ export async function prepareBrowserDirectChatRequest(
     canSkipCredit: true,
     accessTokenForKB,
     requestedModelId,
-    membershipType: authInfo?.effectiveMembership ?? 'free',
+    membershipType: authInfo.effectiveMembership,
     reasoningEnabled,
     creditDeducted: false,
   };
@@ -265,7 +251,7 @@ export async function prepareChatRequest(
     };
   } catch (error) {
     if (resolvedRequest.creditDeducted && resolvedRequest.userId && !resolvedRequest.canSkipCredit) {
-      await addCredits(resolvedRequest.userId, 1);
+      await refundCreditsOrLog(resolvedRequest.userId, 1, 'chat prompt-context');
     }
     throw error;
   }

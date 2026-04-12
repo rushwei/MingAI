@@ -7,7 +7,7 @@
  */
 import { NextRequest } from 'next/server';
 import { DEFAULT_DIVINATION_TIMEZONE, zonedTimeToUtc } from '@mingai/core/timezone-utils';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import {
     calculateQimenBundle,
     generateQimenChartText,
@@ -21,6 +21,7 @@ import {
     type DivinationRouteConfig,
     type InterpretInput,
     type InterpretPromptContext,
+    saveUserOwnedDivinationRecord,
 } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
@@ -171,9 +172,11 @@ const qimenInterpretConfig: DivinationRouteConfig<QimenInterpretInput, QimenInte
                 : undefined,
         };
     },
-    resolvePromptContext: async (input, userId) => ({
-        userId,
-        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(userId, 'qimen'),
+    resolvePromptContext: async (input, auth) => ({
+        userId: auth.userId,
+        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(auth.userId, 'qimen', {
+            client: auth.db ?? undefined,
+        }),
         chart: await calculateQimenOutput(input),
     }),
     buildPrompts: (input, context) => {
@@ -259,25 +262,15 @@ export async function POST(request: NextRequest) {
                     return jsonError(parsed.error, parsed.status, { success: false });
                 }
 
-                const authResult = await requireUserContext(request);
-                if ('error' in authResult) {
-                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
-                }
-
                 const output = await calculateQimenOutput(parsed);
-                const serviceClient = getSystemAdminClient();
-                const { data: inserted, error: insertError } = await serviceClient
-                    .from('qimen_charts')
-                    .insert(buildInsertPayload(authResult.user.id, parsed, output))
-                    .select('id')
-                    .single();
-
-                if (insertError) {
-                    console.error('[qimen] 保存排盘记录失败:', insertError.message);
-                    return jsonError('保存记录失败', 500, { success: false });
-                }
-
-                return jsonOk({ success: true, data: { chartId: inserted?.id } });
+                return saveUserOwnedDivinationRecord({
+                    request,
+                    tag: 'qimen',
+                    tableName: 'qimen_charts',
+                    responseKey: 'chartId',
+                    input: body as unknown as Record<string, unknown>,
+                    buildInsertPayload: (_input, userId) => buildInsertPayload(userId, parsed, output),
+                });
             }
 
             default:

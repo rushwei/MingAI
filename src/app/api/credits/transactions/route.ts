@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
 
 type CreditTransactionRow = {
     id: string;
@@ -16,9 +16,13 @@ type CreditTransactionRow = {
 
 export async function GET(request: NextRequest) {
     try {
-        const auth = await requireBearerUser(request);
+        const auth = await requireUserContext(request);
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
+        }
+        const db = resolveRequestDbClient(auth);
+        if (!db) {
+            return jsonError('获取积分流水失败', 500);
         }
 
         const limitParam = Number.parseInt(new URL(request.url).searchParams.get('limit') || '100', 10);
@@ -26,8 +30,7 @@ export async function GET(request: NextRequest) {
             ? Math.min(Math.max(limitParam, 1), 200)
             : 100;
 
-        const supabase = getSystemAdminClient();
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('credit_transactions')
             .select('id, amount, type, source, description, balance_after, reference_type, reference_id, metadata, created_at')
             .eq('user_id', auth.user.id)
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
         const startOfTomorrowUtc = new Date(startOfTodayUtc);
         startOfTomorrowUtc.setUTCDate(startOfTomorrowUtc.getUTCDate() + 1);
 
-        const { data: todaySpendRows, error: todaySpendError } = await supabase
+        const { data: todaySpendRows, error: todaySpendError } = await db
             .from('credit_transactions')
             .select('amount')
             .eq('user_id', auth.user.id)
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
         }, 0);
 
         return jsonOk({
-            data: (data || []) as CreditTransactionRow[],
+            items: (data || []) as CreditTransactionRow[],
             summary: {
                 todaySpent,
             },

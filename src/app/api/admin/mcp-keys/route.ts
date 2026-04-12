@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   if (isActive === 'true') filters.isActive = true;
   if (isActive === 'false') filters.isActive = false;
 
-  const keys = await getAllMcpKeys(auth.supabase, filters);
+  const keys = await getAllMcpKeys(auth.db, filters);
   return jsonOk({ keys });
 }
 
@@ -41,7 +41,7 @@ export async function DELETE(request: NextRequest) {
     return jsonError('缺少 userId 参数', 400);
   }
 
-  const result = await revokeMcpKey(auth.supabase, userId);
+  const result = await revokeMcpKey(auth.db, userId);
   if (!result.success) {
     return jsonError(result.error || '封禁失败', 400);
   }
@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest) {
     return jsonError('缺少 userId 参数', 400);
   }
 
-  const result = await unbanMcpKey(auth.supabase, userId);
+  const result = await unbanMcpKey(auth.db, userId);
   if (!result.success) {
     return jsonError(result.error || '解除封禁失败', 400);
   }

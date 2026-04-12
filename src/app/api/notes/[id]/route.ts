@@ -1,13 +1,14 @@
 import { type NextRequest } from 'next/server';
-import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) return jsonError('请先登录', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { user } = auth;
 
         const { id } = await params;
         const body = await request.json() as {
@@ -16,7 +17,7 @@ export async function PUT(
             mood?: string | null;
         };
 
-        const { data, error } = await supabase
+        const { data, error } = await auth.db
             .from('ming_notes')
             .update({
                 ...(body.note_date !== undefined ? { note_date: body.note_date } : {}),
@@ -49,11 +50,12 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) return jsonError('请先登录', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { user } = auth;
 
         const { id } = await params;
-        const { error } = await supabase
+        const { error } = await auth.db
             .from('ming_notes')
             .delete()
             .eq('id', id)

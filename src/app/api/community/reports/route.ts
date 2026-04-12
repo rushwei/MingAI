@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { TargetType, ReportReason, ReportStatus } from '@/lib/community';
-import { jsonError, jsonOk, requireAdminContext, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireAdminContext, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
 import { parsePagination } from '@/lib/pagination';
 import { missingFields } from '@/lib/validation';
 
@@ -17,15 +17,17 @@ export async function GET(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
+        const db = resolveRequestDbClient(auth);
+        if (!db) {
+            return jsonError('获取举报列表失败', 500);
+        }
 
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status') as ReportStatus | null;
         const { from, to } = parsePagination(searchParams, { defaultPageSize: 20 });
 
         // 使用 Service Role Client 获取所有举报
-        const serviceClient = getSystemAdminClient();
-
-        let query = serviceClient
+        let query = db
             .from('community_reports')
             .select('*', { count: 'exact' })
             .order('created_at', { ascending: false });
@@ -59,7 +61,10 @@ export async function POST(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { supabase } = auth;
+        const db = resolveRequestDbClient(auth);
+        if (!db) {
+            return jsonError('提交举报失败', 500);
+        }
 
         const body = await request.json();
         const { targetType, targetId, reason, description } = body as {
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
             return jsonError('缺少参数', 400);
         }
 
-        const { data, error } = await supabase.rpc('submit_community_report_and_notify', {
+        const { data, error } = await db.rpc('submit_community_report_and_notify', {
             p_target_type: targetType,
             p_target_id: targetId,
             p_reason: reason,
@@ -105,6 +110,10 @@ export async function PUT(request: NextRequest) {
             return jsonError(auth.error.message, auth.error.status);
         }
         const { user } = auth;
+        const db = resolveRequestDbClient(auth);
+        if (!db) {
+            return jsonError('处理举报失败', 500);
+        }
 
         const body = await request.json();
         const { reportId, status, notes } = body as {
@@ -118,9 +127,7 @@ export async function PUT(request: NextRequest) {
         }
 
         // 使用 Service Role Client 更新举报
-        const serviceClient = getSystemAdminClient();
-
-        const { error } = await serviceClient
+        const { error } = await db
             .from('community_reports')
             .update({
                 status,

@@ -2,18 +2,19 @@
  * 关系合盘 API 路由
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError } from '@/lib/api-utils';
 import { type HepanResult, getHepanTypeName } from '@/lib/divination/hepan';
 import {
     createDirectInterpretHandlers,
     createInterpretHandler,
     type DivinationRouteConfig,
     type InterpretInput,
+    saveUserOwnedDivinationRecord,
 } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface HepanRequest {
-    action: 'analyze' | 'analyze_prepare' | 'analyze_persist' | 'save' | 'list';
+    action: 'analyze' | 'analyze_prepare' | 'analyze_persist' | 'save';
     result?: HepanResult;
     chartId?: string;
     modelId?: string;
@@ -122,31 +123,29 @@ export async function POST(request: NextRequest) {
         const { action } = body;
 
         if (action === 'save') {
-            if (!body.result) return jsonError('请提供合盘结果', 400, { success: false });
-            const authResult = await requireUserContext(request);
-            if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
-            const { user } = authResult;
-            const result = body.result;
-            const serviceClient = getSystemAdminClient();
-            const { data: insertedChart, error: insertError } = await serviceClient
-                .from('hepan_charts')
-                .insert({
-                    user_id: user.id,
-                    type: result.type,
-                    person1_name: result.person1.name,
-                    person1_birth: { year: result.person1.year, month: result.person1.month, day: result.person1.day, hour: result.person1.hour },
-                    person2_name: result.person2.name,
-                    person2_birth: { year: result.person2.year, month: result.person2.month, day: result.person2.day, hour: result.person2.hour },
-                    compatibility_score: result.overallScore,
-                    result_data: result,
-                })
-                .select('id')
-                .single();
-            if (insertError) {
-                console.error('[hepan] 保存合盘记录失败:', insertError.message);
-                return jsonError('保存记录失败', 500, { success: false });
-            }
-            return jsonOk({ success: true, data: { chartId: insertedChart?.id } });
+            return saveUserOwnedDivinationRecord({
+                request,
+                tag: 'hepan',
+                tableName: 'hepan_charts',
+                responseKey: 'chartId',
+                input: body as unknown as Record<string, unknown>,
+                validate: () => (!body.result)
+                    ? { error: '请提供合盘结果', status: 400 }
+                    : null,
+                buildInsertPayload: (_input, userId) => {
+                    const result = body.result!;
+                    return {
+                        user_id: userId,
+                        type: result.type,
+                        person1_name: result.person1.name,
+                        person1_birth: { year: result.person1.year, month: result.person1.month, day: result.person1.day, hour: result.person1.hour },
+                        person2_name: result.person2.name,
+                        person2_birth: { year: result.person2.year, month: result.person2.month, day: result.person2.day, hour: result.person2.hour },
+                        compatibility_score: result.overallScore,
+                        result_data: result,
+                    };
+                },
+            });
         }
 
         if (action === 'analyze') {
@@ -159,20 +158,6 @@ export async function POST(request: NextRequest) {
 
         if (action === 'analyze_persist') {
             return handleDirectPersist(request, body as unknown as Record<string, unknown>);
-        }
-
-        if (action === 'list') {
-            const authResult = await requireUserContext(request);
-            if ('error' in authResult) return jsonError(authResult.error.message, authResult.error.status, { success: false });
-            const serviceClient = getSystemAdminClient();
-            const { data: charts, error: listError } = await serviceClient
-                .from('hepan_charts')
-                .select('*')
-                .eq('user_id', authResult.user.id)
-                .order('created_at', { ascending: false })
-                .limit(20);
-            if (listError) return jsonError('获取历史记录失败', 500, { success: false });
-            return jsonOk({ success: true, data: { charts } });
         }
 
         return jsonError('未知操作', 400, { success: false });

@@ -1,3 +1,5 @@
+export const MING_RECORD_SOURCE_TYPE = 'ming_record';
+
 export const DATA_SOURCE_TYPES = [
     'bazi_chart',
     'ziwei_chart',
@@ -7,7 +9,7 @@ export const DATA_SOURCE_TYPES = [
     'hepan_chart',
     'face_reading',
     'palm_reading',
-    'ming_record',
+    MING_RECORD_SOURCE_TYPE,
     'daily_fortune',
     'monthly_fortune',
     'qimen_chart',
@@ -15,6 +17,15 @@ export const DATA_SOURCE_TYPES = [
 ] as const;
 
 export type DataSourceType = typeof DATA_SOURCE_TYPES[number];
+export type DataSourceTypeInput = DataSourceType | 'record';
+
+export function isDataSourceType(value: unknown): value is DataSourceType {
+    return typeof value === 'string' && DATA_SOURCE_TYPES.includes(value as DataSourceType);
+}
+
+export function canonicalizeDataSourceType(value: DataSourceTypeInput): DataSourceType {
+    return value === 'record' ? MING_RECORD_SOURCE_TYPE : value;
+}
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';

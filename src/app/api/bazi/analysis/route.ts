@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError } from '@/lib/api-utils';
+import { jsonError } from '@/lib/api-utils';
 import {
     createDirectInterpretHandlers,
     createInterpretHandler,
@@ -140,8 +140,12 @@ const baziAnalysisConfig: DivinationRouteConfig<BaziAnalysisInput, BaziAnalysisC
         const rateLimit = await checkRateLimit(clientIP, '/api/bazi/analysis', RATE_LIMIT_CONFIG);
         return rateLimit.allowed ? null : { error: '请求过于频繁，请稍后再试', status: 429 };
     },
-    resolvePromptContext: async (input, userId) => {
-        const supabase = getSystemAdminClient();
+    resolvePromptContext: async (input, auth) => {
+        const { userId, db } = auth;
+        if (!db) {
+            return { error: '认证上下文缺失', status: 500 };
+        }
+        const supabase = db;
         const { data: chart, error: chartError } = await supabase
             .from('bazi_charts')
             .select('id, name, user_id, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month')
@@ -157,7 +161,7 @@ const baziAnalysisConfig: DivinationRouteConfig<BaziAnalysisInput, BaziAnalysisC
             return { error: '该八字命盘缺少出生时辰，暂不支持 AI 分析', status: 400 };
         }
         const caseProfile = await getBaziCaseProfileByChartId(supabase, input.chartId, userId);
-        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'bazi');
+        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'bazi', { client: supabase });
         const chartSummary = formatBaziPromptText({
             id: resolvedChart.id,
             name: resolvedChart.name || '命盘',

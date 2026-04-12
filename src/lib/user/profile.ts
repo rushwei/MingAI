@@ -51,17 +51,20 @@ function toProfileUpdateResult(result: Awaited<ReturnType<typeof requestBrowserJ
   };
 }
 
-export async function getCurrentUserProfileBundle(): Promise<UserProfileBundle | null> {
+export async function getCurrentUserProfileBundle(): Promise<UserProfileBundle> {
   const result = await requestBrowserJson<UserProfileBundle>('/api/user/profile', {
     method: 'GET',
   });
 
   if (result.error) {
-    console.error('[user-profile] failed to load current user profile:', result.error.message);
-    return null;
+    throw new Error(result.error.message || '获取用户资料失败');
   }
 
-  return result.data ?? null;
+  if (!result.data) {
+    throw new Error('获取用户资料失败');
+  }
+
+  return result.data;
 }
 
 export async function getCurrentUserProfile(userId?: string): Promise<UserProfile | null> {

@@ -8,7 +8,7 @@ import {
     getCheckinCalendar,
     getCheckinStats
 } from '@/lib/user/checkin';
-import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 
 interface CheckinResponse {
     success: boolean;
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         const requestUrl = new URL(request.url);
         const perfEnabled = requestUrl.searchParams.get('perf') === '1';
         const perfStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
-        const auth = await requireBearerUser(request);
+        const auth = await requireUserContext(request);
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status, { success: false });
         }
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
         switch (action) {
             case 'status': {
-                const status = await getCheckinStatus(user.id);
+                const status = await getCheckinStatus(user.id, { client: auth.db, user });
                 const data: CheckinResponse['data'] = { status };
                 if (perfEnabled) {
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
             case 'calendar': {
                 const year = parseInt(requestUrl.searchParams.get('year') || String(new Date().getFullYear()));
                 const month = parseInt(requestUrl.searchParams.get('month') || String(new Date().getMonth() + 1));
-                const calendar = await getCheckinCalendar(user.id, year, month);
+                const calendar = await getCheckinCalendar(user.id, year, month, { client: auth.db });
                 if (perfEnabled) {
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                     console.info(`[perf:checkin:calendar] ${duration}ms`, { userId: user.id, year, month });
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
             }
 
             case 'stats': {
-                const stats = await getCheckinStats(user.id);
+                const stats = await getCheckinStats(user.id, { client: auth.db });
                 if (perfEnabled) {
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                     console.info(`[perf:checkin:stats] ${duration}ms`, { userId: user.id });
@@ -98,16 +98,17 @@ export async function GET(request: NextRequest) {
 // POST - 执行签到
 export async function POST(request: NextRequest) {
     try {
-        const auth = await requireBearerUser(request);
+        const auth = await requireUserContext(request);
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status, { success: false });
         }
         const { user } = auth;
 
-        const result = await performCheckin(user.id);
+        const result = await performCheckin(user.id, { client: auth.db });
 
         if (!result.success) {
-            return jsonError(result.error || '签到失败', 400, {
+            const status = result.blockedReason || result.errorType === 'blocked' ? 400 : 500;
+            return jsonError(result.error || '签到失败', status, {
                 success: false,
                 data: {
                     result: {

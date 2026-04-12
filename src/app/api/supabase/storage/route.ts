@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
   const upsert = parseUpsert(formData.get('upsert'));
 
-  const { data, error } = await auth.supabase.storage
+  const { data, error } = await auth.db.storage
     .from(bucket)
     .upload(path, file, { upsert });
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     return jsonError(error.message || 'Upload failed', 400);
   }
 
-  const { data: publicData } = auth.supabase.storage.from(bucket).getPublicUrl(path);
+  const { data: publicData } = auth.db.storage.from(bucket).getPublicUrl(path);
   return jsonOk({
     data: {
       path: data?.path ?? path,

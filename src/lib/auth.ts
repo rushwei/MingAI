@@ -23,10 +23,21 @@ export type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/s
 export type User = SupabaseUser;
 
 type AuthPayload<T = unknown> = BrowserApiPayload<T>;
+type SessionPayload = AuthPayload<{ session: Session | null; user: SupabaseUser | null }>;
+type SessionLoadOptions = {
+    force?: boolean;
+    emitEvent?: boolean;
+};
 
 export type AuthResult = {
     success: boolean;
     error?: BrowserApiError;
+};
+
+export type LoginAttemptStatus = {
+    blocked: boolean;
+    remainingAttempts: number;
+    error: BrowserApiError | null;
 };
 
 type AuthListener = (event: AuthChangeEvent, session: Session | null) => void;
@@ -37,7 +48,13 @@ const authListeners = new Set<AuthListener>();
 let cachedSession: Session | null = null;
 let cachedUser: SupabaseUser | null = null;
 let hasInitializedSession = false;
-let sessionBootstrapPromise: Promise<AuthPayload<{ session: Session | null; user: SupabaseUser | null }>> | null = null;
+let sessionBootstrapPromise: Promise<SessionPayload> | null = null;
+let lastSessionBootstrapAt = 0;
+
+const SESSION_CACHE_TTL_MS = 30_000;
+const SESSION_REVALIDATE_EVENT_COOLDOWN_MS = 5_000;
+const LOGIN_GUARD_UNAVAILABLE_CODE = 'login_guard_unavailable';
+const LOGIN_GUARD_UNAVAILABLE_MESSAGE = '登录保护服务暂不可用，请稍后重试';
 
 function emitAuthEvent(event: AuthChangeEvent, session: Session | null) {
     for (const listener of authListeners) {
@@ -53,6 +70,7 @@ function applySession(session: Session | null, event?: AuthChangeEvent) {
     cachedSession = session;
     cachedUser = session?.user ?? null;
     hasInitializedSession = true;
+    lastSessionBootstrapAt = Date.now();
     if (event) {
         emitAuthEvent(event, session);
     }
@@ -72,18 +90,46 @@ async function postAuthAction<T>(action: string, payload: Record<string, unknown
     });
 }
 
-function getCachedSessionPayload(): AuthPayload<{ session: Session | null; user: SupabaseUser | null }> {
+function getCachedSessionPayload(error: BrowserApiError | null = null): SessionPayload {
     return {
         data: {
             session: cachedSession,
             user: cachedUser ?? cachedSession?.user ?? null,
         },
-        error: null,
+        error,
     };
 }
 
-async function loadSessionFromServer(): Promise<AuthPayload<{ session: Session | null; user: SupabaseUser | null }>> {
-    if (hasInitializedSession) {
+function hasFreshSessionCache() {
+    return hasInitializedSession && (Date.now() - lastSessionBootstrapAt) < SESSION_CACHE_TTL_MS;
+}
+
+function resolveRefreshedSessionEvent(previousSession: Session | null, nextSession: Session | null): AuthChangeEvent | null {
+    if (!previousSession && !nextSession) {
+        return null;
+    }
+    if (!previousSession && nextSession) {
+        return 'SIGNED_IN';
+    }
+    if (previousSession && !nextSession) {
+        return 'SIGNED_OUT';
+    }
+    if (!previousSession || !nextSession) {
+        return null;
+    }
+
+    const hasChanged = previousSession.access_token !== nextSession.access_token
+        || previousSession.refresh_token !== nextSession.refresh_token
+        || previousSession.expires_at !== nextSession.expires_at
+        || previousSession.user?.id !== nextSession.user?.id;
+
+    return hasChanged ? 'TOKEN_REFRESHED' : null;
+}
+
+async function loadSessionFromServer(
+    options: SessionLoadOptions = {},
+): Promise<SessionPayload> {
+    if (!options.force && hasFreshSessionCache()) {
         return getCachedSessionPayload();
     }
 
@@ -91,20 +137,42 @@ async function loadSessionFromServer(): Promise<AuthPayload<{ session: Session |
         return await sessionBootstrapPromise;
     }
 
+    const previousSession = cachedSession;
     sessionBootstrapPromise = requestJson<{ session: Session | null; user: SupabaseUser | null }>('/api/auth', {
         method: 'GET',
     }).then((result) => {
-        if (!result.error) {
-            cachedSession = result.data?.session ?? null;
-            cachedUser = result.data?.user ?? result.data?.session?.user ?? null;
-            hasInitializedSession = true;
+        if (result.error) {
+            return getCachedSessionPayload(result.error);
         }
-        return result;
+
+        const nextSession = result.data?.session ?? null;
+        cachedSession = nextSession;
+        cachedUser = result.data?.user ?? result.data?.session?.user ?? null;
+        hasInitializedSession = true;
+        lastSessionBootstrapAt = Date.now();
+
+        if (options.emitEvent) {
+            const event = resolveRefreshedSessionEvent(previousSession, nextSession);
+            if (event) {
+                emitAuthEvent(event, nextSession);
+            }
+        }
+
+        return getCachedSessionPayload();
     }).finally(() => {
         sessionBootstrapPromise = null;
     });
 
     return await sessionBootstrapPromise;
+}
+
+export function invalidateBrowserSessionCache() {
+    hasInitializedSession = false;
+}
+
+export async function revalidateBrowserSession(): Promise<SessionPayload> {
+    invalidateBrowserSessionCache();
+    return await loadSessionFromServer({ force: true, emitEvent: true });
 }
 
 export const supabase = {
@@ -137,20 +205,35 @@ export const supabase = {
             return result;
         },
 
-        async getSession(): Promise<{ data: { session: Session | null }; error: BrowserApiError | null }> {
-            const result = await loadSessionFromServer();
+        async getSession(options?: { force?: boolean }): Promise<{ data: { session: Session | null }; error: BrowserApiError | null }> {
+            const result = await loadSessionFromServer(options);
             return {
                 data: { session: result.data?.session ?? null },
                 error: result.error,
             };
         },
 
-        async getUser(token?: string): Promise<{ data: { user: SupabaseUser | null }; error: BrowserApiError | null }> {
+        async revalidateSession(): Promise<{ data: { session: Session | null }; error: BrowserApiError | null }> {
+            const result = await revalidateBrowserSession();
+            return {
+                data: { session: result.data?.session ?? null },
+                error: result.error,
+            };
+        },
+
+        invalidateSessionCache() {
+            invalidateBrowserSessionCache();
+        },
+
+        async getUser(
+            token?: string,
+            options?: { force?: boolean },
+        ): Promise<{ data: { user: SupabaseUser | null }; error: BrowserApiError | null }> {
             if (token) {
                 const result = await postAuthAction<{ user: SupabaseUser | null }>('getUser', { token });
                 return { data: { user: result.data?.user ?? null }, error: result.error };
             }
-            const sessionResult = await loadSessionFromServer();
+            const sessionResult = await loadSessionFromServer(options);
             return { data: { user: sessionResult.data?.user ?? null }, error: sessionResult.error };
         },
 
@@ -316,12 +399,18 @@ export async function signOut(): Promise<AuthResult> {
 }
 
 export async function getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+        throw new Error(error.message || '获取当前用户失败');
+    }
     return user;
 }
 
 export async function getSession() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+        throw new Error(error.message || '获取会话失败');
+    }
     return session;
 }
 
@@ -331,11 +420,10 @@ export async function getUserProfile(userId?: string) {
 
 export { getCurrentUserProfileBundle } from '@/lib/user/profile';
 
-export async function ensureUserRecord(user: SupabaseUser, accessToken?: string) {
+export async function ensureUserRecord(user: SupabaseUser) {
     void user;
     const result = await requestJson<{ success: boolean }>('/api/user/profile', {
         method: 'POST',
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: JSON.stringify({ action: 'ensure' }),
     });
 
@@ -554,16 +642,26 @@ export async function resetPasswordWithOTP(
     return { success: true };
 }
 
-export async function checkLoginAttempts(email: string): Promise<{ blocked: boolean; remainingAttempts: number }> {
+export async function checkLoginAttempts(email: string): Promise<LoginAttemptStatus> {
     const maxAttempts = 5;
     const result = await postAuthAction<{ blocked: boolean; remainingAttempts: number }>('checkLoginAttempts', { email });
 
     if (result.error || !result.data) {
         console.error('[auth] failed to check login attempts:', result.error?.message);
-        return { blocked: false, remainingAttempts: maxAttempts };
+        return {
+            blocked: false,
+            remainingAttempts: maxAttempts,
+            error: {
+                message: LOGIN_GUARD_UNAVAILABLE_MESSAGE,
+                code: result.error?.code || LOGIN_GUARD_UNAVAILABLE_CODE,
+            },
+        };
     }
 
-    return result.data;
+    return {
+        ...result.data,
+        error: null,
+    };
 }
 
 export async function recordLoginAttempt(email: string, success: boolean): Promise<void> {
@@ -575,7 +673,14 @@ export async function recordLoginAttempt(email: string, success: boolean): Promi
 }
 
 export async function signInWithEmailProtected(email: string, password: string): Promise<AuthResult> {
-    const { blocked, remainingAttempts } = await checkLoginAttempts(email);
+    const { blocked, remainingAttempts, error } = await checkLoginAttempts(email);
+
+    if (error) {
+        return {
+            success: false,
+            error,
+        };
+    }
 
     if (blocked) {
         return {
@@ -602,6 +707,13 @@ export async function signInWithEmailProtected(email: string, password: string):
 
     return result;
 }
+
+export const authSessionCacheConstants = {
+    SESSION_CACHE_TTL_MS,
+    SESSION_REVALIDATE_EVENT_COOLDOWN_MS,
+    LOGIN_GUARD_UNAVAILABLE_CODE,
+    LOGIN_GUARD_UNAVAILABLE_MESSAGE,
+};
 
 function getErrorMessage(code: string): string {
     const errorMessages: Record<string, string> = {

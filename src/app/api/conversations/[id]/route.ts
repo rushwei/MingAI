@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
 import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import { isValidChatMessagePayload, loadAllConversationMessages, loadConversationAnalysisMessage, loadConversationMessagePage } from '@/lib/server/conversation-messages';
 import { deleteConversationGraph } from '@/lib/chat/conversation-delete';
@@ -7,9 +7,9 @@ import { isValidUUID } from '@/lib/validation';
 import type { ChatMessage } from '@/types';
 
 type ConversationPatchBody = {
-    title?: string;
+    title?: string | null;
     messages?: unknown[];
-    personality?: string;
+    personality?: string | null;
 };
 
 function hasOwn(body: object, key: string) {
@@ -22,6 +22,14 @@ function isObjectBody(value: unknown): value is Record<string, unknown> {
 
 function isNullableString(value: unknown): value is string | null | undefined {
     return value === undefined || value === null || typeof value === 'string';
+}
+
+function normalizeConversationTitle(title: string | null | undefined): string | null | undefined {
+    if (typeof title !== 'string') {
+        return title;
+    }
+    const trimmed = title.trim();
+    return trimmed.length > 0 ? trimmed : '';
 }
 
 type ConversationDetailRow = {
@@ -77,6 +85,8 @@ export async function GET(
     if (!isValidUUID(id)) {
         return jsonError('对话ID格式不合法', 400);
     }
+    const db = resolveRequestDbClient(auth);
+    if (!db) return jsonError('加载对话失败', 500);
     const { searchParams } = new URL(request.url);
     const includeContext = searchParams.get('includeContext') === '1';
     const snapshotMode = searchParams.get('snapshot');
@@ -86,7 +96,7 @@ export async function GET(
         ? CONVERSATION_ANALYSIS_SNAPSHOT_SELECT
         : CONVERSATION_DETAIL_SELECT;
 
-    const { data, error } = await auth.supabase
+    const { data, error } = await db
         .from('conversations_with_archive_status')
         .select(selectColumns)
         .eq('id', id)
@@ -107,7 +117,7 @@ export async function GET(
         }
 
         const sourceData = data.source_data as Record<string, unknown> | undefined;
-        const analysisMessageResult = await loadConversationAnalysisMessage(auth.supabase, id);
+        const analysisMessageResult = await loadConversationAnalysisMessage(db, id);
         if (analysisMessageResult.error) {
             console.error('[conversations] failed to load analysis snapshot:', analysisMessageResult.error);
             return jsonError('加载对话失败', 500);
@@ -136,11 +146,11 @@ export async function GET(
 
     const isPaginationRequested = Number.isFinite(messageLimit) && messageLimit > 0;
     const messageResult = isPaginationRequested
-        ? await loadConversationMessagePage(auth.supabase, id, {
+        ? await loadConversationMessagePage(db, id, {
             limit: messageLimit,
             offset: messageOffset,
         })
-        : await loadAllConversationMessages(auth.supabase, id);
+        : await loadAllConversationMessages(db, id);
 
     if (messageResult.error) {
         console.error('[conversations] failed to load conversation messages:', messageResult.error);
@@ -191,6 +201,8 @@ export async function PATCH(
     if (!isValidUUID(id)) {
         return jsonError('对话ID格式不合法', 400);
     }
+    const db = resolveRequestDbClient(auth);
+    if (!db) return jsonError('更新对话失败', 500);
     let body: ConversationPatchBody;
 
     try {
@@ -210,6 +222,11 @@ export async function PATCH(
         return jsonError('personality 必须是字符串或 null', 400);
     }
 
+    const normalizedTitle = normalizeConversationTitle(body.title);
+    if (body.title !== undefined && normalizedTitle === '') {
+        return jsonError('title 不能为空', 400);
+    }
+
     const hasMessagesField = hasOwn(body as object, 'messages');
     let nextMessages: ChatMessage[] | null = null;
     if (hasMessagesField) {
@@ -225,9 +242,9 @@ export async function PATCH(
         }
     }
 
-    const { data, error } = await auth.supabase.rpc('update_conversation_with_messages', {
+    const { data, error } = await db.rpc('update_conversation_with_messages', {
         p_conversation_id: id,
-        p_title: body.title ?? null,
+        p_title: normalizedTitle ?? null,
         p_title_present: body.title !== undefined,
         p_personality: body.personality ?? null,
         p_personality_present: body.personality !== undefined,
@@ -263,8 +280,9 @@ export async function DELETE(
     if (!isValidUUID(id)) {
         return jsonError('对话ID格式不合法', 400);
     }
+    const db = resolveRequestDbClient(auth) ?? auth.supabase;
     const result = await deleteConversationGraph(
-        auth.supabase as never,
+        db as never,
         auth.user.id,
         id,
     );

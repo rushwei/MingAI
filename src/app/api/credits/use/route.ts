@@ -5,8 +5,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { useCredit, hasCredits } from '@/lib/user/credits';
-import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { attemptCreditUse, UserStateResolutionError } from '@/lib/user/credits';
+import { requireUserContext, jsonError, jsonOk, resolveRequestDbClient } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -16,25 +16,25 @@ export async function POST(request: NextRequest) {
         }
         const { user } = auth;
 
-        // 检查是否有足够积分
-        const hasEnough = await hasCredits(user.id);
-
-        if (!hasEnough) {
-            return jsonError('积分不足', 400, { code: 'INSUFFICIENT_CREDITS' });
-        }
-
-        // 扣减积分
-        const remaining = await useCredit(user.id);
-
-        if (remaining === null) {
+        const creditUse = await attemptCreditUse(user.id, {
+            client: resolveRequestDbClient(auth) ?? undefined,
+            user,
+        });
+        if (!creditUse.ok) {
+            if (creditUse.reason === 'insufficient_credits') {
+                return jsonError('积分不足', 400, { code: 'INSUFFICIENT_CREDITS' });
+            }
             return jsonError('扣减失败', 500, { code: 'DEDUCTION_FAILED' });
         }
 
         return jsonOk({
             success: true,
-            remaining,
+            remaining: creditUse.remaining,
         });
     } catch (error) {
+        if (error instanceof UserStateResolutionError) {
+            return jsonError(error.message, 500, { code: error.code });
+        }
         console.error('[credits/use] Error:', error);
         return jsonError('服务器错误', 500);
     }

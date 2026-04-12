@@ -5,9 +5,17 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { getAuthAdminClient as getPrivilegedAuthClient, getSystemAdminClient as getPrivilegedSystemAdminClient } from '@/lib/supabase-server';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
-import { ACCESS_COOKIE, REFRESH_COOKIE, resolveSessionFromTokens, writeSessionCookies } from '@/lib/auth-session';
+import {
+    ACCESS_COOKIE,
+    REFRESH_COOKIE,
+    isCredentialAuthError,
+    normalizeSessionResolutionError,
+    resolveSessionFromTokens,
+    type SessionResolutionError,
+    writeSessionCookies,
+} from '@/lib/auth-session';
 
-type RequestSupabaseClient =
+type RequestDbClient =
     | Awaited<ReturnType<typeof createRequestSupabaseClient>>
     | ReturnType<typeof createAuthedClient>;
 
@@ -27,6 +35,29 @@ type GetAuthContextDependencies = {
     authedClientFactory?: typeof createAuthedClient;
     cookieStore?: WritableCookieStore | null;
 };
+
+export type RequestAuthError = SessionResolutionError;
+
+export type AuthContextResult = {
+    db: RequestDbClient;
+    // `db` 是包装鉴权上下文的规范字段；`supabase` 仅保留给旧调用点过渡使用。
+    supabase: RequestDbClient;
+    accessToken: string | null;
+    user: User | null;
+    authError: RequestAuthError | null;
+};
+
+export function resolveRequestDbClient(
+    auth: Partial<Pick<AuthContextResult, 'db' | 'supabase'>> | null | undefined,
+): RequestDbClient | null {
+    if (auth?.db && (typeof auth.db.from === 'function' || typeof auth.db.rpc === 'function')) {
+        return auth.db;
+    }
+    if (auth?.supabase && (typeof auth.supabase.from === 'function' || typeof auth.supabase.rpc === 'function')) {
+        return auth.supabase;
+    }
+    return null;
+}
 
 export async function createRequestSupabaseClient() {
     let cookieValues: Array<{ name: string; value: string }> = [];
@@ -66,16 +97,13 @@ export async function createRequestSupabaseClient() {
 export async function getAuthContext(
     request: NextRequest,
     dependencies: GetAuthContextDependencies = {},
-): Promise<{
-    supabase: RequestSupabaseClient;
-    user: User | null;
-}> {
+): Promise<AuthContextResult> {
     const bearer = request.headers.get('authorization');
     const accessToken = bearer?.replace(/Bearer\s+/i, '') || request.cookies.get(ACCESS_COOKIE)?.value || null;
     const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value || null;
     const authResolverClient = dependencies.authResolverClient ?? createAnonClient();
     const authedClientFactory = dependencies.authedClientFactory ?? createAuthedClient;
-    const { session, refreshed } = await resolveSessionFromTokens(authResolverClient, {
+    const { session, refreshed, error: resolverError } = await resolveSessionFromTokens(authResolverClient, {
         accessToken,
         refreshToken,
     });
@@ -89,14 +117,52 @@ export async function getAuthContext(
         }
 
         return {
+            db: authedClientFactory(session.access_token),
             supabase: authedClientFactory(session.access_token),
+            accessToken: session.access_token,
             user: session.user ?? null,
+            authError: null,
         };
     }
 
     const supabase = await createRequestSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return { supabase, user: user ?? null };
+    if (resolverError) {
+        return {
+            db: supabase,
+            supabase,
+            accessToken,
+            user: null,
+            authError: resolverError,
+        };
+    }
+
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error && !isCredentialAuthError(error)) {
+            return {
+                db: supabase,
+                supabase,
+                accessToken,
+                user: null,
+                authError: normalizeSessionResolutionError(error),
+            };
+        }
+        return {
+            db: supabase,
+            supabase,
+            accessToken,
+            user: user ?? null,
+            authError: null,
+        };
+    } catch (error) {
+        return {
+            db: supabase,
+            supabase,
+            accessToken,
+            user: null,
+            authError: normalizeSessionResolutionError(error),
+        };
+    }
 }
 
 async function getWritableCookieStore(): Promise<WritableCookieStore | null> {
@@ -109,48 +175,58 @@ async function getWritableCookieStore(): Promise<WritableCookieStore | null> {
 
 // 仅用于必须使用 Bearer Token 的接口
 export async function requireBearerUser(
-    request: NextRequest
+    request: NextRequest,
+    dependencies: Pick<GetAuthContextDependencies, 'authResolverClient'> = {},
 ): Promise<{ user: User } | { error: { message: string; status: number } }> {
     const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
+    const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    if (!token) {
         return { error: { message: '请先登录', status: 401 } };
     }
 
-    const token = authHeader.replace(/Bearer\s+/i, '');
-    const useMockClient = process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
-    const authClient = useMockClient
-        ? (await import('@/lib/auth')).authClient
-        : createAuthedClient(token);
-    const { data: { user }, error } = useMockClient
-        ? await authClient.auth.getUser(token)
-        : await authClient.auth.getUser();
-    if (error || !user) {
+    const authResolverClient = dependencies.authResolverClient ?? createAnonClient();
+
+    const { session, error } = await resolveSessionFromTokens(authResolverClient, {
+        accessToken: token,
+        refreshToken: null,
+    });
+
+    if (!session?.user) {
+        if (error) {
+            return { error: { message: error.message, status: error.status } };
+        }
         return { error: { message: '认证失败', status: 401 } };
     }
 
-    return { user };
+    return { user: session.user };
 }
 
 export async function requireUserContext(
     request: NextRequest
 ): Promise<
-    | { supabase: RequestSupabaseClient; user: User }
+    | { db: RequestDbClient; supabase: RequestDbClient; accessToken: string | null; user: User }
     | { error: { message: string; status: number } }
 > {
-    const { supabase, user } = await getAuthContext(request);
+    const { db, supabase, accessToken, user, authError } = await getAuthContext(request);
+    if (authError) {
+        return { error: { message: authError.message, status: authError.status } };
+    }
     if (!user) {
         return { error: { message: '请先登录', status: 401 } };
     }
-    return { supabase, user };
+    return { db, supabase, accessToken, user };
 }
 
 /**
  * 检查用户是否为管理员
  */
 async function checkIsAdmin(
-    supabase: RequestSupabaseClient,
+    supabase: RequestDbClient,
     userId: string
-): Promise<boolean> {
+): Promise<
+    | { ok: true; isAdmin: boolean }
+    | { ok: false; error: { message: string; status: number } }
+> {
     const { data: userData, error } = await supabase
         .from('users')
         .select('is_admin')
@@ -159,40 +235,64 @@ async function checkIsAdmin(
 
     if (error) {
         console.error('[api-utils] admin check failed:', error);
+        return {
+            ok: false,
+            error: {
+                message: '管理员权限校验失败，请稍后重试',
+                status: 503,
+            },
+        };
     }
 
-    return userData?.is_admin ?? false;
+    return {
+        ok: true,
+        isAdmin: userData?.is_admin ?? false,
+    };
 }
 
 export async function requireAdminUser(
-    request: NextRequest
+    request: NextRequest,
+    dependencies: {
+        userContext?: Awaited<ReturnType<typeof requireUserContext>>;
+    } = {},
 ): Promise<{ user: User } | { error: { message: string; status: number } }> {
-    const authResult = await requireUserContext(request);
-    if ('error' in authResult) return authResult;
+    const authResult = dependencies.userContext ?? await requireUserContext(request);
+    const resolvedAuthResult = dependencies.userContext ?? authResult;
+    if ('error' in resolvedAuthResult) return resolvedAuthResult;
 
-    const isAdmin = await checkIsAdmin(authResult.supabase, authResult.user.id);
-    if (!isAdmin) {
+    const adminCheck = await checkIsAdmin(resolvedAuthResult.db, resolvedAuthResult.user.id);
+    if (!adminCheck.ok) {
+        return { error: adminCheck.error };
+    }
+    if (!adminCheck.isAdmin) {
         return { error: { message: '无权限操作', status: 403 } };
     }
 
-    return { user: authResult.user };
+    return { user: resolvedAuthResult.user };
 }
 
 export async function requireAdminContext(
-    request: NextRequest
+    request: NextRequest,
+    dependencies: {
+        userContext?: Awaited<ReturnType<typeof requireUserContext>>;
+    } = {},
 ): Promise<
-    | { supabase: RequestSupabaseClient; user: User }
+    | { db: RequestDbClient; supabase: RequestDbClient; accessToken: string | null; user: User }
     | { error: { message: string; status: number } }
 > {
-    const authResult = await requireUserContext(request);
-    if ('error' in authResult) return authResult;
+    const authResult = dependencies.userContext ?? await requireUserContext(request);
+    const resolvedAuthResult = dependencies.userContext ?? authResult;
+    if ('error' in resolvedAuthResult) return resolvedAuthResult;
 
-    const isAdmin = await checkIsAdmin(authResult.supabase, authResult.user.id);
-    if (!isAdmin) {
+    const adminCheck = await checkIsAdmin(resolvedAuthResult.db, resolvedAuthResult.user.id);
+    if (!adminCheck.ok) {
+        return { error: adminCheck.error };
+    }
+    if (!adminCheck.isAdmin) {
         return { error: { message: '无权限操作', status: 403 } };
     }
 
-    return authResult;
+    return resolvedAuthResult;
 }
 
 export function getSystemAdminClient() {
@@ -240,13 +340,8 @@ export function createAuthedClient(accessToken: string) {
  * 从请求中获取 access token（优先 Bearer，其次 session）
  */
 export async function getAccessToken(request: NextRequest): Promise<string | null> {
-    const bearer = request.headers.get('authorization');
-    const token = bearer?.replace(/Bearer\s+/i, '');
-    if (token) return token;
-
-    const supabase = await createRequestSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    const { accessToken } = await getAuthContext(request);
+    return accessToken;
 }
 
 export function jsonError<TExtra extends Record<string, unknown> = Record<string, never>>(

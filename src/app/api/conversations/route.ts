@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
 import { isValidChatMessagePayload } from '@/lib/server/conversation-messages';
 import type { ChatMessage } from '@/types';
 
@@ -24,9 +24,19 @@ function isNullableString(value: unknown): value is string | null | undefined {
     return value === undefined || value === null || typeof value === 'string';
 }
 
+function normalizeConversationTitle(title: string | null | undefined): string | null | undefined {
+    if (typeof title !== 'string') {
+        return title;
+    }
+    const trimmed = title.trim();
+    return trimmed.length > 0 ? trimmed : '';
+}
+
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const db = resolveRequestDbClient(auth);
+    if (!db) return jsonError('加载对话列表失败', 500);
 
     const { searchParams } = new URL(request.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
@@ -35,7 +45,7 @@ export async function GET(request: NextRequest) {
     const sourceType = searchParams.get('sourceType');
     const chartId = searchParams.get('chartId');
 
-    let query = auth.supabase
+    let query = db
         .from('conversations_with_archive_status')
         .select(CONVERSATION_LIST_SELECT)
         .eq('user_id', auth.user.id)
@@ -73,6 +83,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const db = resolveRequestDbClient(auth);
+    if (!db) return jsonError('创建对话失败', 500);
 
     let body: {
         personality?: string;
@@ -97,6 +109,8 @@ export async function POST(request: NextRequest) {
         return jsonError('personality 必须是字符串或 null', 400);
     }
 
+    const normalizedTitle = normalizeConversationTitle(body.title);
+
     let initialMessages: ChatMessage[] = [];
     if (Object.prototype.hasOwnProperty.call(body, 'messages')) {
         if (body.messages === null) {
@@ -111,9 +125,9 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    const { data, error } = await auth.supabase.rpc('create_conversation_with_messages', {
+    const { data, error } = await db.rpc('create_conversation_with_messages', {
         p_user_id: auth.user.id,
-        p_title: body.title || '新对话',
+        p_title: normalizedTitle || '新对话',
         p_personality: body.personality || 'general',
         p_source_type: null,
         p_source_data: null,

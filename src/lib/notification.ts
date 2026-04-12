@@ -4,7 +4,7 @@
  * 浏览器侧仅保留纯 fetcher；缓存由 TanStack Query 统一管理。
  */
 
-import { requestBrowserJson } from '@/lib/browser-api';
+import { requestBrowserPayloadOrThrow, requestBrowserJson } from '@/lib/browser-api';
 
 export type UnreadCountOptions = {
   bypassCache?: boolean;
@@ -31,6 +31,14 @@ export interface NotificationPageResult {
   pagination: NotificationPagination;
 }
 
+async function requestNotificationJson<T>(
+  url: string,
+  init: RequestInit,
+  fallbackMessage: string,
+) {
+  return await requestBrowserPayloadOrThrow<T>(url, init, fallbackMessage);
+}
+
 export async function getUnreadCount(
   userId: string,
   options: UnreadCountOptions = {},
@@ -38,17 +46,11 @@ export async function getUnreadCount(
   void options;
   if (!userId) return 0;
 
-  const result = await requestBrowserJson<{ count?: number }>('/api/notifications?count=1&unread=1', {
-    method: 'GET',
-  });
-
-  if (result.error) {
-    const msg = result.error.message ?? '';
-    if (!msg.includes('登录') && !msg.includes('认证') && msg !== '获取通知失败') {
-      console.error('获取未读数量失败:', msg);
-    }
-    return 0;
-  }
+  const result = await requestNotificationJson<{ count?: number }>(
+    '/api/notifications?count=1&unread=1',
+    { method: 'GET' },
+    '获取未读数量失败',
+  );
 
   return result.count ?? result.data?.count ?? 0;
 }
@@ -72,23 +74,14 @@ export async function getNotificationsPage(
   const limit = options.limit ?? 20;
   const offset = options.offset ?? 0;
 
-  const result = await requestBrowserJson<{
+  const result = await requestNotificationJson<{
     notifications?: Notification[];
     pagination?: NotificationPagination;
-  }>(`/api/notifications?limit=${limit}&offset=${offset}`, {
-    method: 'GET',
-  });
-
-  if (result.error) {
-    console.error('获取通知列表失败:', result.error.message);
-    return {
-      notifications: [],
-      pagination: {
-        hasMore: false,
-        nextOffset: null,
-      },
-    };
-  }
+  }>(
+    `/api/notifications?limit=${limit}&offset=${offset}`,
+    { method: 'GET' },
+    '获取通知列表失败',
+  );
 
   return {
     notifications: result.data?.notifications ?? [],
@@ -116,9 +109,7 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
   return true;
 }
 
-export async function markAllAsRead(userId: string): Promise<boolean> {
-  void userId;
-
+export async function markAllAsRead(): Promise<boolean> {
   const result = await requestBrowserJson<{ success?: boolean }>('/api/notifications', {
     method: 'PATCH',
     body: JSON.stringify({

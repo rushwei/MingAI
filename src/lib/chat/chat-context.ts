@@ -5,6 +5,7 @@ import { truncateToTokens } from '@/lib/token-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
+import { getUserSettingsSnapshot } from '@/lib/user/settings';
 
 export type DreamContextPayload = {
     baziChartName?: string;
@@ -49,34 +50,62 @@ function pruneDreamContextCache(now = Date.now()) {
     }
 }
 
+async function loadPreferredBaziChartMeta(
+    supabase: ReturnType<typeof getSystemAdminClient>,
+    userId: string,
+    defaultBaziId: string | null,
+) {
+    const baseQuery = supabase
+        .from('bazi_charts')
+        .select('id, updated_at')
+        .eq('user_id', userId);
+
+    if (defaultBaziId) {
+        const preferred = await baseQuery.eq('id', defaultBaziId).maybeSingle();
+        if (preferred.data) {
+            return preferred;
+        }
+    }
+
+    return await baseQuery
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+}
+
 export async function buildDreamContextPayload(userId: string): Promise<DreamContextResult> {
     const supabase = getSystemAdminClient();
     pruneDreamContextCache();
 
-    const [{ data: settings }, dayKey] = await Promise.all([
-        supabase
-            .from('user_settings')
-            .select('default_bazi_chart_id')
-            .eq('user_id', userId)
-            .maybeSingle(),
+    const userSettingsClient = {
+        from(table: 'user_settings') {
+            return {
+                select(columns: string) {
+                    return {
+                        eq(column: 'user_id', value: string) {
+                            return {
+                                maybeSingle() {
+                                    return supabase
+                                        .from(table)
+                                        .select(columns)
+                                        .eq(column, value)
+                                        .maybeSingle();
+                                },
+                            };
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    const [{ settings }, dayKey] = await Promise.all([
+        getUserSettingsSnapshot(userSettingsClient, userId),
         Promise.resolve(formatDayKey(new Date())),
     ]);
 
-    const defaultBaziId = (settings as { default_bazi_chart_id?: string | null } | null)?.default_bazi_chart_id ?? null;
-    const resolvedChartMeta = defaultBaziId
-        ? await supabase
-            .from('bazi_charts')
-            .select('id, updated_at')
-            .eq('user_id', userId)
-            .eq('id', defaultBaziId)
-            .maybeSingle()
-        : await supabase
-            .from('bazi_charts')
-            .select('id, updated_at')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+    const defaultBaziId = settings.defaultBaziChartId;
+    const resolvedChartMeta = await loadPreferredBaziChartMeta(supabase, userId, defaultBaziId);
 
     const resolvedChartId = (resolvedChartMeta.data as { id?: string | null } | null)?.id ?? null;
     const chartUpdatedAt = (resolvedChartMeta.data as { updated_at?: string | null } | null)?.updated_at ?? null;

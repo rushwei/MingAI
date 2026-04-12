@@ -4,17 +4,11 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
 import { isFeatureModuleEnabled } from '@/lib/app-settings';
 import { buildPreviewPromptContext, type PreviewRequestBody } from '@/lib/chat/preview-context';
+import { getChatAccessTokenForKnowledgeBase } from '@/lib/server/chat/request';
 import { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
 import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
-
-function getAccessTokenForKnowledgeBase(request: NextRequest): string | null {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-        return authHeader.replace(/^Bearer\s+/i, '');
-    }
-    return request.cookies.get('sb-access-token')?.value ?? null;
-}
+import { getEffectiveMembershipType, MembershipResolutionError } from '@/lib/user/membership-server';
+import type { MembershipType } from '@/lib/user/membership';
 
 export async function POST(request: NextRequest) {
     const auth = await requireUserContext(request);
@@ -40,7 +34,43 @@ export async function POST(request: NextRequest) {
             return jsonError('无效的模型', 400);
         }
 
-        const membershipType = await getEffectiveMembershipType(auth.user.id);
+        const membershipClient = {
+            from(table: 'users') {
+                return {
+                    select(columns: string) {
+                        return {
+                            eq(column: 'id', userId: string) {
+                                return {
+                                    async maybeSingle() {
+                                        const { data, error } = await auth.db
+                                            .from(table)
+                                            .select(columns)
+                                            .eq(column, userId)
+                                            .maybeSingle();
+                                        const membershipRow = data as {
+                                            membership?: string | null;
+                                            membership_expires_at?: string | null;
+                                        } | null;
+
+                                        return {
+                                            data: membershipRow
+                                                ? {
+                                                    membership: (membershipRow.membership ?? null) as MembershipType | null,
+                                                    membership_expires_at: membershipRow.membership_expires_at ?? null,
+                                                }
+                                                : null,
+                                            error: error ? { message: error.message } : null,
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            },
+        };
+
+        const membershipType = await getEffectiveMembershipType(auth.user.id, { client: membershipClient });
         const knowledgeBaseFeatureEnabled = await isFeatureModuleEnabled('knowledge-base');
         if (!isModelAllowedForMembership(modelConfig, membershipType)) {
             return jsonError('当前会员等级无法使用该模型', 403);
@@ -57,7 +87,7 @@ export async function POST(request: NextRequest) {
             reasoningEnabled,
             membershipType,
             knowledgeBaseFeatureEnabled,
-            accessTokenForKB: getAccessTokenForKnowledgeBase(request),
+            accessTokenForKB: getChatAccessTokenForKnowledgeBase(request),
             sharedPromptContextBuilder: buildChatPromptContext,
         });
 
@@ -75,6 +105,9 @@ export async function POST(request: NextRequest) {
             preview: previewContext.preview,
         });
     } catch (error) {
+        if (error instanceof MembershipResolutionError) {
+            return jsonError(error.message, 500);
+        }
         const message = error instanceof Error ? error.message : 'unknown error';
         return jsonError('生成预览失败', 500, { message });
     }

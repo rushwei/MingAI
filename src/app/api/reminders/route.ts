@@ -4,13 +4,14 @@
 import { NextRequest } from 'next/server';
 import {
     getReminderSubscriptions,
+    ReminderReadError,
     updateReminderSubscription,
     scheduleUpcomingSolarTermReminders,
     scheduleUpcomingFortuneReminders,
     scheduleKeyDateReminders,
     type ReminderType
 } from '@/lib/reminders';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 // GET - 获取提醒订阅设置
@@ -20,9 +21,10 @@ export async function GET(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status, { success: false });
         }
-        const user = auth.user;
+        const { user } = auth;
+        const db = auth.db;
 
-        const subscriptions = await getReminderSubscriptions(user.id);
+        const subscriptions = await getReminderSubscriptions(user.id, { client: db });
 
         // 确保所有类型都有记录
         const allTypes: ReminderType[] = ['solar_term', 'fortune', 'key_date'];
@@ -42,6 +44,9 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('[reminders API] 错误:', error);
+        if (error instanceof ReminderReadError) {
+            return jsonError(error.message, 500, { success: false });
+        }
         return jsonError('服务器错误', 500, { success: false });
     }
 }
@@ -53,7 +58,8 @@ export async function POST(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status, { success: false });
         }
-        const user = auth.user;
+        const { user } = auth;
+        const db = auth.db;
 
         const body = await request.json();
         const { reminderType, enabled, notifyEmail, notifySite } = body;
@@ -65,7 +71,8 @@ export async function POST(request: NextRequest) {
         const success = await updateReminderSubscription(
             user.id,
             reminderType as ReminderType,
-            { enabled, notifyEmail, notifySite }
+            { enabled, notifyEmail, notifySite },
+            { client: db },
         );
 
         if (!success) {
@@ -79,8 +86,7 @@ export async function POST(request: NextRequest) {
                 scheduled = await scheduleUpcomingSolarTermReminders(user.id);
             } else if (reminderType === 'fortune' || reminderType === 'key_date') {
                 // 获取用户的八字命盘
-                const serviceClient = getSystemAdminClient();
-                const { data: chartData } = await serviceClient
+                const { data: chartData } = await db
                     .from('bazi_charts')
                     .select('gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month')
                     .eq('user_id', user.id)

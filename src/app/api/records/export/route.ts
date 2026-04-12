@@ -10,12 +10,12 @@ export async function GET(request: NextRequest) {
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
 
         // 获取所有记录和小记
         const [recordsResult, notesResult] = await Promise.all([
-            supabase.from('ming_records').select('*').eq('user_id', user.id),
-            supabase.from('ming_notes').select('*').eq('user_id', user.id),
+            auth.db.from('ming_records').select('*').eq('user_id', user.id),
+            auth.db.from('ming_notes').select('*').eq('user_id', user.id),
         ]);
 
         if (recordsResult.error || notesResult.error) {

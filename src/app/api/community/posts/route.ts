@@ -5,12 +5,11 @@
  */
 
 import { NextRequest } from 'next/server';
-import { PostCategory, PostFilters } from '@/lib/community';
+import { PostCategory, PostFilters, normalizePostInput } from '@/lib/community';
 import { asCommunityLookupClient, loadCommunityAuthorProfileMap, loadSingleCommunityAuthorProfile, toPublicPost, type CommunityPostRow } from '@/lib/community-server';
 import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { parsePagination } from '@/lib/pagination';
-import { hasNonEmptyStrings } from '@/lib/validation';
 import { quotePostgrestString } from '@/lib/utils/postgrest';
 
 export async function GET(request: NextRequest) {
@@ -88,25 +87,29 @@ export async function POST(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = auth.db;
 
-        const body = await request.json();
-
-        if (!hasNonEmptyStrings(body, ['title', 'content'])) {
-            return jsonError('标题和内容不能为空', 400);
+        let body: unknown;
+        try {
+            body = await request.json();
+        } catch {
+            return jsonError('请求体不是合法 JSON', 400);
         }
 
-        const authorProfile = await loadSingleCommunityAuthorProfile(asCommunityLookupClient(supabase), user.id);
+        const normalized = normalizePostInput(body, 'create');
+        if ('error' in normalized) {
+            return jsonError(normalized.error, 400);
+        }
+
+        const authorProfile = await loadSingleCommunityAuthorProfile(asCommunityLookupClient(db), user.id);
 
         // 创建帖子
-        const { data: post, error: postError } = await supabase
+        const { data: post, error: postError } = await db
             .from('community_posts')
             .insert({
                 user_id: user.id,
-                title: body.title,
-                content: body.content,
-                category: body.category || 'general',
-                tags: body.tags || [],
+                ...normalized.data,
             })
             .select()
             .single();

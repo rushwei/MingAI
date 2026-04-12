@@ -5,6 +5,7 @@ import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
   resolveSessionFromTokens,
+  type SessionResolutionError,
   setSessionCookies,
 } from '@/lib/auth-session';
 
@@ -39,6 +40,7 @@ function authFailure(message: string, status = 400, code?: string) {
 async function resolveSession(request: NextRequest): Promise<{
   session: Session | null;
   refreshed: boolean;
+  error: SessionResolutionError | null;
 }> {
   const bearer = request.headers.get('authorization');
   const bearerToken = bearer?.replace(/Bearer\s+/i, '') || null;
@@ -49,7 +51,10 @@ async function resolveSession(request: NextRequest): Promise<{
 }
 
 export async function GET(request: NextRequest) {
-  const { session, refreshed } = await resolveSession(request);
+  const { session, refreshed, error } = await resolveSession(request);
+  if (error) {
+    return authFailure(error.message, error.status, error.code);
+  }
   const response = authSuccess({ session, user: session?.user ?? null });
   if (refreshed) {
     setSessionCookies(response, session);
@@ -93,7 +98,8 @@ export async function POST(request: NextRequest) {
       return response;
     }
     case 'signOut': {
-      const { session } = await resolveSession(request);
+      const { session, error: sessionError } = await resolveSession(request);
+      if (sessionError) return authFailure(sessionError.message, sessionError.status, sessionError.code);
       if (!session?.access_token) {
         const response = authSuccess({ signedOut: true });
         setSessionCookies(response, null);
@@ -101,20 +107,21 @@ export async function POST(request: NextRequest) {
       }
 
       const client = createAuthedClient(session.access_token);
-      const { error } = await client.auth.signOut();
-      if (error) return authFailure(error.message, 400, error.code);
+      const { error: signOutError } = await client.auth.signOut();
+      if (signOutError) return authFailure(signOutError.message, 400, signOutError.code);
       const response = authSuccess({ signedOut: true });
       setSessionCookies(response, null);
       return response;
     }
     case 'updateUser': {
-      const { session } = await resolveSession(request);
+      const { session, error: sessionError } = await resolveSession(request);
+      if (sessionError) return authFailure(sessionError.message, sessionError.status, sessionError.code);
       if (!session?.access_token) return authFailure('Unauthorized', 401);
 
       const attributes = (payload.attributes as Record<string, unknown> | undefined) || {};
       const client = createAuthedClient(session.access_token);
-      const { data, error } = await client.auth.updateUser(attributes);
-      if (error) return authFailure(error.message, 400, error.code);
+      const { data, error: updateUserError } = await client.auth.updateUser(attributes);
+      if (updateUserError) return authFailure(updateUserError.message, 400, updateUserError.code);
       return authSuccess(data);
     }
     case 'resetPasswordForEmail': {
@@ -175,10 +182,11 @@ export async function POST(request: NextRequest) {
         if (error) return authFailure(error.message, 401, error.code);
         return authSuccess(data);
       }
-      const { session, refreshed } = await resolveSession(request);
+      const { session, refreshed, error: sessionError } = await resolveSession(request);
+      if (sessionError) return authFailure(sessionError.message, sessionError.status, sessionError.code);
       if (!session?.access_token) return authSuccess({ user: null });
-      const { data, error } = await anonymousClient.auth.getUser(session.access_token);
-      if (error) return authFailure(error.message, 401, error.code);
+      const { data, error: userError } = await anonymousClient.auth.getUser(session.access_token);
+      if (userError) return authFailure(userError.message, 401, userError.code);
       const response = authSuccess(data);
       if (refreshed) {
         setSessionCookies(response, session);
@@ -186,7 +194,8 @@ export async function POST(request: NextRequest) {
       return response;
     }
     case 'getSession': {
-      const { session, refreshed } = await resolveSession(request);
+      const { session, refreshed, error } = await resolveSession(request);
+      if (error) return authFailure(error.message, error.status, error.code);
       const response = authSuccess({ session, user: session?.user ?? null });
       if (refreshed) {
         setSessionCookies(response, session);

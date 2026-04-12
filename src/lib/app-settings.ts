@@ -37,7 +37,7 @@ export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
   charts: '我的命盘',
   'ai-personalization': '个性化',
   notifications: '消息通知',
-  upgrade: '订阅',
+  upgrade: '会员与积分',
   help: '帮助',
 };
 

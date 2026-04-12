@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
 
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         const page = Math.max(Number(searchParams.get('page') || 1), 1);
         const pageSize = Math.min(Math.max(Number(searchParams.get('pageSize') || 20), 1), 100);
 
-        let query = supabase
+        let query = auth.db
             .from('ming_notes')
             .select('*', { count: 'exact' })
             .eq('user_id', user.id)
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
 
         const body = await request.json();
 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
             return jsonError('内容不能为空', 400);
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await auth.db
             .from('ming_notes')
             .insert({
                 user_id: user.id,
@@ -94,7 +94,7 @@ export async function DELETE(request: NextRequest) {
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
 
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
@@ -103,7 +103,7 @@ export async function DELETE(request: NextRequest) {
             return jsonError('缺少 id 参数', 400);
         }
 
-        const { error } = await supabase
+        const { error } = await auth.db
             .from('ming_notes')
             .delete()
             .eq('id', id)

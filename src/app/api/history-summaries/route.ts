@@ -23,7 +23,7 @@ async function loadHistoryItems(
     offset: number,
 ) {
     const config = HISTORY_CONFIG[type];
-    const { data, error } = await auth.supabase
+    const { data, error } = await auth.db
         .from(config.tableName)
         .select(config.summarySelect)
         .eq('user_id', auth.user.id)
@@ -59,7 +59,7 @@ async function loadHistoryRestoreItem(
     timezone: string,
 ) {
     const config = HISTORY_CONFIG[type];
-    const { data, error } = await auth.supabase
+    const { data, error } = await auth.db
         .from(config.tableName)
         .select('*')
         .eq('id', id)
@@ -77,6 +77,31 @@ async function loadHistoryRestoreItem(
 
     const item = await buildHistoryRestorePayload(type, row, timezone);
     return { item, error: null };
+}
+
+async function loadHistoryDeleteContext(
+    auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>,
+    type: keyof typeof HISTORY_CONFIG,
+    id: string,
+) {
+    const config = HISTORY_CONFIG[type];
+    const { data, error } = await auth.db
+        .from(config.tableName)
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', auth.user.id)
+        .maybeSingle();
+
+    if (error) {
+        return { conversationId: null, error };
+    }
+
+    const row = toHistoryRow(data);
+    const conversationId = typeof row?.conversation_id === 'string'
+        ? row.conversation_id
+        : null;
+
+    return { conversationId, error: null };
 }
 
 export async function GET(request: NextRequest) {
@@ -130,7 +155,13 @@ export async function DELETE(request: NextRequest) {
         return jsonError('缺少有效的历史记录类型或 ID', 400);
     }
 
-    const { data, error } = await auth.supabase.rpc('delete_history_item_and_conversation', {
+    const { conversationId, error: contextError } = await loadHistoryDeleteContext(auth, type, id);
+    if (contextError) {
+        console.error('[history-summaries] failed to load delete context:', contextError);
+        return jsonError('删除历史记录失败', 500);
+    }
+
+    const { data, error } = await auth.db.rpc('delete_history_item_and_conversation', {
         p_history_type: type,
         p_history_id: id,
     });
@@ -144,5 +175,10 @@ export async function DELETE(request: NextRequest) {
         return jsonError('未找到历史记录', 404);
     }
 
-    return jsonOk({ success: true });
+    return jsonOk({
+        success: true,
+        type,
+        id,
+        conversationId,
+    });
 }

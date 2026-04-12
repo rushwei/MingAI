@@ -8,7 +8,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { jsonError, jsonOk, requireAdminUser, requireBearerUser } from "@/lib/api-utils";
+import { jsonError, jsonOk, requireAdminUser, requireUserContext } from "@/lib/api-utils";
 import {
     createActivationKeys,
     getAllActivationKeys,
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
             const result = await createActivationKeys(auth.user.id, params);
             return jsonOk(result);
         } else if (body.action === "activate") {
-            const auth = await requireBearerUser(request);
+            const auth = await requireUserContext(request);
             if ("error" in auth) {
                 return jsonError(auth.error.message, auth.error.status);
             }

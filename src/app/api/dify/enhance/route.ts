@@ -8,7 +8,7 @@
 import { NextRequest } from 'next/server';
 import { callDifyWorkflow, isDifyAvailable } from '@/lib/ai/dify';
 import { checkDifyAccess } from '@/lib/ai/dify-access';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { getEffectiveMembershipType, MembershipResolutionError } from '@/lib/user/membership-server';
 import type { DifyMode } from '@/types';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 获取用户会员等级
-        const membershipType = await getEffectiveMembershipType(userId);
+        const membershipType = await getEffectiveMembershipType(userId, { client: auth.db });
 
         // 权限校验
         const accessResult = checkDifyAccess(membershipType, mode);
@@ -67,6 +67,9 @@ export async function POST(request: NextRequest) {
             data: result.data,
         });
     } catch (error) {
+        if (error instanceof MembershipResolutionError) {
+            return jsonError(error.message, 500, { success: false });
+        }
         console.error('[dify/enhance] Error:', error);
         return jsonError('服务暂时不可用', 500, { success: false });
     }

@@ -6,7 +6,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk, resolveRequestDbClient } from '@/lib/api-utils';
+import { normalizeRecordInput } from '@/lib/records';
 
 export async function GET(
     _request: NextRequest,
@@ -15,11 +16,13 @@ export async function GET(
     try {
         const auth = await requireUserContext(_request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = resolveRequestDbClient(auth);
+        if (!db) return jsonError('获取记录失败', 500);
 
         const { id } = await params;
 
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('ming_records')
             .select('*')
             .eq('id', id)
@@ -48,14 +51,21 @@ export async function PUT(
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = resolveRequestDbClient(auth);
+        if (!db) return jsonError('更新记录失败', 500);
 
         const { id } = await params;
-        const body = await request.json();
+        let body: Record<string, unknown>;
+        try {
+            body = await request.json() as Record<string, unknown>;
+        } catch {
+            return jsonError('请求体不是合法 JSON', 400);
+        }
 
         // 处理置顶切换
-        if (body.togglePin) {
-            const { data, error } = await supabase.rpc('toggle_ming_record_pin', {
+        if (body.togglePin === true) {
+            const { data, error } = await db.rpc('toggle_ming_record_pin', {
                 p_record_id: id,
             });
 
@@ -79,16 +89,36 @@ export async function PUT(
             return jsonOk(result.record);
         }
 
-        // 常规更新
-        const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (body.title !== undefined) updateData.title = body.title;
-        if (body.content !== undefined) updateData.content = body.content;
-        if (body.category !== undefined) updateData.category = body.category;
-        if (body.tags !== undefined) updateData.tags = body.tags;
-        if (body.event_date !== undefined) updateData.event_date = body.event_date;
-        if (body.is_pinned !== undefined) updateData.is_pinned = body.is_pinned;
+        const existing = await db
+            .from('ming_records')
+            .select('id, related_chart_type, related_chart_id')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-        const { data, error } = await supabase
+        if (existing.error) {
+            console.error('获取记录失败:', existing.error);
+            return jsonError('获取记录失败', 500);
+        }
+        if (!existing.data) {
+            return jsonError('记录不存在', 404);
+        }
+
+        const normalized = normalizeRecordInput(body, 'update', existing.data as {
+            related_chart_type: string | null;
+            related_chart_id: string | null;
+        });
+        if ('error' in normalized) {
+            return jsonError(normalized.error, 400);
+        }
+
+        // 常规更新
+        const updateData: Record<string, unknown> = {
+            ...normalized.data,
+            updated_at: new Date().toISOString(),
+        };
+
+        const { data, error } = await db
             .from('ming_records')
             .update(updateData)
             .eq('id', id)
@@ -115,19 +145,26 @@ export async function DELETE(
     try {
         const auth = await requireUserContext(_request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = resolveRequestDbClient(auth);
+        if (!db) return jsonError('删除记录失败', 500);
 
         const { id } = await params;
 
-        const { error } = await supabase
+        const { data, error } = await db
             .from('ming_records')
             .delete()
             .eq('id', id)
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .select('id');
 
         if (error) {
             console.error('删除记录失败:', error);
             return jsonError('删除记录失败', 500);
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+            return jsonError('记录不存在', 404);
         }
 
         return jsonOk({ success: true });

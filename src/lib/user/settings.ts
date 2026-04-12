@@ -23,10 +23,10 @@ export const DEFAULT_MOBILE_MAIN_ITEMS = [
 
 export const DEFAULT_MOBILE_DRAWER_ORDER = [
   'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot', 'qimen', 'daliuren',
-  'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-  'user/upgrade',
-  'user/settings/ai', 'user/knowledge-base', 'user/help',
-  'user/charts',
+  'face', 'palm', 'mbti', 'monthly', 'settings-profile', 'settings-general',
+  'settings-upgrade',
+  'settings-personalization', 'settings-knowledge-base', 'settings-help',
+  'settings-charts',
 ] as const;
 
 type UserSettingsRow = {
@@ -77,6 +77,11 @@ export type UserSettingsSnapshot = {
 export type UserSettingsLoadResult = {
   settings: UserSettingsSnapshot | null;
   error: BrowserApiError | null;
+};
+
+export type DefaultChartIds = {
+  bazi: string | null;
+  ziwei: string | null;
 };
 
 export type UserSettingsUpdateInput = Partial<{
@@ -130,11 +135,42 @@ export function normalizeUserSettings(row: UserSettingsRow | null | undefined): 
   };
 }
 
+export function toDefaultChartIds(
+  settings: Pick<UserSettingsSnapshot, 'defaultBaziChartId' | 'defaultZiweiChartId'>,
+): DefaultChartIds {
+  return {
+    bazi: settings.defaultBaziChartId,
+    ziwei: settings.defaultZiweiChartId,
+  };
+}
+
+export function sanitizeDefaultChartIds(
+  defaults: DefaultChartIds,
+  availableCharts: { bazi: Iterable<string>; ziwei: Iterable<string> },
+): DefaultChartIds {
+  const baziIds = new Set(availableCharts.bazi);
+  const ziweiIds = new Set(availableCharts.ziwei);
+  return {
+    bazi: defaults.bazi && baziIds.has(defaults.bazi) ? defaults.bazi : null,
+    ziwei: defaults.ziwei && ziweiIds.has(defaults.ziwei) ? defaults.ziwei : null,
+  };
+}
+
+export function buildDefaultChartSettingsPayload(
+  userId: string,
+  type: 'bazi' | 'ziwei',
+  chartId: string | null,
+): Record<string, unknown> {
+  return buildUserSettingsUpdatePayload(userId, type === 'bazi'
+    ? { defaultBaziChartId: chartId }
+    : { defaultZiweiChartId: chartId });
+}
+
 export function getUserSettingsRow(
-  client: UserSettingsReader,
+  client: unknown,
   userId: string,
 ): UserSettingsQueryResult {
-  return client
+  return (client as UserSettingsReader)
     .from('user_settings')
     .select(USER_SETTINGS_SELECT)
     .eq('user_id', userId)
@@ -142,7 +178,7 @@ export function getUserSettingsRow(
 }
 
 export async function getUserSettingsSnapshot(
-  client: UserSettingsReader,
+  client: unknown,
   userId: string,
 ): Promise<{ settings: UserSettingsSnapshot; error: unknown }> {
   const result = await getUserSettingsRow(client, userId);

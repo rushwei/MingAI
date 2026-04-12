@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { getEffectiveMembershipType, MembershipResolutionError } from '@/lib/user/membership-server';
 import { ingestFileAsService, backfillVectorsAsService } from '@/lib/knowledge-base/ingest';
 import { triggerVectorIndexCreation } from '@/lib/knowledge-base/vector-index';
-import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
 
 function isAllowedFile(file: File) {
@@ -20,7 +20,15 @@ export async function POST(request: NextRequest) {
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
 
-    const membership = await getEffectiveMembershipType(user.id);
+    let membership;
+    try {
+        membership = await getEffectiveMembershipType(user.id, { client: auth.db });
+    } catch (error) {
+        if (error instanceof MembershipResolutionError) {
+            return jsonError(error.message, 500);
+        }
+        throw error;
+    }
     if (membership === 'free') {
         return jsonError('当前会员等级无法使用知识库', 403);
     }
@@ -45,8 +53,7 @@ export async function POST(request: NextRequest) {
         return jsonError('文件过大', 400);
     }
 
-    const service = getSystemAdminClient();
-    const { data: kb } = await service
+    const { data: kb } = await auth.db
         .from('knowledge_bases')
         .select('id, user_id')
         .eq('id', kbId)

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { parseBaziCaseProfileInput } from '@/lib/bazi-case-profile';
 import { ensureUserOwnsBaziChart, getBaziCaseProfileByChartId, saveBaziCaseProfile } from '@/lib/server/bazi-case-profile';
 import { isValidUUID } from '@/lib/validation';
@@ -16,13 +16,14 @@ export async function GET(request: NextRequest) {
             return jsonError('chartId 格式不合法', 400);
         }
 
-        const supabase = getSystemAdminClient();
-        const ownsChart = await ensureUserOwnsBaziChart(supabase, chartId, auth.user.id);
+        const { user } = auth;
+        const supabase = auth.db;
+        const ownsChart = await ensureUserOwnsBaziChart(supabase, chartId, user.id);
         if (!ownsChart) {
             return jsonError('未找到对应命盘', 404);
         }
 
-        const profile = await getBaziCaseProfileByChartId(supabase, chartId, auth.user.id);
+        const profile = await getBaziCaseProfileByChartId(supabase, chartId, user.id);
         return jsonOk({ profile });
     } catch (error) {
         console.error('[bazi/case-profile][GET] failed:', error);
@@ -55,15 +56,16 @@ export async function PUT(request: NextRequest) {
             return jsonError('chartId 格式不合法', 400);
         }
 
-        const supabase = getSystemAdminClient();
-        const ownsChart = await ensureUserOwnsBaziChart(supabase, parsed.chartId, auth.user.id);
+        const { user } = auth;
+        const supabase = auth.db;
+        const ownsChart = await ensureUserOwnsBaziChart(supabase, parsed.chartId, user.id);
         if (!ownsChart) {
             return jsonError('未找到对应命盘', 404);
         }
 
         const profile = await saveBaziCaseProfile({
             supabase,
-            userId: auth.user.id,
+            userId: user.id,
             chartId: parsed.chartId,
             masterReview: parsed.masterReview,
             ownerFeedback: parsed.ownerFeedback,

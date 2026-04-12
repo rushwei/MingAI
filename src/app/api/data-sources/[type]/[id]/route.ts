@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 import { getProvider } from '@/lib/data-sources';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { requireUserContext, jsonError, getAccessToken, createAuthedClient, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 import { getDataSourceFeatureId } from '@/lib/data-sources/catalog';
 import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
 
@@ -14,17 +14,15 @@ export async function GET(
     if ('error' in auth) {
         return jsonError(auth.error.message, auth.error.status);
     }
-    const user = auth.user;
+    const { user } = auth;
+    const db = auth.db;
     const { type, id } = await params;
     const featureError = await ensureFeatureRouteEnabled(getDataSourceFeatureId(type as DataSourceType));
     if (featureError) return featureError;
 
     try {
-        const accessToken = await getAccessToken(_request);
-        const authed = accessToken ? createAuthedClient(accessToken) : undefined;
-
         const provider = await getProvider(type as DataSourceType);
-        const data = await provider.get(id, user.id, { client: authed });
+        const data = await provider.get(id, user.id, { client: db });
         if (!data) return jsonError('数据不存在', 404);
         return jsonOk({
             type: provider.type,

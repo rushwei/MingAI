@@ -15,8 +15,10 @@ function formatYm(date: Date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryContext): Promise<CoreBaziOutput | null> {
-    const supabase = ctx?.client ?? getSystemAdminClient();
+async function loadPreferredBaziChartRow(
+    supabase: DataSourceQueryContext['client'] | ReturnType<typeof getSystemAdminClient>,
+    userId: string,
+) {
     const { data: settings } = await supabase
         .from('user_settings')
         .select('default_bazi_chart_id')
@@ -25,16 +27,25 @@ async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryC
 
     const settingsRow = settings as null | { default_bazi_chart_id: string | null };
     const defaultId = settingsRow?.default_bazi_chart_id ?? null;
-
     const baseQuery = supabase
         .from('bazi_charts')
         .select('id, name, gender, birth_date, birth_time, birth_place, longitude, calendar_type, is_leap_month, day_master, day_branch, created_at')
         .eq('user_id', userId);
 
-    const { data } = defaultId
-        ? await baseQuery.eq('id', defaultId).maybeSingle()
-        : await baseQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (defaultId) {
+        const preferred = await baseQuery.eq('id', defaultId).maybeSingle();
+        if (preferred.data) {
+            return preferred.data;
+        }
+    }
 
+    const fallback = await baseQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
+    return fallback.data;
+}
+
+async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryContext): Promise<CoreBaziOutput | null> {
+    const supabase = ctx?.client ?? getSystemAdminClient();
+    const data = await loadPreferredBaziChartRow(supabase, userId);
     if (!data) return null;
     const row = data as {
         gender: string | null;

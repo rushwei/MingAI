@@ -4,13 +4,14 @@
  * 提供 AI 性格分析功能
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError } from '@/lib/api-utils';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/divination/mbti';
 import {
     createDirectInterpretHandlers,
     createInterpretHandler,
     type DivinationRouteConfig,
     type InterpretInput,
+    saveUserOwnedDivinationRecord,
 } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
@@ -98,35 +99,32 @@ ${basic.description}
 const handleInterpret = createInterpretHandler<MBTIInterpretInput>(mbtiInterpretConfig);
 const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<MBTIInterpretInput>(mbtiInterpretConfig);
 
+const mbtiSaveConfig = {
+    tag: 'mbti',
+    tableName: 'mbti_readings',
+    responseKey: 'readingId' as const,
+    validate: (input: MBTIRequest) => (!input.type || !input.percentages)
+        ? { error: '请提供完整的测试结果', status: 400 }
+        : null,
+    buildInsertPayload: (input: MBTIRequest, userId: string) => ({
+        user_id: userId,
+        mbti_type: input.type,
+        scores: input.scores,
+        percentages: input.percentages,
+    }),
+};
+
 export async function POST(request: NextRequest) {
     try {
         const body: MBTIRequest = await request.json();
         const { action } = body;
 
         if (action === 'save') {
-            if (!body.type || !body.percentages) {
-                return jsonError('请提供完整的测试结果', 400, { success: false });
-            }
-            const authResult = await requireUserContext(request);
-            if ('error' in authResult) {
-                return jsonError(authResult.error.message, authResult.error.status, { success: false });
-            }
-            const serviceClient = getSystemAdminClient();
-            const { data: insertedReading, error: insertError } = await serviceClient
-                .from('mbti_readings')
-                .insert({
-                    user_id: authResult.user.id,
-                    mbti_type: body.type,
-                    scores: body.scores,
-                    percentages: body.percentages,
-                })
-                .select('id')
-                .single();
-            if (insertError) {
-                console.error('[mbti] 保存测试记录失败:', insertError.message);
-                return jsonError('保存记录失败', 500, { success: false });
-            }
-            return jsonOk({ success: true, data: { readingId: insertedReading?.id } });
+            return saveUserOwnedDivinationRecord({
+                request,
+                input: body,
+                ...mbtiSaveConfig,
+            });
         }
 
         if (action === 'analyze_prepare') {

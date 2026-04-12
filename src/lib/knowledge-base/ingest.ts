@@ -1,9 +1,14 @@
 import type { ChatMessage } from '@/types';
-import type { DataSourceType } from '@/lib/data-sources/types';
+import {
+    MING_RECORD_SOURCE_TYPE,
+    canonicalizeDataSourceType,
+    type DataSourceType,
+    type DataSourceTypeInput,
+} from '@/lib/data-sources/types';
 import { getProvider } from '@/lib/data-sources';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { generateEmbeddings } from '@/lib/knowledge-base/embedding-config';
-import type { IngestResult } from '@/lib/knowledge-base/types';
+import type { IngestResult, KnowledgeBaseWeight } from '@/lib/knowledge-base/types';
 import { createKbClient } from '@/lib/knowledge-base/client';
 import { isConversationMessageInfraMissing, type StoredConversationMessageRow } from '@/lib/server/conversation-messages';
 
@@ -42,10 +47,68 @@ type UpsertEntriesOptions = {
     source?: SourceReplaceRef;
 };
 
+type KnowledgeBaseWriteMode = 'create' | 'update';
+
 interface VectorBackfillResult extends IngestResult {
     processed?: number;
     skipped?: number;
     alreadyExists?: number;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+export function normalizeKnowledgeBaseInput(
+    input: unknown,
+    mode: KnowledgeBaseWriteMode,
+): { data: { name?: string; description?: string | null; weight?: KnowledgeBaseWeight } } | { error: string } {
+    if (!isPlainObject(input)) {
+        return { error: '请求体不是合法对象' };
+    }
+
+    const data: { name?: string; description?: string | null; weight?: KnowledgeBaseWeight } = {};
+
+    if (mode === 'create' || hasOwn(input, 'name')) {
+        if (typeof input.name !== 'string' || !input.name.trim()) {
+            return { error: 'name 不能为空' };
+        }
+        data.name = input.name.trim();
+    }
+
+    if (mode === 'create' || hasOwn(input, 'description')) {
+        if (input.description == null || input.description === '') {
+            data.description = null;
+        } else if (typeof input.description === 'string') {
+            data.description = input.description.trim();
+        } else {
+            return { error: 'description 无效' };
+        }
+    }
+
+    if (mode === 'create' || hasOwn(input, 'weight')) {
+        if (input.weight == null || input.weight === '') {
+            data.weight = 'normal';
+        } else if (input.weight === 'low' || input.weight === 'normal' || input.weight === 'high') {
+            data.weight = input.weight;
+        } else {
+            return { error: 'weight 无效' };
+        }
+    }
+
+    if (mode === 'update' && Object.keys(data).length === 0) {
+        return { error: '没有可更新的知识库字段' };
+    }
+
+    return { data };
+}
+
+export function normalizeKnowledgeBaseSourceType(sourceType: DataSourceTypeInput): DataSourceType {
+    return canonicalizeDataSourceType(sourceType);
 }
 
 async function loadConversationMessagesFallback(
@@ -146,7 +209,7 @@ export async function ingestRecord(
 
     const chunks: ChunkData[] = textChunks.map((c, i) => ({
         content: c,
-        sourceType: 'record' as const,
+        sourceType: MING_RECORD_SOURCE_TYPE,
         sourceId: recordId,
         chunkIndex: i,
         metadata: {
@@ -158,7 +221,7 @@ export async function ingestRecord(
     return await upsertEntries(kbId, chunks, {
         userId: user.id,
         source: {
-            sourceType: 'record',
+            sourceType: MING_RECORD_SOURCE_TYPE,
             sourceId: recordId,
         },
     });
@@ -384,7 +447,7 @@ export async function ingestRecordAsService(
 
     const chunks: ChunkData[] = textChunks.map((c, i) => ({
         content: c,
-        sourceType: 'record' as const,
+        sourceType: MING_RECORD_SOURCE_TYPE,
         sourceId: recordId,
         chunkIndex: i,
         metadata: {
@@ -396,7 +459,7 @@ export async function ingestRecordAsService(
     return await upsertEntriesAsService(kbId, chunks, {
         userId,
         source: {
-            sourceType: 'record',
+            sourceType: MING_RECORD_SOURCE_TYPE,
             sourceId: recordId,
             archive: true,
         },

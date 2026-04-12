@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient } from '@/lib/api-utils';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
-import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { getEffectiveMembershipType, MembershipResolutionError } from '@/lib/user/membership-server';
+import { requireUserContext, jsonError, jsonOk, resolveRequestDbClient } from '@/lib/api-utils';
 import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
+import { normalizeKnowledgeBaseInput } from '@/lib/knowledge-base/ingest';
 
 export async function GET(request: NextRequest) {
     const featureError = await ensureFeatureRouteEnabled('knowledge-base');
@@ -10,9 +10,10 @@ export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
+    const db = resolveRequestDbClient(auth);
+    if (!db) return jsonError('获取知识库失败', 500);
 
-    const service = getSystemAdminClient();
-    const { data, error } = await service
+    const { data, error } = await db
         .from('knowledge_bases')
         .select('*')
         .eq('user_id', user.id)
@@ -27,22 +28,40 @@ export async function POST(request: NextRequest) {
     if (featureError) return featureError;
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-    const { user, supabase } = auth;
+    const { user } = auth;
+    const db = resolveRequestDbClient(auth);
+    if (!db) return jsonError('创建知识库失败', 500);
 
-    const body = await request.json() as { name?: string; description?: string; weight?: 'low' | 'normal' | 'high' };
-    if (!body.name) return jsonError('name 不能为空', 400);
+    let body: unknown;
+    try {
+        body = await request.json();
+    } catch {
+        return jsonError('请求体不是合法 JSON', 400);
+    }
+    const normalized = normalizeKnowledgeBaseInput(body, 'create');
+    if ('error' in normalized) {
+        return jsonError(normalized.error, 400);
+    }
 
-    const membership = await getEffectiveMembershipType(user.id);
+    let membership;
+    try {
+        membership = await getEffectiveMembershipType(user.id, { client: db });
+    } catch (error) {
+        if (error instanceof MembershipResolutionError) {
+            return jsonError(error.message, 500);
+        }
+        throw error;
+    }
     if (membership === 'free') {
         return jsonError('当前会员等级无法创建知识库', 403);
     }
 
     const limit = membership === 'plus' ? 3 : 10;
-    const { data, error } = await supabase.rpc('create_knowledge_base_with_limit', {
+    const { data, error } = await db.rpc('create_knowledge_base_with_limit', {
         p_user_id: user.id,
-        p_name: body.name,
-        p_description: body.description ?? null,
-        p_weight: body.weight ?? 'normal',
+        p_name: normalized.data.name,
+        p_description: normalized.data.description ?? null,
+        p_weight: normalized.data.weight ?? 'normal',
         p_limit: limit,
     });
 

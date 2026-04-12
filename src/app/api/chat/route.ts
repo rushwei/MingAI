@@ -14,7 +14,7 @@ import {
   callAIUIMessageResult,
 } from '@/lib/ai/ai';
 import { extractAIErrorInfo } from '@/lib/ai/ai-error';
-import { addCredits } from '@/lib/user/credits';
+import { refundCreditsOrLog } from '@/lib/user/credits';
 import { jsonError, jsonOk } from '@/lib/api-utils';
 import {
   parseChatRequestBody,
@@ -79,11 +79,9 @@ export async function POST(request: NextRequest) {
           );
 
           if (!hasVisibleText) {
-            try {
-              await addCredits(userId, 1);
+            const refunded = await refundCreditsOrLog(userId, 1, 'chat stream empty-response');
+            if (refunded) {
               creditDeducted = false;
-            } catch (refundError) {
-              console.error('AI 对话流式退费失败:', refundError);
             }
           }
         },
@@ -101,7 +99,7 @@ export async function POST(request: NextRequest) {
     return jsonOk({ content, metadata });
   } catch (error) {
     if (creditDeducted && userId && !canSkipCredit) {
-      await addCredits(userId, 1);
+      await refundCreditsOrLog(userId, 1, 'chat route failure');
     }
 
     console.error('AI API 错误:', error);

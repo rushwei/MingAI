@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { hasNonEmptyStrings } from '@/lib/validation';
 
@@ -14,14 +14,15 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { user } = await getAuthContext(request);
-        if (!user) {
-            return jsonError('请先登录', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
+        const { user } = auth;
+        const db = auth.db;
 
         const { id } = await params;
-        const serviceClient = getSystemAdminClient();
-        const { data, error } = await serviceClient
+        const { data, error } = await db
             .from('community_comments')
             .select('id, user_id')
             .eq('id', id)
@@ -60,7 +61,8 @@ export async function PUT(
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = auth.db;
 
         const { id } = await params;
         const body = await request.json();
@@ -70,7 +72,7 @@ export async function PUT(
         }
 
         const updateResult = await withRetry(async () => {
-            const response = await supabase
+            const response = await db
                 .from('community_comments')
                 .update({
                     content: body.content,
@@ -114,12 +116,13 @@ export async function DELETE(
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = auth.db;
 
         const { id } = await params;
 
         const deleteResult = await withRetry(async () => {
-            const response = await supabase
+            const response = await db
                 .from('community_comments')
                 .update({ is_deleted: true, updated_at: new Date().toISOString() })
                 .eq('id', id)

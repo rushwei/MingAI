@@ -1,7 +1,7 @@
 
 import { NextRequest } from 'next/server';
 import { getUserDataSourcesWithErrors } from '@/lib/data-sources';
-import { requireUserContext, jsonError, getAccessToken, createAuthedClient, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 import { createMemoryCache } from '@/lib/cache/memory';
 import { getFeatureToggles } from '@/lib/app-settings';
 import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     if ('error' in auth) {
         return jsonError(auth.error.message, auth.error.status);
     }
-    const user = auth.user;
+    const { user } = auth;
+    const db = auth.db;
 
     try {
         const url = new URL(request.url);
@@ -34,10 +35,7 @@ export async function GET(request: NextRequest) {
             return jsonOk(cached.payload as Record<string, unknown>, cached.status);
         }
 
-        const accessToken = await getAccessToken(request);
-        const authed = accessToken ? createAuthedClient(accessToken) : undefined;
-
-        const result = await getUserDataSourcesWithErrors(user.id, { client: authed, limit }, enabledTypes);
+        const result = await getUserDataSourcesWithErrors(user.id, { client: db, limit }, enabledTypes);
         const status = result.errors.length ? 206 : 200;
         cache.set(cacheKey, { status, payload: result });
         return jsonOk(result as unknown as Record<string, unknown>, status);

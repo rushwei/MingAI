@@ -14,8 +14,21 @@
 
 import { type NextRequest } from 'next/server';
 import { createUIMessageStream, createUIMessageStreamResponse, type FinishReason } from 'ai';
-import { jsonError, jsonOk, requireBearerUser, requireUserContext, SSE_HEADERS } from '@/lib/api-utils';
-import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
+import {
+  getSystemAdminClient,
+  jsonError,
+  jsonOk,
+  requireBearerUser,
+  requireUserContext,
+  resolveRequestDbClient,
+  SSE_HEADERS,
+} from '@/lib/api-utils';
+import {
+  attemptCreditUse,
+  getUserAuthInfo,
+  refundCreditsOrLog,
+  UserStateResolutionError,
+} from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { callAIWithReasoning, callAIUIMessageResult, callAIVision } from '@/lib/ai/ai';
@@ -48,12 +61,143 @@ export interface InterpretPromptContext {
   [key: string]: unknown;
 }
 
+type UserContextAuthResult = Extract<
+  Awaited<ReturnType<typeof requireUserContext>>,
+  { user: { id: string } }
+>;
+
+export type DivinationAuthContext = {
+  userId: string;
+  db: UserContextAuthResult['db'] | null;
+  accessToken: string | null;
+};
+
+type SuccessfulDivinationAuthResult = {
+  user: { id: string };
+  db?: UserContextAuthResult['db'];
+  supabase?: UserContextAuthResult['db'];
+  accessToken?: string | null;
+};
+
 type RouteError = { error: string; status: number };
 
 type AuthMethod = 'bearer' | 'userContext';
 
 function isRouteError(value: unknown): value is RouteError {
   return Boolean(value && typeof value === 'object' && 'error' in value && 'status' in value);
+}
+
+type SaveUserOwnedRecordOptions<TInput, TResponseKey extends string> = {
+  request: NextRequest;
+  tag: string;
+  tableName: string;
+  responseKey: TResponseKey;
+  input: TInput;
+  validate?: (input: TInput) => RouteError | null;
+  buildInsertPayload: (input: TInput, userId: string) => Record<string, unknown>;
+  successStatus?: number;
+  errorMessage?: string;
+};
+
+type PersistUserOwnedRecordOptions<TInput> = {
+  client: SaveUserOwnedRecordClient;
+  tag: string;
+  tableName: string;
+  input: TInput;
+  userId: string;
+  buildInsertPayload: (input: TInput, userId: string) => Record<string, unknown>;
+  errorMessage?: string;
+};
+
+type SaveUserOwnedRecordResult = {
+  data?: { id?: string | null } | null;
+  error?: { message?: string } | null;
+};
+type SaveUserOwnedRecordClient = {
+  from: (tableName: string) => {
+    insert: (payload: Record<string, unknown>) => {
+      select: (columns: string) => {
+        single: () => PromiseLike<SaveUserOwnedRecordResult>;
+      };
+    };
+  };
+};
+
+export async function persistUserOwnedDivinationRecord<
+  TInput,
+>({
+  client,
+  tag,
+  tableName,
+  input,
+  userId,
+  buildInsertPayload,
+  errorMessage = '保存记录失败',
+}: PersistUserOwnedRecordOptions<TInput>): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await client
+    .from(tableName)
+    .insert(buildInsertPayload(input, userId))
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error(`[${tag}] ${errorMessage}:`, error.message);
+    return {
+      id: null,
+      error: errorMessage,
+    };
+  }
+
+  return {
+    id: (data as { id?: string } | null)?.id ?? null,
+    error: null,
+  };
+}
+
+export async function saveUserOwnedDivinationRecord<
+  TInput,
+  TResponseKey extends string,
+>({
+  request,
+  tag,
+  tableName,
+  responseKey,
+  input,
+  validate,
+  buildInsertPayload,
+  successStatus = 200,
+  errorMessage = '保存记录失败',
+}: SaveUserOwnedRecordOptions<TInput, TResponseKey>): Promise<Response> {
+  const validationError = validate?.(input);
+  if (validationError) {
+    return jsonError(validationError.error, validationError.status, { success: false });
+  }
+
+  const authResult = await requireUserContext(request);
+  if ('error' in authResult) {
+    return jsonError(authResult.error.message, authResult.error.status, { success: false });
+  }
+
+  const { id, error } = await persistUserOwnedDivinationRecord({
+    client: resolveAuthDbClient(authResult) as unknown as SaveUserOwnedRecordClient,
+    tag,
+    tableName,
+    input,
+    userId: authResult.user.id,
+    buildInsertPayload,
+    errorMessage,
+  });
+
+  if (error) {
+    return jsonError(errorMessage, 500, { success: false });
+  }
+
+  return jsonOk({
+    success: true,
+    data: {
+      [responseKey]: id,
+    },
+  }, successStatus);
 }
 
 export interface DivinationRouteConfig<
@@ -73,7 +217,7 @@ export interface DivinationRouteConfig<
   /** Build system + user prompts from parsed input. */
   buildPrompts: (input: T, context?: TContext) => InterpretPrompts | Promise<InterpretPrompts>;
   /** Optional prompt context resolver (used for user settings such as chart prompt detail level). */
-  resolvePromptContext?: (input: T, userId: string) => Promise<TContext | RouteError> | TContext | RouteError;
+  resolvePromptContext?: (input: T, auth: DivinationAuthContext) => Promise<TContext | RouteError> | TContext | RouteError;
   /** Build source_data for createAIAnalysisConversation. */
   buildSourceData: (input: T, modelId: string, reasoningEnabled: boolean, context?: TContext) => Record<string, unknown>;
   /** Generate conversation title. */
@@ -124,6 +268,22 @@ export interface DivinationRouteConfig<
 
 export interface PersistentStreamResult {
   error?: string | null;
+}
+
+function resolveAuthDbClient(
+  authResult: Partial<Pick<UserContextAuthResult, 'db' | 'supabase'>>,
+): UserContextAuthResult['db'] | null {
+  return resolveRequestDbClient(authResult) ?? getSystemAdminClient();
+}
+
+function toDivinationAuthContext(
+  authResult: SuccessfulDivinationAuthResult,
+): DivinationAuthContext {
+  return {
+    userId: authResult.user.id,
+    db: resolveAuthDbClient(authResult),
+    accessToken: authResult.accessToken ?? null,
+  };
 }
 
 export function createPersistentStreamResponse({
@@ -266,6 +426,7 @@ export function createDirectInterpretHandlers<
     if ('error' in authResult) {
       return jsonError(authResult.error.message, authResult.error.status, { success: false });
     }
+    const authContext = toDivinationAuthContext(authResult);
 
     if (runPrecheck) {
       const precheckResult = precheck ? await precheck(request, input, authResult.user.id) : null;
@@ -275,7 +436,7 @@ export function createDirectInterpretHandlers<
     }
 
     const promptContextResult = resolvePromptContext
-      ? await resolvePromptContext(input, authResult.user.id)
+      ? await resolvePromptContext(input, authContext)
       : undefined;
     if (isRouteError(promptContextResult)) {
       return jsonError(promptContextResult.error, promptContextResult.status, { success: false });
@@ -285,7 +446,7 @@ export function createDirectInterpretHandlers<
     if (!includePrompts) {
       return {
         input,
-        userId: authResult.user.id,
+        userId: authContext.userId,
         promptContext,
       };
     }
@@ -300,7 +461,7 @@ export function createDirectInterpretHandlers<
 
     return {
       input,
-      userId: authResult.user.id,
+      userId: authContext.userId,
       promptContext,
       systemPrompt,
       userPrompt,
@@ -497,6 +658,7 @@ export function createInterpretHandler<
       return jsonError(authResult.error.message, authResult.error.status, { success: false });
     }
     const { user } = authResult;
+    const authContext = toDivinationAuthContext(authResult);
 
     const precheckResult = precheck ? await precheck(request, input, user.id) : null;
     if (precheckResult) {
@@ -504,7 +666,7 @@ export function createInterpretHandler<
     }
 
     const promptContextResult = resolvePromptContext
-      ? await resolvePromptContext(input, user.id)
+      ? await resolvePromptContext(input, authContext)
       : undefined;
     if (isRouteError(promptContextResult)) {
       return jsonError(promptContextResult.error, promptContextResult.status, { success: false });
@@ -512,9 +674,20 @@ export function createInterpretHandler<
     const promptContext = promptContextResult as TContext | undefined;
 
     // 2. Credits + membership
-    const authInfo = await getUserAuthInfo(user.id);
-    if (!authInfo || !authInfo.hasCredits) {
-      return jsonError('积分不足，请通过签到、激活码或会员权益获取积分后再使用', 403, { success: false });
+    let authInfo;
+    try {
+      authInfo = await getUserAuthInfo(user.id, {
+        client: resolveRequestDbClient(authResult) ?? undefined,
+        user,
+      });
+    } catch (error) {
+      if (error instanceof UserStateResolutionError) {
+        return jsonError(error.message, 500, { success: false, code: error.code });
+      }
+      throw error;
+    }
+    if (!authInfo.hasCredits) {
+      return jsonError('积分不足，请通过签到、激活码或会员权益获取积分后再使用', 402, { success: false });
     }
 
     // 3. Model access
@@ -540,9 +713,14 @@ export function createInterpretHandler<
       : rawSystemPrompt;
 
     // 4. Deduct credit
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- useCredit is a server function, not a React hook
-    const remaining = await useCredit(user.id);
-    if (remaining === null) {
+    const creditUse = await attemptCreditUse(user.id, {
+      client: resolveRequestDbClient(authResult) ?? undefined,
+      user,
+    });
+    if (!creditUse.ok) {
+      if (creditUse.reason === 'insufficient_credits') {
+        return jsonError('积分不足，请通过签到、激活码或会员权益获取积分后再使用', 402, { success: false });
+      }
       return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
     }
 
@@ -568,12 +746,12 @@ export function createInterpretHandler<
       );
     } catch (aiError) {
       if (aiError instanceof AIAnalysisConversationPersistenceError) {
-        await addCredits(user.id, 1);
+        await refundCreditsOrLog(user.id, 1, `${tag} persistence`);
         console.error(`[${tag}] 分析结果保存失败:`, aiError);
         return jsonError('保存结果失败，请稍后重试', 500, { success: false });
       }
 
-      await addCredits(user.id, 1);
+      await refundCreditsOrLog(user.id, 1, `${tag} ai-call`);
       console.error(`[${tag}] AI 调用失败:`, aiError);
       return jsonError(extractAIErrorMessage(aiError), 500, { success: false });
     }
@@ -626,7 +804,7 @@ export function createInterpretHandler<
       onStreamComplete: async ({ content, reasoning }) => {
         try {
           if (!content?.trim()) {
-            await addCredits(userId, 1);
+            await refundCreditsOrLog(userId, 1, `${tag} stream-empty`);
             return { error: emptyResultMessage };
           }
           const conversationId = await persistConversation(
@@ -637,11 +815,7 @@ export function createInterpretHandler<
           }
           return {};
         } catch (err) {
-          try {
-            await addCredits(userId, 1);
-          } catch (refundError) {
-            console.error(`[${tag}] 流式保存失败后的退费失败:`, refundError);
-          }
+          await refundCreditsOrLog(userId, 1, `${tag} stream-persist`);
           console.error(`[${tag}] 流式结果保存失败:`, err);
           return { error: '保存结果失败，请稍后重试' };
         }
@@ -663,7 +837,7 @@ export function createInterpretHandler<
       { reasoning: reasoningEnabled, temperature: 0.7 },
     );
     if (!content?.trim()) {
-      await addCredits(userId, 1);
+      await refundCreditsOrLog(userId, 1, `${tag} empty-result`);
       return jsonError(emptyResultMessage, 500, { success: false });
     }
 

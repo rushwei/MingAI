@@ -4,12 +4,13 @@
  * action: calculate | interpret | save
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk } from '@/lib/api-utils';
 import {
     createDirectInterpretHandlers,
     createInterpretHandler,
     type DivinationRouteConfig,
     type InterpretInput,
+    saveUserOwnedDivinationRecord,
 } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
@@ -66,9 +67,11 @@ const daliurenInterpretConfig: DivinationRouteConfig<DaliurenInterpretInput> = {
             divinationId: b.divinationId,
         };
     },
-    resolvePromptContext: async (_input, userId) => ({
-        userId,
-        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(userId, 'daliuren'),
+    resolvePromptContext: async (_input, auth) => ({
+        userId: auth.userId,
+        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(auth.userId, 'daliuren', {
+            client: auth.db ?? undefined,
+        }),
     }),
     buildPrompts: (input, promptContext) => ({
         systemPrompt: '',
@@ -96,6 +99,25 @@ const daliurenInterpretConfig: DivinationRouteConfig<DaliurenInterpretInput> = {
 const handleInterpret = createInterpretHandler<DaliurenInterpretInput>(daliurenInterpretConfig);
 const { handleDirectPrepare, handleDirectPersist } = createDirectInterpretHandlers<DaliurenInterpretInput>(daliurenInterpretConfig);
 
+const daliurenSaveConfig = {
+    tag: 'daliuren',
+    tableName: 'daliuren_divinations',
+    responseKey: 'divinationId' as const,
+    validate: (input: DaliurenRequest) => (!input.date || input.hour == null || !input.resultData)
+        ? { error: '缺少排盘数据', status: 400 }
+        : null,
+    buildInsertPayload: (input: DaliurenRequest, userId: string) => ({
+        user_id: userId,
+        question: input.question || null,
+        solar_date: input.date,
+        day_ganzhi: input.resultData!.dateInfo.ganZhi.day,
+        hour_ganzhi: input.resultData!.dateInfo.ganZhi.hour,
+        yue_jiang: input.resultData!.dateInfo.yueJiang,
+        result_data: input.resultData,
+        settings: { hour: input.hour, minute: input.minute, timezone: input.timezone },
+    }),
+};
+
 export async function POST(request: NextRequest) {
     try {
         const body: DaliurenRequest = await request.json();
@@ -114,39 +136,11 @@ export async function POST(request: NextRequest) {
             }
 
             case 'save': {
-                const authResult = await requireUserContext(request);
-                if ('error' in authResult) {
-                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
-                }
-                const { user } = authResult;
-                const { date, hour, minute, timezone, question, resultData } = body;
-
-                if (!date || hour == null || !resultData) {
-                    return jsonError('缺少排盘数据', 400, { success: false });
-                }
-
-                const serviceClient = getSystemAdminClient();
-                const { data: inserted, error: insertError } = await serviceClient
-                    .from('daliuren_divinations')
-                    .insert({
-                        user_id: user.id,
-                        question: question || null,
-                        solar_date: date,
-                        day_ganzhi: resultData.dateInfo.ganZhi.day,
-                        hour_ganzhi: resultData.dateInfo.ganZhi.hour,
-                        yue_jiang: resultData.dateInfo.yueJiang,
-                        result_data: resultData,
-                        settings: { hour, minute, timezone },
-                    })
-                    .select('id')
-                    .single();
-
-                if (insertError) {
-                    console.error('[daliuren] 保存排盘记录失败:', insertError.message);
-                    return jsonError('保存记录失败', 500, { success: false });
-                }
-
-                return jsonOk({ success: true, data: { divinationId: inserted?.id } });
+                return saveUserOwnedDivinationRecord({
+                    request,
+                    input: body,
+                    ...daliurenSaveConfig,
+                });
             }
 
             case 'interpret':

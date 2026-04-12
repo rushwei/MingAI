@@ -213,6 +213,42 @@ export function buildPersonalityPrompt(personalities: AIPersonality[]): string {
     }).join('\n\n');
 }
 
+export function buildMinimalChatSystemPrompt(input: {
+    dreamMode?: boolean;
+    mangpaiMode?: boolean;
+    expressionStyle?: 'direct' | 'gentle';
+    customInstructions?: string | null;
+}): {
+    systemPrompt: string;
+    personalities: AIPersonality[];
+} {
+    const personalityResolution = resolvePersonalities({
+        chartContext: input.mangpaiMode ? { analysisMode: 'mangpai' } : undefined,
+        dreamMode: input.dreamMode ? { enabled: true } : undefined,
+        mentions: [],
+    });
+
+    const parts = [
+        getBaseRulesPrompt(),
+        buildPersonalityPrompt(personalityResolution.personalities),
+    ];
+
+    const expressionStyle = formatExpressionStyle(input.expressionStyle);
+    if (expressionStyle) {
+        parts.push(expressionStyle);
+    }
+
+    const customInstructions = input.customInstructions?.trim();
+    if (customInstructions) {
+        parts.push(`【用户自定义指令】\n${customInstructions}`);
+    }
+
+    return {
+        systemPrompt: parts.join('\n\n'),
+        personalities: personalityResolution.personalities,
+    };
+}
+
 const VISUALIZATION_MENTION_TYPES = new Set(
     Object.keys(SOURCE_CHART_TYPE_MAP).filter(
         (key) => (SOURCE_CHART_TYPE_MAP as Record<string, readonly ChartType[]>)[key].length > 0,

@@ -7,7 +7,7 @@
  * - Pro: 积分上限 50，签到奖励 x3
  */
 
-import { requestBrowserJson } from '@/lib/browser-api';
+import { requestBrowserJson, type BrowserApiError } from '@/lib/browser-api';
 
 export type MembershipType = 'free' | 'plus' | 'pro';
 
@@ -26,8 +26,11 @@ type MembershipInfoPayload = {
 };
 
 export type MembershipLookupResult = {
-    ok: boolean;
+    ok: true;
     info: MembershipInfo | null;
+} | {
+    ok: false;
+    error: BrowserApiError;
 };
 
 export type MembershipInfoSource = {
@@ -48,12 +51,13 @@ export function normalizeMembershipInfo(input: MembershipInfoPayload | Membershi
         : typeof expiresAtRaw === 'string' && expiresAtRaw.length > 0
             ? new Date(expiresAtRaw)
             : null;
+    const effectiveExpiresAt = membershipType === 'free' ? null : expiresAt;
 
     return {
         type: membershipType,
-        expiresAt: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
-        isActive: typeof input.isActive === 'boolean' ? input.isActive : membershipType === 'free' || expiresAt === null || expiresAt > new Date(),
-        aiChatCount: typeof input.aiChatCount === 'number' ? input.aiChatCount : 1,
+        expiresAt: effectiveExpiresAt && !Number.isNaN(effectiveExpiresAt.getTime()) ? effectiveExpiresAt : null,
+        isActive: typeof input.isActive === 'boolean' ? input.isActive : membershipType === 'free' || effectiveExpiresAt === null || effectiveExpiresAt > new Date(),
+        aiChatCount: typeof input.aiChatCount === 'number' ? input.aiChatCount : 0,
     };
 }
 
@@ -158,12 +162,15 @@ export async function getMembershipInfoResult(userId: string): Promise<Membershi
     });
 
     if (result.error) {
-        return { ok: false, info: null };
+        return { ok: false, error: result.error };
     }
 
     const payloadUserId = result.data?.userId ?? null;
     if (!payloadUserId || payloadUserId !== userId) {
-        return { ok: false, info: null };
+        return {
+            ok: false,
+            error: { message: '会员状态校验失败，请刷新后重试' },
+        };
     }
 
     return {
@@ -175,9 +182,8 @@ export async function getMembershipInfoResult(userId: string): Promise<Membershi
 /**
  * 获取用户会员信息
  */
-export async function getMembershipInfo(userId: string): Promise<MembershipInfo | null> {
-    const result = await getMembershipInfoResult(userId);
-    return result.ok ? result.info : null;
+export async function getMembershipInfo(userId: string): Promise<MembershipLookupResult> {
+    return getMembershipInfoResult(userId);
 }
 
 export function buildMembershipInfo(source: MembershipInfoSource | null): MembershipInfo {
@@ -186,12 +192,12 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
             type: 'free',
             expiresAt: null,
             isActive: true,
-            aiChatCount: 1,
+            aiChatCount: 0,
         };
     }
 
     const membershipType = source.membership ? (source.membership as MembershipType) : 'free';
-    const aiChatCount = typeof source.ai_chat_count === 'number' ? source.ai_chat_count : 1;
+    const aiChatCount = typeof source.ai_chat_count === 'number' ? source.ai_chat_count : 0;
     const expiresAt = source.membership_expires_at
         ? new Date(source.membership_expires_at)
         : null;
@@ -206,7 +212,7 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
 
     return {
         type: effectiveType,
-        expiresAt,
+        expiresAt: effectiveType === 'free' ? null : expiresAt,
         isActive,
         aiChatCount,
     };

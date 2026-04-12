@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { RecordCategory, RecordFilters } from '@/lib/records';
+import { RecordCategory, RecordFilters, normalizeRecordInput } from '@/lib/records';
 import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 import { quotePostgrestString } from '@/lib/utils/postgrest';
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
 
         const { searchParams } = new URL(request.url);
         const rawPage = searchParams.get('page');
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         if (tags.length > 0) filters.tags = tags;
 
         // 构建查询
-        let query = supabase
+        let query = auth.db
             .from('ming_records_with_archive_status')
             .select('*', { count: 'exact' })
             .eq('user_id', user.id)
@@ -100,26 +100,24 @@ export async function POST(request: NextRequest) {
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-        const { supabase, user } = auth;
+        const { user } = auth;
 
-        const body = await request.json();
-
-        if (!body.title) {
-            return jsonError('标题不能为空', 400);
+        let body: unknown;
+        try {
+            body = await request.json();
+        } catch {
+            return jsonError('请求体不是合法 JSON', 400);
+        }
+        const normalized = normalizeRecordInput(body, 'create');
+        if ('error' in normalized) {
+            return jsonError(normalized.error, 400);
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await auth.db
             .from('ming_records')
             .insert({
                 user_id: user.id,
-                title: body.title,
-                content: body.content || null,
-                category: body.category || 'general',
-                tags: body.tags || [],
-                event_date: body.event_date || null,
-                related_chart_type: body.related_chart_type || null,
-                related_chart_id: body.related_chart_id || null,
-                is_pinned: body.is_pinned || false,
+                ...normalized.data,
             })
             .select()
             .single();

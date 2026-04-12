@@ -10,6 +10,7 @@ import { buildDreamContextPayload } from '@/lib/chat/chat-context';
 import { extractUserQuestion } from '@/lib/chat/message-utils';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import { isFeatureModuleEnabled } from '@/lib/app-settings';
+import { normalizeUserSettings, USER_SETTINGS_SELECT } from '@/lib/user/settings';
 import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
 import { DEFAULT_DIMENSIONS } from '@/lib/visualization/dimensions';
 
@@ -93,31 +94,18 @@ async function loadUserSettingsContext(
 ): Promise<UserSettingsContext> {
   const { data } = await supabase
     .from('user_settings')
-    .select('expression_style, chart_prompt_detail_level, user_profile, custom_instructions, prompt_kb_ids, visualization_settings')
+    .select(USER_SETTINGS_SELECT)
     .eq('user_id', userId)
     .maybeSingle();
-  const row = data as null | {
-    expression_style: 'direct' | 'gentle' | null;
-    chart_prompt_detail_level?: 'default' | 'more' | 'full' | null;
-    user_profile: unknown;
-    custom_instructions: string | null;
-    prompt_kb_ids?: unknown;
-    visualization_settings?: unknown;
-  };
+  const settings = normalizeUserSettings((data ?? null) as Record<string, unknown> | null);
 
   return {
-    expressionStyle: (row?.expression_style ?? 'direct') as 'direct' | 'gentle',
-    chartPromptDetailLevel: row?.chart_prompt_detail_level === 'full'
-      ? 'full'
-      : row?.chart_prompt_detail_level === 'more'
-        ? 'more'
-        : 'default',
-    userProfile: row?.user_profile || {},
-    customInstructions: row?.custom_instructions || '',
-    promptKbIds: Array.isArray(row?.prompt_kb_ids)
-      ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
-      : [],
-    visualizationSettings: normalizeVisualizationSettings(row?.visualization_settings) ?? DEFAULT_VISUALIZATION_SETTINGS,
+    expressionStyle: settings.expressionStyle,
+    chartPromptDetailLevel: settings.chartPromptDetailLevel,
+    userProfile: settings.userProfile,
+    customInstructions: settings.customInstructions,
+    promptKbIds: settings.promptKbIds,
+    visualizationSettings: normalizeVisualizationSettings(settings.visualizationSettings) ?? DEFAULT_VISUALIZATION_SETTINGS,
   };
 }
 
@@ -130,7 +118,9 @@ function applyUserSettingsOverrides(
       overrides.expressionStyle === 'direct' ? 'direct' : settings.expressionStyle
     ),
     chartPromptDetailLevel: settings.chartPromptDetailLevel,
-    customInstructions: typeof overrides.customInstructions === 'string'
+    customInstructions: overrides.customInstructions === null
+      ? ''
+      : typeof overrides.customInstructions === 'string'
       ? overrides.customInstructions
       : settings.customInstructions,
     userProfile: overrides.userProfile !== undefined ? overrides.userProfile : settings.userProfile,

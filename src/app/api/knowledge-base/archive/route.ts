@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
 
 const DEFAULT_ARCHIVE_LIMIT = 20;
@@ -15,6 +16,8 @@ type ArchiveRow = {
     created_at: string;
     preview?: string | null;
 };
+
+type KnowledgeBaseArchiveClient = Pick<SupabaseClient, 'from' | 'rpc'>;
 
 function parseLimit(raw: string | null) {
     const value = Number.parseInt(raw || `${DEFAULT_ARCHIVE_LIMIT}`, 10) || DEFAULT_ARCHIVE_LIMIT;
@@ -58,7 +61,7 @@ function toTimestamp(value?: string) {
 }
 
 async function loadArchivedSourceBatch(
-    service: ReturnType<typeof getSystemAdminClient>,
+    service: KnowledgeBaseArchiveClient,
     userId: string,
     kbId: string,
     offset: number,
@@ -74,7 +77,7 @@ async function loadArchivedSourceBatch(
 }
 
 async function loadVirtualChatArchiveBatch(
-    service: ReturnType<typeof getSystemAdminClient>,
+    service: KnowledgeBaseArchiveClient,
     kbId: string,
     offset: number,
     limit: number,
@@ -94,15 +97,15 @@ export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
+    const supabase = auth.db as KnowledgeBaseArchiveClient;
 
     const { searchParams } = new URL(request.url);
     const kbId = searchParams.get('kbId');
     const limit = parseLimit(searchParams.get('limit'));
     const offset = parseOffset(searchParams.get('offset'));
 
-    const service = getSystemAdminClient();
     if (kbId) {
-        const { data: kb } = await service
+        const { data: kb } = await supabase
             .from('knowledge_bases')
             .select('id')
             .eq('id', kbId)
@@ -111,7 +114,7 @@ export async function GET(request: NextRequest) {
         if (!kb) return jsonError('知识库不存在或无权限', 403);
     }
     if (!kbId) {
-        const { data, error } = await service
+        const { data, error } = await supabase
             .from('archived_sources')
             .select('id, kb_id, source_type, source_id, created_at')
             .eq('user_id', user.id)
@@ -146,10 +149,10 @@ export async function GET(request: NextRequest) {
     while (!archivedDone || !virtualDone) {
         const archivedBatchPromise: Promise<{ data: ArchiveRow[]; error: unknown }> = archivedDone
             ? Promise.resolve({ data: [] as ArchiveRow[], error: null })
-            : loadArchivedSourceBatch(service, user.id, kbId, archivedOffset, batchSize) as Promise<{ data: ArchiveRow[]; error: unknown }>;
+            : loadArchivedSourceBatch(supabase, user.id, kbId, archivedOffset, batchSize) as Promise<{ data: ArchiveRow[]; error: unknown }>;
         const virtualBatchPromise: Promise<{ data: Array<{ source_type: string; source_id: string; created_at: string }>; error: unknown }> = virtualDone
             ? Promise.resolve({ data: [] as Array<{ source_type: string; source_id: string; created_at: string }>, error: null })
-            : loadVirtualChatArchiveBatch(service, kbId, virtualOffset, batchSize) as Promise<{ data: Array<{ source_type: string; source_id: string; created_at: string }>; error: unknown }>;
+            : loadVirtualChatArchiveBatch(supabase, kbId, virtualOffset, batchSize) as Promise<{ data: Array<{ source_type: string; source_id: string; created_at: string }>; error: unknown }>;
 
         const [archivedBatch, virtualBatch] = await Promise.all([
             archivedBatchPromise,
@@ -213,7 +216,7 @@ export async function GET(request: NextRequest) {
 
     const previewSourceIds = Array.from(new Set(pageRows.map((item) => item.source_id)));
     const previewSourceTypes = Array.from(new Set(pageRows.map((item) => item.source_type)));
-    const { data: entryPreviews } = await service
+    const { data: entryPreviews } = await supabase
         .from('knowledge_entries')
         .select('source_type, source_id, content, chunk_index')
         .eq('kb_id', kbId)
@@ -250,6 +253,7 @@ export async function POST(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
+    const supabase = auth.db as KnowledgeBaseArchiveClient;
 
     const body = await request.json() as {
         kbId?: string;
@@ -261,8 +265,7 @@ export async function POST(request: NextRequest) {
         return jsonError('参数不完整', 400);
     }
 
-    const service = getSystemAdminClient();
-    const { data: kb } = await service
+    const { data: kb } = await supabase
         .from('knowledge_bases')
         .select('id')
         .eq('id', body.kbId)
@@ -273,7 +276,7 @@ export async function POST(request: NextRequest) {
         return jsonError('知识库不存在或无权限', 403);
     }
 
-    const { data, error } = await service
+    const { data, error } = await supabase
         .from('archived_sources')
         .upsert({
             user_id: user.id,

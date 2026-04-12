@@ -8,38 +8,44 @@
 import { NextRequest } from 'next/server';
 import { getModelsAsync } from '@/lib/server/ai-config';
 import type { MembershipType } from '@/lib/user/membership';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { getEffectiveMembershipType, MembershipResolutionError } from '@/lib/user/membership-server';
 import { getModelAccessForMembershipAsync } from '@/lib/ai/ai-access';
-import { getAuthContext, jsonOk } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 import { getModelUsageType, isUserSelectableUsageType } from '@/lib/ai/source-runtime';
 
-async function resolveMembership(request: NextRequest): Promise<MembershipType> {
-    const { user } = await getAuthContext(request);
-    if (!user) {
-        return 'free';
-    }
-    return getEffectiveMembershipType(user.id);
-}
-
 export async function GET(request: NextRequest) {
-    // 从数据库获取模型配置（带缓存）
-    const models = (await getModelsAsync()).filter((model) => isUserSelectableUsageType(getModelUsageType(model)));
-    const membership = await resolveMembership(request);
+    try {
+        const auth = await getAuthContext(request);
+        if (auth.authError) {
+            return jsonError(auth.authError.message, auth.authError.status);
+        }
 
-    // 返回模型配置（不包含敏感信息）
-    const safeModels = await Promise.all(models.map(async m => {
-        const access = await getModelAccessForMembershipAsync(m, membership);
-        return {
-            id: m.id,
-            name: m.name,
-            vendor: m.vendor,
-            supportsReasoning: m.supportsReasoning,
-            isReasoningDefault: m.isReasoningDefault,
-            allowed: access.allowed,
-            blockedReason: access.blockedReason,
-            reasoningAllowed: access.reasoningAllowed,
-        };
-    }));
+        // 从数据库获取模型配置（带缓存）
+        const models = (await getModelsAsync()).filter((model) => isUserSelectableUsageType(getModelUsageType(model)));
+        const membership: MembershipType = auth.user
+            ? await getEffectiveMembershipType(auth.user.id, { client: auth.db })
+            : 'free';
 
-    return jsonOk({ models: safeModels });
+        // 返回模型配置（不包含敏感信息）
+        const safeModels = await Promise.all(models.map(async m => {
+            const access = await getModelAccessForMembershipAsync(m, membership);
+            return {
+                id: m.id,
+                name: m.name,
+                vendor: m.vendor,
+                supportsReasoning: m.supportsReasoning,
+                isReasoningDefault: m.isReasoningDefault,
+                allowed: access.allowed,
+                blockedReason: access.blockedReason,
+                reasoningAllowed: access.reasoningAllowed,
+            };
+        }));
+
+        return jsonOk({ models: safeModels });
+    } catch (error) {
+        if (error instanceof MembershipResolutionError) {
+            return jsonError(error.message, 500);
+        }
+        throw error;
+    }
 }

@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { buildMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import { ensureUserRecordRow } from '@/lib/user/profile-record';
 import { normalizeUserSettings, USER_SETTINGS_SELECT } from '@/lib/user/settings';
 
 type UserProfilePatchBody = {
@@ -12,26 +13,29 @@ type UserProfilePatchBody = {
     avatar_url?: unknown;
 };
 
-function buildEnsurePayload(user: { id: string; user_metadata?: Record<string, unknown> }) {
-    return {
-        id: user.id,
-        nickname: typeof user.user_metadata?.nickname === 'string' && user.user_metadata.nickname.trim().length > 0
-            ? user.user_metadata.nickname.trim()
-            : '命理爱好者',
-        avatar_url: typeof user.user_metadata?.avatar_url === 'string'
-            ? user.user_metadata.avatar_url
-            : null,
-        membership: 'free',
-        ai_chat_count: 1,
-    };
-}
-
 async function loadProfile(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
-    return auth.supabase
+    return auth.db
         .from('users')
         .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count')
         .eq('id', auth.user.id)
         .maybeSingle();
+}
+
+async function loadProfileWithRecovery(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
+    const profileResult = await loadProfile(auth);
+    if (profileResult.error || profileResult.data) {
+        return profileResult;
+    }
+
+    const ensured = await ensureUserRecordRow(auth.db, auth.user);
+    if (!ensured.ok) {
+        return {
+            data: null,
+            error: ensured.error,
+        };
+    }
+
+    return await loadProfile(auth);
 }
 
 function normalizeProfileRow(row: Record<string, unknown> | null) {
@@ -60,7 +64,7 @@ function normalizeProfileRow(row: Record<string, unknown> | null) {
 }
 
 async function loadSettings(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
-    const { data, error } = await auth.supabase
+    const { data, error } = await auth.db
         .from('user_settings')
         .select(USER_SETTINGS_SELECT)
         .eq('user_id', auth.user.id)
@@ -78,7 +82,7 @@ export async function GET(request: NextRequest) {
     const profileOnly = new URL(request.url).searchParams.get('scope') === 'profile';
 
     if (profileOnly) {
-        const profileResult = await loadProfile(auth);
+        const profileResult = await loadProfileWithRecovery(auth);
         if (profileResult.error) {
             return jsonError('获取用户资料失败', 500);
         }
@@ -90,7 +94,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [profileResult, settingsResult] = await Promise.all([
-        loadProfile(auth),
+        loadProfileWithRecovery(auth),
         loadSettings(auth),
     ]);
     if (profileResult.error || settingsResult.error) {
@@ -119,14 +123,8 @@ export async function POST(request: NextRequest) {
         return jsonError(`Unsupported action: ${action}`, 400);
     }
 
-    const { error } = await auth.supabase
-        .from('users')
-        .upsert(buildEnsurePayload(auth.user), {
-            onConflict: 'id',
-            ignoreDuplicates: true,
-        });
-
-    if (error) {
+    const ensured = await ensureUserRecordRow(auth.db, auth.user);
+    if (!ensured.ok) {
         return jsonError('创建用户资料失败', 500);
     }
 
@@ -167,7 +165,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const [updateResult, settingsResult] = await Promise.all([
-        auth.supabase
+        auth.db
         .from('users')
         .update(updatePayload)
         .eq('id', auth.user.id)

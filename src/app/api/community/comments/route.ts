@@ -5,7 +5,7 @@
 
 import { NextRequest } from 'next/server';
 import { asCommunityLookupClient, loadSingleCommunityAuthorProfile } from '@/lib/community-server';
-import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { hasNonEmptyStrings } from '@/lib/validation';
 
@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
-        const { supabase, user } = auth;
+        const { user } = auth;
+        const db = auth.db;
 
         const body = await request.json();
 
@@ -36,12 +37,11 @@ export async function POST(request: NextRequest) {
             return jsonError('帖子ID和内容不能为空', 400);
         }
 
-        const serviceClient = getSystemAdminClient();
-        const authorProfile = await loadSingleCommunityAuthorProfile(asCommunityLookupClient(supabase), user.id);
+        const authorProfile = await loadSingleCommunityAuthorProfile(asCommunityLookupClient(db), user.id);
 
         // 创建评论
         const commentResult = await withRetry(async () => {
-            const response = await serviceClient
+            const response = await db
                 .from('community_comments')
                 .insert({
                     post_id: body.post_id,

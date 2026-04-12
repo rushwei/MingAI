@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError } from '@/lib/api-utils';
+import { jsonError } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 import { generateZiweiAnalysisTitle } from '@/lib/ai/ai-analysis';
@@ -99,8 +99,12 @@ const handleAnalyze = createInterpretHandler<ZiweiAnalysisInput, ZiweiAnalysisCo
         const rateLimit = await checkRateLimit(clientIP, '/api/ziwei/analysis', RATE_LIMIT_CONFIG);
         return rateLimit.allowed ? null : { error: '请求过于频繁，请稍后再试', status: 429 };
     },
-    resolvePromptContext: async (input, userId) => {
-        const supabase = getSystemAdminClient();
+    resolvePromptContext: async (input, auth) => {
+        const { userId, db } = auth;
+        if (!db) {
+            return { error: '认证上下文缺失', status: 500 };
+        }
+        const supabase = db;
         const { data: chart, error: chartError } = await supabase
             .from('ziwei_charts')
             .select('id, name, user_id, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, longitude')
@@ -135,7 +139,7 @@ const handleAnalyze = createInterpretHandler<ZiweiAnalysisInput, ZiweiAnalysisCo
         };
 
         const { output, astrolabe } = calculateZiweiChartBundle(formData);
-        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'ziwei');
+        const chartPromptDetailLevel = await loadResolvedChartPromptDetailLevel(userId, 'ziwei', { client: supabase });
         const chartSummary = generateZiweiChartText(output, {
             includeHoroscope: true,
             detailLevel: chartPromptDetailLevel,

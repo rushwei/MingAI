@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { getSystemAdminClient, requireUserContext, jsonError, jsonOk, resolveRequestDbClient } from '@/lib/api-utils';
 import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
+import { normalizeKnowledgeBaseInput } from '@/lib/knowledge-base/ingest';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const featureError = await ensureFeatureRouteEnabled('knowledge-base');
@@ -8,10 +9,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const auth = await requireUserContext(_request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
+    const db = resolveRequestDbClient(auth) ?? getSystemAdminClient();
 
     const { id } = await params;
-    const service = getSystemAdminClient();
-    const { data, error } = await service
+    const { data, error } = await db
         .from('knowledge_bases')
         .select('*')
         .eq('id', id)
@@ -29,17 +30,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
+    const db = resolveRequestDbClient(auth) ?? getSystemAdminClient();
 
     const { id } = await params;
-    const body = await request.json() as { name?: string; description?: string | null; weight?: 'low' | 'normal' | 'high' };
-    const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    let body: unknown;
+    try {
+        body = await request.json();
+    } catch {
+        return jsonError('请求体不是合法 JSON', 400);
+    }
+    const normalized = normalizeKnowledgeBaseInput(body, 'update');
+    if ('error' in normalized) {
+        return jsonError(normalized.error, 400);
+    }
+    const updateData: Record<string, unknown> = {
+        ...normalized.data,
+        updated_at: new Date().toISOString(),
+    };
 
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.weight !== undefined) updateData.weight = body.weight;
-
-    const service = getSystemAdminClient();
-    const { data, error } = await service
+    const { data, error } = await db
         .from('knowledge_bases')
         .update(updateData)
         .eq('id', id)
@@ -57,15 +66,17 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     const auth = await requireUserContext(_request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
+    const db = resolveRequestDbClient(auth) ?? getSystemAdminClient();
 
     const { id } = await params;
-    const service = getSystemAdminClient();
-    const { error } = await service
+    const { data, error } = await db
         .from('knowledge_bases')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('id');
 
     if (error) return jsonError('删除知识库失败', 500);
+    if (!Array.isArray(data) || data.length === 0) return jsonError('知识库不存在', 404);
     return jsonOk({ success: true });
 }
