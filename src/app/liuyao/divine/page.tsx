@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/Toast';
 import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/auth';
 import { readSessionJSON, writeSessionJSON } from '@/lib/cache/session-storage';
+import { saveDivinationAction } from '@/lib/divination/save-client';
 
 type LiuyaoQuestionSession = {
     question: string;
@@ -63,25 +64,24 @@ export default function DivinePage() {
         let divinationId: string | null = null;
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-                const res = await fetch('/api/liuyao', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                        action: 'save',
+            if (session?.user) {
+                const saveResult = await saveDivinationAction({
+                    endpoint: '/api/liuyao',
+                    body: {
                         question,
                         yongShenTargets,
                         yaos,
                         changedHexagram,
                         changedLines,
-                    }),
+                    },
+                    idKey: 'divinationId',
+                    fallbackMessage: '保存起卦记录失败',
                 });
-                const data = await res.json();
-                if (data.success && data.data?.divinationId) {
-                    divinationId = data.data.divinationId;
+                if (!saveResult.ok) {
+                    throw new Error(saveResult.error.message || '保存起卦记录失败');
+                }
+                if (saveResult.id) {
+                    divinationId = saveResult.id;
                 }
             }
         } catch (error) {

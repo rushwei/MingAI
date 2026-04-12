@@ -28,6 +28,7 @@ import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
+import { saveDivinationAction } from '@/lib/divination/save-client';
 import {
     calculateQimenBundle,
     buildQimenCanonicalJSON,
@@ -136,20 +137,19 @@ export default function QimenResultPage() {
             if (!nextResult.chartId && currentUser && !hasSavedRef.current) {
                 hasSavedRef.current = true;
                 try {
-                    const res = await fetch('/api/qimen', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            action: 'save',
-                            ...buildQimenActionPayload(nextResult),
-                        }),
+                    const saveResult = await saveDivinationAction({
+                        endpoint: '/api/qimen',
+                        body: buildQimenActionPayload(nextResult),
+                        idKey: 'chartId',
+                        fallbackMessage: '保存奇门记录失败',
                     });
-                    const json = await res.json();
-                    if (json?.success && json?.data?.chartId) {
-                        updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), chartId: json.data.chartId }));
-                        setResult(prev => prev ? { ...prev, chartId: json.data.chartId } : prev);
+                    if (!saveResult.ok) {
+                        throw new Error(saveResult.error.message || '保存奇门记录失败');
+                    }
+                    const savedChartId = saveResult.id;
+                    if (savedChartId) {
+                        updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), chartId: savedChartId }));
+                        setResult(prev => prev ? { ...prev, chartId: savedChartId } : prev);
                     }
                 } catch (e) { console.error(e); }
             }

@@ -27,6 +27,7 @@ import { runSharedAnalysisFlow } from '@/lib/ai/analysis-runner';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { CopyTextModal } from '@/components/divination/CopyTextModal';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
+import { saveDivinationAction } from '@/lib/divination/save-client';
 import {
     buildDaliurenCanonicalJSON,
     generateDaliurenChartText,
@@ -37,12 +38,6 @@ type DaliurenSessionParams = Record<string, unknown> & {
     date?: string;
     divinationId?: string;
     conversationId?: string;
-};
-
-type DaliurenSaveResponse = {
-    data?: {
-        divinationId?: string;
-    };
 };
 
 export default function DaliurenResultPage() {
@@ -80,9 +75,17 @@ export default function DaliurenResultPage() {
     }, []);
 
     const saveDivinationRecord = useCallback(async (params: DaliurenSessionParams, nextResult: DaliurenOutput) => {
-        const response = await fetch('/api/daliuren', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save', ...params, resultData: nextResult }) });
-        const payload = await response.json() as DaliurenSaveResponse;
-        if (payload?.data?.divinationId) { setDivinationId(payload.data.divinationId); persistSessionIds({ divinationId: payload.data.divinationId }); return payload.data.divinationId; }
+        const result = await saveDivinationAction({
+            endpoint: '/api/daliuren',
+            body: { ...params, resultData: nextResult },
+            idKey: 'divinationId',
+            fallbackMessage: '保存排盘记录失败',
+        });
+        if (!result.ok) {
+            console.error('[daliuren/result] 保存排盘记录失败:', result.error.message);
+            return undefined;
+        }
+        if (result.id) { setDivinationId(result.id); persistSessionIds({ divinationId: result.id }); return result.id; }
         return undefined;
     }, [persistSessionIds]);
 

@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Brain, Check } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { saveDivinationAction } from '@/lib/divination/save-client';
 import { QuestionCard } from '@/components/mbti/QuestionCard';
 import { MBTIProgressBar } from '@/components/mbti/MBTIProgressBar';
 import { useToast } from '@/components/ui/Toast';
@@ -184,23 +185,22 @@ export function MBTITestFlow() {
         let readingId: string | null = null;
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-                const res = await fetch('/api/mbti', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                        action: 'save',
+            if (session?.user) {
+                const saveResult = await saveDivinationAction({
+                    endpoint: '/api/mbti',
+                    body: {
                         type: result.type,
                         scores: result.scores,
                         percentages: result.percentages,
-                    }),
+                    },
+                    idKey: 'readingId',
+                    fallbackMessage: '保存测试记录失败',
                 });
-                const data = await res.json();
-                if (data.success && data.data?.readingId) {
-                    readingId = data.data.readingId;
+                if (!saveResult.ok) {
+                    throw new Error(saveResult.error.message || '保存测试记录失败');
+                }
+                if (saveResult.id) {
+                    readingId = saveResult.id;
                 }
             }
         } catch (error) {

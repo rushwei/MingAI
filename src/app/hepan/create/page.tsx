@@ -14,6 +14,7 @@ import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility 
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache/session-storage';
+import { saveDivinationAction } from '@/lib/divination/save-client';
 
 function BirthInput({
     label,
@@ -253,21 +254,18 @@ function HepanCreateContent() {
         let chartId: string | null = null;
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-                const res = await fetch('/api/hepan', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                        action: 'save',
-                        result,
-                    }),
+            if (session?.user) {
+                const saveResult = await saveDivinationAction({
+                    endpoint: '/api/hepan',
+                    body: { result },
+                    idKey: 'chartId',
+                    fallbackMessage: '保存合盘记录失败',
                 });
-                const data = await res.json();
-                if (data.success && data.data?.chartId) {
-                    chartId = data.data.chartId;
+                if (!saveResult.ok) {
+                    throw new Error(saveResult.error.message || '保存合盘记录失败');
+                }
+                if (saveResult.id) {
+                    chartId = saveResult.id;
                 }
             }
         } catch (error) {

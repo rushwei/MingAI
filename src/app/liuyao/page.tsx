@@ -15,6 +15,7 @@ import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache/session-storage';
+import { saveDivinationAction } from '@/lib/divination/save-client';
 
 export default function LiuyaoPage() {
     const router = useRouter();
@@ -63,25 +64,24 @@ export default function LiuyaoPage() {
             let divinationId: string | null = null;
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session?.access_token) {
-                    const res = await fetch('/api/liuyao', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session.access_token}`,
-                        },
-                        body: JSON.stringify({
-                            action: 'save',
+                if (session?.user) {
+                    const saveResult = await saveDivinationAction({
+                        endpoint: '/api/liuyao',
+                        body: {
                             question,
                             yongShenTargets,
                             yaos,
                             changedHexagram,
                             changedLines,
-                        }),
+                        },
+                        idKey: 'divinationId',
+                        fallbackMessage: '保存起卦记录失败',
                     });
-                    const data = await res.json();
-                    if (data.success && data.data?.divinationId) {
-                        divinationId = data.data.divinationId;
+                    if (!saveResult.ok) {
+                        throw new Error(saveResult.error.message || '保存起卦记录失败');
+                    }
+                    if (saveResult.id) {
+                        divinationId = saveResult.id;
                     }
                 }
             } catch (error) {
