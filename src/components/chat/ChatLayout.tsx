@@ -21,11 +21,13 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { ChatBootstrapKnowledgeBase } from '@/lib/chat/bootstrap';
 import type { MembershipType } from '@/lib/user/membership';
 import type { ChatMode } from '@/lib/chat/use-chat-state';
+import { getSettingsCenterRouteTarget, openSettingsCenter } from '@/lib/settings-center';
 
 interface ChatLayoutProps {
     // Active conversation
     activeConversationId: string | null;
     conversationLoading: boolean;
+    conversationError?: string | null;
 
     // Messages
     messages: ChatMessage[];
@@ -41,6 +43,7 @@ interface ChatLayoutProps {
     onArchiveMessage?: (message: ChatMessage) => void;
     onSend: () => Promise<void>;
     onStop: () => void;
+    onRetryConversationLoad?: () => Promise<void>;
 
     // Composer props
     inputValue: string;
@@ -77,10 +80,11 @@ interface ChatLayoutProps {
 export function ChatLayout(props: ChatLayoutProps) {
     const {
         activeConversationId, conversationLoading,
+        conversationError,
         messages, isLoading, isSendingToList,
         messagesEndRef, messageScrollContainerRef, onMessageListScroll,
         onEditMessage, onRegenerateResponse, onSwitchVersion, onArchiveMessage,
-        onSend, onStop,
+        onSend, onStop, onRetryConversationLoad,
         inputValue, onInputChange, disabled,
         chatMode, onChatModeChange,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange,
@@ -118,6 +122,23 @@ export function ChatLayout(props: ChatLayoutProps) {
                     knowledgeBaseEnabled={knowledgeBaseEnabled}
                     aiPersonalizationEnabled={aiPersonalizationEnabled}
                 />
+
+                {conversationError ? (
+                    <div className="border-b border-[#ead9bf] bg-[#fcf8ee] px-4 py-3 text-sm text-[#946c21]">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 flex-1">{conversationError}</span>
+                            {onRetryConversationLoad ? (
+                                <button
+                                    type="button"
+                                    onClick={() => void onRetryConversationLoad()}
+                                    className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+                                >
+                                    重试
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
 
                 {conversationLoading ? (
                     <SoundWaveLoader variant="block" text="" />
@@ -178,7 +199,14 @@ function CreditLockBanner({ inline }: { inline?: boolean }) {
                     <Lock className="w-4 h-4" />
                     <span className="text-sm">积分已用完</span>
                 </div>
-                <Link href="/user/upgrade" className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors">
+                <Link
+                    href={getSettingsCenterRouteTarget('upgrade')}
+                    onClick={(event) => {
+                        event.preventDefault();
+                        openSettingsCenter('upgrade');
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors"
+                >
                     <Sparkles className="w-3.5 h-3.5" />
                     获取积分
                 </Link>

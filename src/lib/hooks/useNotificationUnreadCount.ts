@@ -15,9 +15,9 @@ export function useNotificationUnreadCount(
 ) {
   const enabled = options.enabled ?? true;
   const bootstrap = useAppBootstrap({ enabled });
-  const bootstrapUnreadCount = userId && bootstrap.data.viewerLoaded
+  const bootstrapUnreadCount = userId && bootstrap.data.unreadCountLoaded
     ? bootstrap.data.unreadCount
-    : 0;
+    : null;
 
   const query = useQuery({
     queryKey: queryKeys.notificationsUnread(userId),
@@ -29,5 +29,17 @@ export function useNotificationUnreadCount(
     refetchIntervalInBackground: false,
   });
 
-  return enabled && userId ? (query.data ?? bootstrapUnreadCount) : 0;
+  if (!enabled || !userId) {
+    return null;
+  }
+
+  if (typeof query.data === 'number') {
+    return query.data;
+  }
+
+  if (bootstrapUnreadCount != null) {
+    return bootstrapUnreadCount;
+  }
+
+  return null;
 }

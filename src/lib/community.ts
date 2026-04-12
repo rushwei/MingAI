@@ -4,6 +4,8 @@
  * 浏览器侧统一通过社区 API 访问数据。
  */
 
+import { requestBrowserData } from '@/lib/browser-api';
+
 // =====================================================
 // 类型定义
 // =====================================================
@@ -59,6 +61,17 @@ export interface CommunityViewerState {
     canDelete: boolean;
 }
 
+export interface CommunityPostDetail {
+    post: CommunityPost;
+    comments: CommunityComment[];
+    isAuthor: boolean;
+    viewer: CommunityViewerState;
+    viewerVotes: {
+        post: VoteType | null;
+        comments: Record<string, VoteType>;
+    };
+}
+
 export interface CommunityVote {
     id: string;
     user_id: string;
@@ -101,21 +114,113 @@ export interface PostFilters {
     sortBy?: 'latest' | 'popular' | 'hot';
 }
 
-async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-    const response = await fetch(input, {
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(init?.headers || {}),
-        },
-        ...init,
-    });
+type PostWriteMode = 'create' | 'update';
 
-    const payload = await response.json().catch(() => null) as T | { error?: string } | null;
-    if (!response.ok) {
-        throw new Error((payload as { error?: string } | null)?.error || '请求失败');
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isPostCategory(value: string): value is PostCategory {
+    return POST_CATEGORIES.some((item) => item.value === value);
+}
+
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function normalizeTags(value: unknown): string[] | { error: string } {
+    if (!Array.isArray(value)) {
+        return { error: 'tags 必须是字符串数组' };
     }
-    return payload as T;
+
+    const tags: string[] = [];
+    for (const entry of value) {
+        if (typeof entry !== 'string') {
+            return { error: 'tags 必须是字符串数组' };
+        }
+        const trimmed = entry.trim();
+        if (trimmed) {
+            tags.push(trimmed);
+        }
+    }
+
+    return Array.from(new Set(tags));
+}
+
+export function normalizePostInput(
+    input: unknown,
+    mode: PostWriteMode,
+): { data: Partial<PostInput> } | { error: string } {
+    if (!isPlainObject(input)) {
+        return { error: '请求体不是合法对象' };
+    }
+
+    const data: Partial<PostInput> = {};
+
+    if (mode === 'create' || hasOwn(input, 'title')) {
+        if (typeof input.title !== 'string' || !input.title.trim()) {
+            return { error: '标题和内容不能为空' };
+        }
+        data.title = input.title.trim();
+    }
+
+    if (mode === 'create' || hasOwn(input, 'content')) {
+        if (typeof input.content !== 'string' || !input.content.trim()) {
+            return { error: '标题和内容不能为空' };
+        }
+        data.content = input.content.trim();
+    }
+
+    if (mode === 'create' || hasOwn(input, 'category')) {
+        if (input.category == null || input.category === '') {
+            data.category = 'general';
+        } else if (typeof input.category === 'string' && isPostCategory(input.category)) {
+            data.category = input.category;
+        } else {
+            return { error: '帖子分类无效' };
+        }
+    }
+
+    if (mode === 'create' || hasOwn(input, 'tags')) {
+        if (input.tags == null) {
+            data.tags = [];
+        } else {
+            const tags = normalizeTags(input.tags);
+            if (typeof tags === 'object' && !Array.isArray(tags)) {
+                return tags;
+            }
+            data.tags = tags;
+        }
+    }
+
+    if (mode === 'update' && Object.keys(data).length === 0) {
+        return { error: '没有可更新的帖子字段' };
+    }
+
+    return { data };
+}
+
+async function requestCommunityJson<T>(
+    input: string,
+    init: RequestInit | undefined,
+    fallbackMessage: string,
+): Promise<T>;
+async function requestCommunityJson<T>(
+    input: string,
+    init: RequestInit | undefined,
+    fallbackMessage: string,
+    options: { allowNotFound: true },
+): Promise<T | null>;
+async function requestCommunityJson<T>(
+    input: string,
+    init: RequestInit | undefined,
+    fallbackMessage: string,
+    options: { allowNotFound?: boolean } = {},
+): Promise<T | null> {
+    return await requestBrowserData<T>(input, init, {
+        fallbackMessage,
+        allowNotFound: options.allowNotFound,
+    });
 }
 
 // =====================================================
@@ -159,7 +264,11 @@ export async function getPosts(
     if (filters?.category) query.set('category', filters.category);
     if (filters?.search) query.set('search', filters.search);
 
-    const payload = await requestJson<{ posts: CommunityPost[]; total: number }>(`/api/community/posts?${query.toString()}`);
+    const payload = await requestCommunityJson<{ posts?: CommunityPost[]; total?: number }>(
+        `/api/community/posts?${query.toString()}`,
+        { method: 'GET' },
+        '获取帖子失败',
+    );
     return {
         posts: payload.posts || [],
         total: payload.total || 0,
@@ -170,35 +279,70 @@ export async function getPosts(
  * 获取帖子详情
  */
 export async function getPost(postId: string): Promise<CommunityPost | null> {
-    const response = await fetch(`/api/community/posts/${postId}`);
-    if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error('获取帖子失败');
-    }
-    const payload = await response.json();
+    const payload = await requestCommunityJson<{ post?: CommunityPost | null }>(
+        `/api/community/posts/${postId}`,
+        { method: 'GET' },
+        '获取帖子失败',
+        { allowNotFound: true },
+    );
     return (payload?.post ?? null) as CommunityPost | null;
+}
+
+export async function getPostDetail(postId: string): Promise<CommunityPostDetail | null> {
+    const payload = await requestCommunityJson<{
+        post?: CommunityPost | null;
+        comments?: CommunityComment[];
+        isAuthor?: boolean;
+        viewer?: CommunityViewerState | null;
+        viewerVotes?: {
+            post?: VoteType | null;
+            comments?: Record<string, VoteType> | null;
+        } | null;
+    }>(
+        `/api/community/posts/${postId}`,
+        { method: 'GET' },
+        '获取帖子失败',
+        { allowNotFound: true },
+    );
+
+    if (!payload?.post) {
+        return null;
+    }
+
+    return {
+        post: payload.post,
+        comments: payload.comments ?? [],
+        isAuthor: payload.isAuthor === true,
+        viewer: payload.viewer ?? {
+            isAuthenticated: false,
+            isAuthor: false,
+            canEdit: false,
+            canDelete: false,
+        },
+        viewerVotes: {
+            post: payload.viewerVotes?.post ?? null,
+            comments: payload.viewerVotes?.comments ?? {},
+        },
+    };
 }
 
 /**
  * 创建帖子
  */
 export async function createPost(input: PostInput): Promise<CommunityPost> {
-    const response = await fetch('/api/community/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            title: input.title,
-            content: input.content,
-            category: input.category || 'general',
-            tags: input.tags || [],
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error('创建帖子失败');
-    }
-
-    const payload = await response.json();
+    const payload = await requestCommunityJson<CommunityPost>(
+        '/api/community/posts',
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                title: input.title,
+                content: input.content,
+                category: input.category || 'general',
+                tags: input.tags || [],
+            }),
+        },
+        '创建帖子失败',
+    );
     return payload as CommunityPost;
 }
 
@@ -206,17 +350,14 @@ export async function createPost(input: PostInput): Promise<CommunityPost> {
  * 更新帖子
  */
 export async function updatePost(postId: string, input: Partial<PostInput>): Promise<CommunityPost> {
-    const response = await fetch(`/api/community/posts/${postId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-    });
-
-    if (!response.ok) {
-        throw new Error('更新帖子失败');
-    }
-
-    const payload = await response.json();
+    const payload = await requestCommunityJson<CommunityPost>(
+        `/api/community/posts/${postId}`,
+        {
+            method: 'PUT',
+            body: JSON.stringify(input),
+        },
+        '更新帖子失败',
+    );
     return payload as CommunityPost;
 }
 
@@ -224,10 +365,11 @@ export async function updatePost(postId: string, input: Partial<PostInput>): Pro
  * 删除帖子（软删除）
  */
 export async function deletePost(postId: string): Promise<void> {
-    const response = await fetch(`/api/community/posts/${postId}`, { method: 'DELETE' });
-    if (!response.ok) {
-        throw new Error('删除帖子失败');
-    }
+    await requestCommunityJson(
+        `/api/community/posts/${postId}`,
+        { method: 'DELETE' },
+        '删除帖子失败',
+    );
 }
 
 // =====================================================
@@ -238,57 +380,56 @@ export async function deletePost(postId: string): Promise<void> {
  * 获取帖子评论
  */
 export async function getComments(postId: string): Promise<CommunityComment[]> {
-    const response = await fetch(`/api/community/posts/${postId}`);
-    if (!response.ok) {
-        throw new Error('获取评论失败');
-    }
-    const payload = await response.json();
-    return (payload?.comments ?? []) as CommunityComment[];
+    const payload = await requestCommunityJson<{ comments?: CommunityComment[] }>(
+        `/api/community/posts/${postId}`,
+        { method: 'GET' },
+        '获取评论失败',
+    );
+    return payload.comments ?? [];
 }
 
 /**
  * 创建评论
  */
 export async function createComment(input: CommentInput): Promise<CommunityComment> {
-    const response = await fetch('/api/community/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            post_id: input.post_id,
-            content: input.content,
-            parent_id: input.parent_id || null,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error('创建评论失败');
-    }
-
-    const payload = await response.json();
+    const payload = await requestCommunityJson<CommunityComment>(
+        '/api/community/comments',
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                post_id: input.post_id,
+                content: input.content,
+                parent_id: input.parent_id || null,
+            }),
+        },
+        '创建评论失败',
+    );
     return payload as CommunityComment;
 }
 
 /**
  * 更新评论
  */
-export async function updateComment(commentId: string, userId: string, content: string): Promise<CommunityComment> {
-    void userId;
-
-    return await requestJson<CommunityComment>(`/api/community/comments/${commentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content }),
-    });
+export async function updateComment(commentId: string, content: string): Promise<CommunityComment> {
+    return await requestCommunityJson<CommunityComment>(
+        `/api/community/comments/${commentId}`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ content }),
+        },
+        '更新评论失败',
+    ) as CommunityComment;
 }
 
 /**
  * 删除评论（软删除）
  */
-export async function deleteComment(commentId: string, userId: string): Promise<void> {
-    void userId;
-
-    await requestJson(`/api/community/comments/${commentId}`, {
-        method: 'DELETE',
-    });
+export async function deleteComment(commentId: string): Promise<void> {
+    await requestCommunityJson(
+        `/api/community/comments/${commentId}`,
+        { method: 'DELETE' },
+        '删除评论失败',
+    );
 }
 
 // =====================================================
@@ -306,7 +447,11 @@ export async function getUserVote(
     void userId;
 
     const query = new URLSearchParams({ targetType, targetId });
-    const payload = await requestJson<{ vote: VoteType | null }>(`/api/community/votes?${query.toString()}`);
+    const payload = await requestCommunityJson<{ vote: VoteType | null }>(
+        `/api/community/votes?${query.toString()}`,
+        { method: 'GET' },
+        '获取投票状态失败',
+    );
     return payload.vote || null;
 }
 
@@ -314,17 +459,18 @@ export async function getUserVote(
  * 投票（切换）
  */
 export async function vote(
-    userId: string,
     targetType: TargetType,
     targetId: string,
     voteType: VoteType
 ): Promise<VoteType | null> {
-    void userId;
-
-    const payload = await requestJson<{ vote: VoteType | null }>('/api/community/votes', {
-        method: 'POST',
-        body: JSON.stringify({ targetType, targetId, voteType }),
-    });
+    const payload = await requestCommunityJson<{ vote: VoteType | null }>(
+        '/api/community/votes',
+        {
+            method: 'POST',
+            body: JSON.stringify({ targetType, targetId, voteType }),
+        },
+        '投票失败',
+    );
     return payload.vote || null;
 }
 
@@ -336,18 +482,19 @@ export async function vote(
  * 提交举报
  */
 export async function createReport(
-    userId: string,
     targetType: TargetType,
     targetId: string,
     reason: ReportReason,
     description?: string
 ): Promise<CommunityReport> {
-    void userId;
-
-    return await requestJson<CommunityReport>('/api/community/reports', {
-        method: 'POST',
-        body: JSON.stringify({ targetType, targetId, reason, description }),
-    });
+    return await requestCommunityJson<CommunityReport>(
+        '/api/community/reports',
+        {
+            method: 'POST',
+            body: JSON.stringify({ targetType, targetId, reason, description }),
+        },
+        '提交举报失败',
+    ) as CommunityReport;
 }
 
 // =====================================================
@@ -358,39 +505,53 @@ export async function createReport(
  * 管理员置顶帖子
  */
 export async function adminPinPost(postId: string, isPinned: boolean): Promise<void> {
-    await requestJson(`/api/community/posts/${postId}/admin`, {
-        method: 'PUT',
-        body: JSON.stringify({ action: 'pin', value: isPinned }),
-    });
+    await requestCommunityJson(
+        `/api/community/posts/${postId}/admin`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ action: 'pin', value: isPinned }),
+        },
+        '置顶帖子失败',
+    );
 }
 
 /**
  * 管理员设置精华帖子
  */
 export async function adminFeaturePost(postId: string, isFeatured: boolean): Promise<void> {
-    await requestJson(`/api/community/posts/${postId}/admin`, {
-        method: 'PUT',
-        body: JSON.stringify({ action: 'feature', value: isFeatured }),
-    });
+    await requestCommunityJson(
+        `/api/community/posts/${postId}/admin`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ action: 'feature', value: isFeatured }),
+        },
+        '设置精华失败',
+    );
 }
 
 /**
  * 管理员删除帖子
  */
 export async function adminDeletePost(postId: string): Promise<void> {
-    await requestJson(`/api/community/posts/${postId}/admin`, {
-        method: 'PUT',
-        body: JSON.stringify({ action: 'delete' }),
-    });
+    await requestCommunityJson(
+        `/api/community/posts/${postId}/admin`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ action: 'delete' }),
+        },
+        '删除帖子失败',
+    );
 }
 
 /**
  * 管理员删除评论
  */
 export async function adminDeleteComment(commentId: string): Promise<void> {
-    await requestJson(`/api/community/comments/${commentId}/admin`, {
-        method: 'DELETE',
-    });
+    await requestCommunityJson(
+        `/api/community/comments/${commentId}/admin`,
+        { method: 'DELETE' },
+        '删除评论失败',
+    );
 }
 
 /**
@@ -407,7 +568,11 @@ export async function adminGetReports(
     });
     if (status) query.set('status', status);
 
-    const payload = await requestJson<{ reports: CommunityReport[]; total: number }>(`/api/community/reports?${query.toString()}`);
+    const payload = await requestCommunityJson<{ reports?: CommunityReport[]; total?: number }>(
+        `/api/community/reports?${query.toString()}`,
+        { method: 'GET' },
+        '获取举报列表失败',
+    );
     return {
         reports: payload.reports || [],
         total: payload.total || 0,
@@ -425,10 +590,14 @@ export async function adminResolveReport(
 ): Promise<void> {
     void adminId;
 
-    await requestJson('/api/community/reports', {
-        method: 'PUT',
-        body: JSON.stringify({ reportId, status, notes }),
-    });
+    await requestCommunityJson(
+        '/api/community/reports',
+        {
+            method: 'PUT',
+            body: JSON.stringify({ reportId, status, notes }),
+        },
+        '处理举报失败',
+    );
 }
 
 /**
@@ -437,7 +606,11 @@ export async function adminResolveReport(
 export async function isPostAuthor(postId: string, userId: string): Promise<boolean> {
     void userId;
 
-    const payload = await requestJson<{ viewer?: { isAuthor?: boolean | null } }>(`/api/community/posts/${postId}`);
+    const payload = await requestCommunityJson<{ viewer?: { isAuthor?: boolean | null } }>(
+        `/api/community/posts/${postId}`,
+        { method: 'GET' },
+        '获取作者信息失败',
+    );
     return payload.viewer?.isAuthor === true;
 }
 
@@ -447,6 +620,10 @@ export async function isPostAuthor(postId: string, userId: string): Promise<bool
 export async function isCommentAuthor(commentId: string, userId: string): Promise<boolean> {
     void userId;
 
-    const payload = await requestJson<{ viewer?: { isAuthor?: boolean | null } }>(`/api/community/comments/${commentId}`);
+    const payload = await requestCommunityJson<{ viewer?: { isAuthor?: boolean | null } }>(
+        `/api/community/comments/${commentId}`,
+        { method: 'GET' },
+        '获取作者信息失败',
+    );
     return payload.viewer?.isAuthor === true;
 }

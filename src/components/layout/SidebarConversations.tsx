@@ -33,7 +33,9 @@ export function SidebarConversations() {
         loadingMoreConversations,
         hasLoadedConversations,
         hasMoreConversations,
+        conversationListError,
         pendingSidebarTitle,
+        retryConversationListLoad,
         handleDeleteConversation,
         handleRenameConversation,
         triggerConversationListLoad,
@@ -67,7 +69,7 @@ export function SidebarConversations() {
 
         const groups: Record<ConversationSourceType, ConversationListItem[]> = {
             chat: [], dream: [], bazi_wuxing: [], bazi_personality: [],
-            tarot: [], liuyao: [], mbti: [], hepan: [],
+            tarot: [], liuyao: [], ziwei: [], mbti: [], hepan: [],
             palm: [], face: [], qimen: [], daliuren: [],
         };
 
@@ -251,7 +253,18 @@ export function SidebarConversations() {
 
                 {/* 分组对话列表 */}
                 <div className="space-y-0.5">
-                    {!hasLoadedConversations || conversationsLoading ? (
+                    {conversationListError && !hasLoadedConversations && !conversationsLoading ? (
+                        <div className="rounded-md border border-[#ead9bf] bg-[#fcf8ee] px-3 py-3 text-xs text-[#946c21]">
+                            <div>{conversationListError}</div>
+                            <button
+                                type="button"
+                                onClick={() => { void retryConversationListLoad(); }}
+                                className="mt-2 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+                            >
+                                重试
+                            </button>
+                        </div>
+                    ) : !hasLoadedConversations || conversationsLoading ? (
                         <div className="flex flex-col items-center justify-center text-foreground-secondary text-xs py-3 gap-1">
                             {hasLoadedConversations ? (
                                 <>
@@ -270,40 +283,54 @@ export function SidebarConversations() {
                             暂无对话
                         </div>
                     ) : (
-                        SOURCE_TYPE_ORDER.map(type => {
-                            const allItems = groupedConversations[type];
-                            const showPendingInGroup = type === 'chat' && !!pendingSidebarTitle;
-                            if (allItems.length === 0 && !showPendingInGroup) return null;
-
-                            const config = SOURCE_TYPE_CONFIG[type];
-                            const isGroupCollapsed = collapsedGroups.has(type);
-
-                            return (
-                                <div key={type}>
-                                    <ConversationGroup
-                                        type={type}
-                                        label={config.label}
-                                        items={allItems}
-                                        showLabel={type !== 'chat'}
-                                        isGroupCollapsed={isGroupCollapsed}
-                                        onToggleGroup={toggleGroup}
-                                        activeId={activeId}
-                                        actionConvId={actionConv?.id}
-                                        isSidebarCollapsed={false}
-                                        onSelect={handleSelect}
-                                        onOpenAction={openActionSheet}
-                                        editingId={editingId}
-                                        editTitle={editTitle}
-                                        onEditTitleChange={setEditTitle}
-                                        onSaveRename={saveRename}
-                                        onCancelRename={cancelRename}
-                                        pendingTitle={pendingSidebarTitle}
-                                        showPendingInGroup={showPendingInGroup}
-                                        compact
-                                    />
+                        <>
+                            {conversationListError ? (
+                                <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-[#ead9bf] bg-[#fcf8ee] px-3 py-2 text-xs text-[#946c21]">
+                                    <span className="min-w-0 flex-1">{conversationListError}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void retryConversationListLoad(); }}
+                                        className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+                                    >
+                                        重试
+                                    </button>
                                 </div>
-                            );
-                        })
+                            ) : null}
+                            {SOURCE_TYPE_ORDER.map(type => {
+                                const allItems = groupedConversations[type];
+                                const showPendingInGroup = type === 'chat' && !!pendingSidebarTitle;
+                                if (allItems.length === 0 && !showPendingInGroup) return null;
+
+                                const config = SOURCE_TYPE_CONFIG[type];
+                                const isGroupCollapsed = collapsedGroups.has(type);
+
+                                return (
+                                    <div key={type}>
+                                        <ConversationGroup
+                                            type={type}
+                                            label={config.label}
+                                            items={allItems}
+                                            showLabel={type !== 'chat'}
+                                            isGroupCollapsed={isGroupCollapsed}
+                                            onToggleGroup={toggleGroup}
+                                            activeId={activeId}
+                                            actionConvId={actionConv?.id}
+                                            isSidebarCollapsed={false}
+                                            onSelect={handleSelect}
+                                            onOpenAction={openActionSheet}
+                                            editingId={editingId}
+                                            editTitle={editTitle}
+                                            onEditTitleChange={setEditTitle}
+                                            onSaveRename={saveRename}
+                                            onCancelRename={cancelRename}
+                                            pendingTitle={pendingSidebarTitle}
+                                            showPendingInGroup={showPendingInGroup}
+                                            compact
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </>
                     )}
                     {hasLoadedConversations && hasMoreConversations && (
                         <div ref={loadMoreSentinelRef} className="py-2">

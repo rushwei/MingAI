@@ -4,14 +4,24 @@
  * 浏览器侧统一通过 records/notes API 访问数据。
  */
 
-import { requestBrowserJson } from '@/lib/browser-api';
+import { requestBrowserData } from '@/lib/browser-api';
+import { isValidUUID } from '@/lib/validation';
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-    const result = await requestBrowserJson<T>(url, init);
-    if (result.error) {
-        throw new Error(result.error.message || '请求失败');
-    }
-    return result.data as T;
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T>;
+async function requestJson<T>(
+    url: string,
+    init: RequestInit | undefined,
+    options: { allowNotFound: true },
+): Promise<T | null>;
+async function requestJson<T>(
+    url: string,
+    init?: RequestInit,
+    options: { allowNotFound?: boolean } = {},
+): Promise<T | null> {
+    return await requestBrowserData<T>(url, init, {
+        fallbackMessage: '请求失败',
+        allowNotFound: options.allowNotFound,
+    });
 }
 
 // =====================================================
@@ -51,19 +61,19 @@ export interface MingNote {
 
 export interface RecordInput {
     title: string;
-    content?: string;
+    content?: string | null;
     category?: RecordCategory;
     tags?: string[];
-    event_date?: string;
-    related_chart_type?: string;
-    related_chart_id?: string;
+    event_date?: string | null;
+    related_chart_type?: string | null;
+    related_chart_id?: string | null;
     is_pinned?: boolean;
 }
 
 export interface NoteInput {
-    note_date?: string;
+    note_date?: string | null;
     content: string;
-    mood?: NoteMood;
+    mood?: NoteMood | null;
 }
 
 export interface RecordFilters {
@@ -80,6 +90,197 @@ export interface ExportData {
     exportedAt: string;
     records: MingRecord[];
     notes: MingNote[];
+}
+
+type RecordWriteMode = 'create' | 'update';
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isRecordCategory(value: string): value is RecordCategory {
+    return RECORD_CATEGORIES.some((item) => item.value === value);
+}
+
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function normalizeStringArray(value: unknown, label: string): string[] | { error: string } {
+    if (!Array.isArray(value)) {
+        return { error: `${label}必须是字符串数组` };
+    }
+
+    const normalized: string[] = [];
+    for (const entry of value) {
+        if (typeof entry !== 'string') {
+            return { error: `${label}必须是字符串数组` };
+        }
+        const trimmed = entry.trim();
+        if (trimmed) {
+            normalized.push(trimmed);
+        }
+    }
+
+    return Array.from(new Set(normalized));
+}
+
+function normalizeRelatedChartType(value: unknown): string | null | { error: string } {
+    if (value == null) {
+        return null;
+    }
+    if (typeof value !== 'string') {
+        return { error: '关联命盘类型无效' };
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+}
+
+function normalizeRelatedChartId(value: unknown): string | null | { error: string } {
+    if (value == null) {
+        return null;
+    }
+    if (typeof value !== 'string') {
+        return { error: '关联命盘 ID 无效' };
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return null;
+    }
+    if (!isValidUUID(trimmed)) {
+        return { error: '关联命盘 ID 无效' };
+    }
+    return trimmed;
+}
+
+function normalizeRelatedChartFields(
+    body: Record<string, unknown>,
+    existing?: Pick<MingRecord, 'related_chart_type' | 'related_chart_id'>,
+): { data: Pick<RecordInput, 'related_chart_type' | 'related_chart_id'> } | { error: string } | null {
+    const hasType = hasOwn(body, 'related_chart_type');
+    const hasId = hasOwn(body, 'related_chart_id');
+    if (!hasType && !hasId) {
+        return null;
+    }
+
+    const rawType = hasType ? normalizeRelatedChartType(body.related_chart_type) : existing?.related_chart_type ?? null;
+    if (typeof rawType === 'object' && rawType && 'error' in rawType) {
+        return rawType;
+    }
+    const rawId = hasId ? normalizeRelatedChartId(body.related_chart_id) : existing?.related_chart_id ?? null;
+    if (typeof rawId === 'object' && rawId && 'error' in rawId) {
+        return rawId;
+    }
+
+    let relatedChartType = rawType;
+    let relatedChartId = rawId;
+    if (hasType && rawType === null && !hasId) {
+        relatedChartId = null;
+    }
+    if (hasId && rawId === null && !hasType) {
+        relatedChartType = null;
+    }
+
+    if ((relatedChartType == null) !== (relatedChartId == null)) {
+        return { error: '关联命盘类型和 ID 必须同时提供' };
+    }
+
+    return {
+        data: {
+            related_chart_type: relatedChartType,
+            related_chart_id: relatedChartId,
+        },
+    };
+}
+
+export function normalizeRecordInput(
+    input: unknown,
+    mode: RecordWriteMode,
+    existing?: Pick<MingRecord, 'related_chart_type' | 'related_chart_id'>,
+): { data: Partial<RecordInput> } | { error: string } {
+    if (!isPlainObject(input)) {
+        return { error: '请求体不是合法对象' };
+    }
+
+    const data: Partial<RecordInput> = {};
+
+    if (mode === 'create' || hasOwn(input, 'title')) {
+        if (typeof input.title !== 'string' || !input.title.trim()) {
+            return { error: '标题不能为空' };
+        }
+        data.title = input.title.trim();
+    }
+
+    if (mode === 'create' || hasOwn(input, 'content')) {
+        if (input.content == null || input.content === '') {
+            data.content = null;
+        } else if (typeof input.content === 'string') {
+            data.content = input.content;
+        } else {
+            return { error: '内容格式无效' };
+        }
+    }
+
+    if (mode === 'create' || hasOwn(input, 'category')) {
+        if (input.category == null || input.category === '') {
+            data.category = 'general';
+        } else if (typeof input.category === 'string' && isRecordCategory(input.category)) {
+            data.category = input.category;
+        } else {
+            return { error: '记录分类无效' };
+        }
+    }
+
+    if (mode === 'create' || hasOwn(input, 'tags')) {
+        if (input.tags == null) {
+            data.tags = [];
+        } else {
+            const tags = normalizeStringArray(input.tags, '标签');
+            if (typeof tags === 'object' && !Array.isArray(tags)) {
+                return tags;
+            }
+            data.tags = tags;
+        }
+    }
+
+    if (mode === 'create' || hasOwn(input, 'event_date')) {
+        if (input.event_date == null || input.event_date === '') {
+            data.event_date = null;
+        } else if (typeof input.event_date === 'string') {
+            data.event_date = input.event_date;
+        } else {
+            return { error: '事件日期格式无效' };
+        }
+    }
+
+    const relation = normalizeRelatedChartFields(input, existing);
+    if (relation && 'error' in relation) {
+        return relation;
+    }
+    if (relation?.data) {
+        Object.assign(data, relation.data);
+    } else if (mode === 'create') {
+        data.related_chart_type = null;
+        data.related_chart_id = null;
+    }
+
+    if (mode === 'create' || hasOwn(input, 'is_pinned')) {
+        if (input.is_pinned == null) {
+            data.is_pinned = false;
+        } else if (typeof input.is_pinned === 'boolean') {
+            data.is_pinned = input.is_pinned;
+        } else {
+            return { error: '置顶状态无效' };
+        }
+    }
+
+    if (mode === 'update' && Object.keys(data).length === 0) {
+        return { error: '没有可更新的记录字段' };
+    }
+
+    return { data };
 }
 
 // =====================================================
@@ -155,13 +356,10 @@ export const NOTE_MOODS: { value: NoteMood; label: string; icon: string }[] = [
  * 获取记录列表
  */
 export async function getRecords(
-    userId: string,
     filters?: RecordFilters,
     page: number = 1,
     pageSize: number = 20
 ): Promise<{ records: MingRecord[]; total: number }> {
-    void userId;
-
     const query = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
@@ -187,25 +385,22 @@ export async function getRecords(
  * 获取单条记录
  */
 export async function getRecord(recordId: string): Promise<MingRecord | null> {
-    try {
-        const payload = await requestJson<unknown>(`/api/records/${recordId}`);
-        const record = toMingRecord(payload);
-        if (!record) throw new Error('Invalid record data');
-        return record;
-    } catch (error) {
-        if (error instanceof Error && /不存在|404/u.test(error.message)) {
-            return null;
-        }
-        throw error;
+    const payload = await requestJson<unknown>(`/api/records/${recordId}`, undefined, {
+        allowNotFound: true,
+    });
+    if (payload == null) {
+        return null;
     }
+
+    const record = toMingRecord(payload);
+    if (!record) throw new Error('Invalid record data');
+    return record;
 }
 
 /**
  * 创建记录
  */
-export async function createRecord(userId: string, input: RecordInput): Promise<MingRecord> {
-    void userId;
-
+export async function createRecord(input: RecordInput): Promise<MingRecord> {
     const payload = await requestJson<unknown>('/api/records', {
         method: 'POST',
         body: JSON.stringify(input),
@@ -241,12 +436,13 @@ export async function deleteRecord(recordId: string): Promise<void> {
  * 切换记录置顶状态
  */
 export async function toggleRecordPin(recordId: string): Promise<MingRecord> {
-    const record = await getRecord(recordId);
-    if (!record) {
-        throw new Error('记录不存在');
-    }
-
-    return updateRecord(recordId, { is_pinned: !record.is_pinned });
+    const payload = await requestJson<unknown>(`/api/records/${recordId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ togglePin: true }),
+    });
+    const record = toMingRecord(payload);
+    if (!record) throw new Error('Invalid record data');
+    return record;
 }
 
 // =====================================================
@@ -337,14 +533,9 @@ export async function deleteNote(noteId: string): Promise<void> {
 export async function exportData(userId: string): Promise<ExportData> {
     void userId;
 
-    const response = await fetch('/api/records/export', {
-        credentials: 'include',
+    const payload = await requestJson<ExportData>('/api/records/export', {
+        method: 'GET',
     });
-    if (!response.ok) {
-        throw new Error('导出数据失败');
-    }
-
-    const payload = await response.json() as ExportData;
     return {
         ...payload,
         records: (payload.records ?? []).filter(isValidMingRecord),
@@ -355,15 +546,32 @@ export async function exportData(userId: string): Promise<ExportData> {
 /**
  * 导入数据（覆盖模式）
  */
-export async function importData(userId: string, data: ExportData): Promise<{ recordsImported: number; notesImported: number }> {
+export async function importData(
+    userId: string,
+    data: ExportData,
+): Promise<{ message?: string; recordsImported: number; notesImported: number }> {
     void userId;
 
-    const payload = await requestJson<{ recordsImported: number; notesImported: number }>('/api/records/import', {
+    const payload = await requestJson<{
+        message?: string;
+        recordsImported?: number;
+        notesImported?: number;
+    }>('/api/records/import', {
         method: 'POST',
         body: JSON.stringify(data),
     });
 
-    return payload;
+    const recordsImported = Number(payload.recordsImported ?? NaN);
+    const notesImported = Number(payload.notesImported ?? NaN);
+    if (!Number.isFinite(recordsImported) || !Number.isFinite(notesImported)) {
+        throw new Error('导入结果无效');
+    }
+
+    return {
+        message: payload.message,
+        recordsImported,
+        notesImported,
+    };
 }
 
 /**

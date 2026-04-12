@@ -25,7 +25,13 @@ import {
   deleteConversation,
   renameConversation,
 } from '@/lib/chat/conversation';
+import {
+  HISTORY_SUMMARY_DELETED_EVENT,
+  KNOWLEDGE_BASE_SYNC_EVENT,
+} from '@/lib/browser-api';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+
+export const CHAT_CONVERSATION_DELETED_EVENT = 'mingai:chat:conversation-deleted';
 
 interface ConversationListContextType {
   conversations: ConversationListItem[];
@@ -34,14 +40,17 @@ interface ConversationListContextType {
   loadingMoreConversations: boolean;
   hasLoadedConversations: boolean;
   hasMoreConversations: boolean;
+  conversationListError: string | null;
   setHasLoadedConversations: React.Dispatch<React.SetStateAction<boolean>>;
   pendingSidebarTitle: string | null;
   setPendingSidebarTitle: React.Dispatch<React.SetStateAction<string | null>>;
   refreshConversationList: (targetUserId?: string | null) => Promise<void>;
+  retryConversationListLoad: () => Promise<void>;
   triggerConversationListLoad: () => void;
   loadMoreConversations: () => Promise<void>;
-  handleDeleteConversation: (id: string) => Promise<void>;
-  handleRenameConversation: (id: string, title: string) => Promise<void>;
+  removeConversationFromList: (id: string) => boolean;
+  handleDeleteConversation: (id: string) => Promise<boolean>;
+  handleRenameConversation: (id: string, title: string) => Promise<boolean>;
   handleNewChat: () => Promise<void>;
   manualRenamedConversationIdsRef: React.MutableRefObject<Set<string>>;
   conversationsRef: React.MutableRefObject<ConversationListItem[]>;
@@ -55,9 +64,59 @@ function mergeConversations(current: ConversationListItem[], incoming: Conversat
     return current;
   }
 
-  const seen = new Set(current.map((conversation) => conversation.id));
-  const appended = incoming.filter((conversation) => !seen.has(conversation.id));
-  return appended.length > 0 ? [...current, ...appended] : current;
+  const merged = current.slice();
+  const indexById = new Map(current.map((conversation, index) => [conversation.id, index] as const));
+  let changed = false;
+
+  for (const conversation of incoming) {
+    const index = indexById.get(conversation.id);
+    if (index == null) {
+      indexById.set(conversation.id, merged.length);
+      merged.push(conversation);
+      changed = true;
+      continue;
+    }
+
+    merged[index] = {
+      ...merged[index],
+      ...conversation,
+    };
+    changed = true;
+  }
+
+  return changed ? merged : current;
+}
+
+function preserveManualConversationTitles(
+  current: ConversationListItem[],
+  incoming: ConversationListItem[],
+  manualRenamedIds: Set<string>,
+) {
+  if (incoming.length === 0 || manualRenamedIds.size === 0) {
+    return incoming;
+  }
+
+  const currentById = new Map(current.map((conversation) => [conversation.id, conversation] as const));
+  return incoming.map((conversation) => {
+    if (!manualRenamedIds.has(conversation.id)) {
+      return conversation;
+    }
+
+    const currentConversation = currentById.get(conversation.id);
+    if (!currentConversation) {
+      return conversation;
+    }
+
+    if (currentConversation.title === conversation.title) {
+      manualRenamedIds.delete(conversation.id);
+      return conversation;
+    }
+
+    return {
+      ...conversation,
+      title: currentConversation.title,
+    };
+  });
 }
 
 export function ConversationListProvider({ children }: { children: ReactNode }) {
@@ -70,6 +129,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
+  const [conversationListError, setConversationListError] = useState<string | null>(null);
   const [pendingSidebarTitle, setPendingSidebarTitle] = useState<string | null>(null);
 
   const manualRenamedConversationIdsRef = useRef<Set<string>>(new Set());
@@ -122,6 +182,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     setLoadingMoreConversations(false);
     setHasLoadedConversations(false);
     setHasMoreConversations(false);
+    setConversationListError(null);
     setPendingSidebarTitle(null);
     manualRenamedConversationIdsRef.current.clear();
   }, []);
@@ -166,6 +227,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       nextOffsetRef.current = payload.pagination.nextOffset;
       setHasMoreConversations(payload.pagination.hasMore);
       setHasLoadedConversations(true);
+      setConversationListError(null);
       setConversations((current) => (
         append
           ? mergeConversations(current, payload.conversations)
@@ -176,6 +238,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         console.error('[conversation] 对话列表分页加载失败', error);
+        setConversationListError(error instanceof Error ? error.message : '加载对话列表失败');
       }
       return false;
     } finally {
@@ -231,10 +294,16 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       nextOffsetRef.current = payload.pagination.nextOffset;
       setHasMoreConversations(payload.pagination.hasMore);
       setHasLoadedConversations(true);
-      setConversations(payload.conversations);
+      setConversationListError(null);
+      setConversations(preserveManualConversationTitles(
+        conversationsRef.current,
+        payload.conversations,
+        manualRenamedConversationIdsRef.current,
+      ));
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         console.error('[conversation] 对话列表刷新失败', error);
+        setConversationListError(error instanceof Error ? error.message : '加载对话列表失败');
       }
     } finally {
       if (requestControllerRef.current === controller) {
@@ -256,6 +325,11 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     void refreshConversationList(userId);
   }, [refreshConversationList, userId]);
 
+  const retryConversationListLoad = useCallback(async () => {
+    if (!userId) return;
+    await refreshConversationList(userId);
+  }, [refreshConversationList, userId]);
+
   const loadMoreConversations = useCallback(async () => {
     if (
       !userId
@@ -274,6 +348,30 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       append: true,
     });
   }, [hasMoreConversations, requestConversationPage, userId]);
+
+  const removeConversationFromList = useCallback((id: string) => {
+    let removed = false;
+    setConversations((current) => {
+      const next = current.filter((conversation) => conversation.id !== id);
+      removed = next.length !== current.length;
+      conversationsRef.current = next;
+      return removed ? next : current;
+    });
+    if (removed) {
+      nextOffsetRef.current = nextOffsetRef.current == null ? null : Math.max(nextOffsetRef.current - 1, 0);
+    }
+    return removed;
+  }, []);
+
+  const broadcastConversationDeleted = useCallback((id: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent(CHAT_CONVERSATION_DELETED_EVENT, {
+      detail: { id },
+    }));
+  }, []);
 
   // Reset state when the active auth user changes.
   useEffect(() => {
@@ -318,14 +416,76 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     return clearScheduledIdleLoad;
   }, [clearScheduledIdleLoad, sessionLoading, triggerConversationListLoad, userId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleHistorySummaryDeleted = (event: Event) => {
+      const conversationId = (event as CustomEvent<{ conversationId?: string | null }>).detail?.conversationId;
+      if (!conversationId) {
+        return;
+      }
+
+      if (removeConversationFromList(conversationId)) {
+        broadcastConversationDeleted(conversationId);
+      }
+    };
+
+    window.addEventListener(HISTORY_SUMMARY_DELETED_EVENT, handleHistorySummaryDeleted as EventListener);
+    return () => {
+      window.removeEventListener(HISTORY_SUMMARY_DELETED_EVENT, handleHistorySummaryDeleted as EventListener);
+    };
+  }, [broadcastConversationDeleted, removeConversationFromList]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleKnowledgeBaseSync = (event: Event) => {
+      const pathname = (event as CustomEvent<{ pathname?: string }>).detail?.pathname;
+      if (
+        pathname
+        && !pathname.startsWith('/api/knowledge-base/ingest')
+        && !pathname.startsWith('/api/knowledge-base/archive')
+      ) {
+        return;
+      }
+
+      const targetUserId = userIdRef.current;
+      if (!targetUserId) {
+        return;
+      }
+
+      void refreshConversationList(targetUserId);
+    };
+
+    window.addEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleKnowledgeBaseSync as EventListener);
+    return () => {
+      window.removeEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleKnowledgeBaseSync as EventListener);
+    };
+  }, [refreshConversationList]);
+
   const handleDeleteConversation = useCallback(async (id: string) => {
     const previousConversations = conversationsRef.current;
-    setConversations(prev => prev.filter(c => c.id !== id));
+    const previousNextOffset = nextOffsetRef.current;
+    const removed = removeConversationFromList(id);
     const success = await deleteConversation(id);
     if (!success) {
-      setConversations(previousConversations);
+      if (removed) {
+        setConversations(previousConversations);
+        conversationsRef.current = previousConversations;
+        nextOffsetRef.current = previousNextOffset;
+      }
+      return false;
     }
-  }, []);
+
+    if (removed) {
+      broadcastConversationDeleted(id);
+    }
+    return true;
+  }, [broadcastConversationDeleted, removeConversationFromList]);
 
   const handleRenameConversation = useCallback(async (id: string, title: string) => {
     manualRenamedConversationIdsRef.current.add(id);
@@ -333,8 +493,11 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     setConversations(prev => prev.map(c => c.id === id ? { ...c, title } : c));
     const success = await renameConversation(id, title);
     if (!success) {
+      manualRenamedConversationIdsRef.current.delete(id);
       setConversations(previousConversations);
+      return false;
     }
+    return true;
   }, []);
 
   const handleNewChat = useCallback(async () => {
@@ -349,12 +512,15 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       loadingMoreConversations,
       hasLoadedConversations,
       hasMoreConversations,
+      conversationListError,
       setHasLoadedConversations,
       pendingSidebarTitle,
       setPendingSidebarTitle,
       refreshConversationList,
+      retryConversationListLoad,
       triggerConversationListLoad,
       loadMoreConversations,
+      removeConversationFromList,
       handleDeleteConversation,
       handleRenameConversation,
       handleNewChat,

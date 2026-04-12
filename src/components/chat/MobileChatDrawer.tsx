@@ -31,7 +31,9 @@ export function MobileChatDrawer() {
         loadingMoreConversations,
         hasLoadedConversations,
         hasMoreConversations,
+        conversationListError,
         pendingSidebarTitle,
+        retryConversationListLoad,
         handleDeleteConversation,
         handleRenameConversation,
         handleNewChat,
@@ -68,7 +70,7 @@ export function MobileChatDrawer() {
 
         const groups: Record<ConversationSourceType, ConversationListItem[]> = {
             chat: [], dream: [], bazi_wuxing: [], bazi_personality: [],
-            tarot: [], liuyao: [], mbti: [], hepan: [],
+            tarot: [], liuyao: [], ziwei: [], mbti: [], hepan: [],
             palm: [], face: [], qimen: [], daliuren: [],
         };
 
@@ -260,7 +262,18 @@ export function MobileChatDrawer() {
 
                     {/* 分组对话列表 */}
                     <div className="flex-1 overflow-y-auto px-2 pb-2">
-                        {!hasLoadedConversations || conversationsLoading ? (
+                        {conversationListError && !hasLoadedConversations && !conversationsLoading ? (
+                            <div className="rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-4 py-4 text-sm text-[#946c21]">
+                                <div>{conversationListError}</div>
+                                <button
+                                    type="button"
+                                    onClick={() => { void retryConversationListLoad(); }}
+                                    className="mt-3 rounded-md px-3 py-1.5 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+                                >
+                                    重试
+                                </button>
+                            </div>
+                        ) : !hasLoadedConversations || conversationsLoading ? (
                             <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
                                 {hasLoadedConversations ? (
                                     <>
@@ -283,6 +296,18 @@ export function MobileChatDrawer() {
                             </div>
                         ) : (
                             <>
+                                {conversationListError ? (
+                                    <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-3 py-2 text-xs text-[#946c21]">
+                                        <span className="min-w-0 flex-1">{conversationListError}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => { void retryConversationListLoad(); }}
+                                            className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+                                        >
+                                            重试
+                                        </button>
+                                    </div>
+                                ) : null}
                                 {SOURCE_TYPE_ORDER.map(type => {
                                     const items = groupedConversations[type];
                                     const showPendingInGroup = type === 'chat' && !!pendingSidebarTitle;

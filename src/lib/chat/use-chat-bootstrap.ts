@@ -30,8 +30,16 @@ export function useChatBootstrap({
     staleTime: 30_000,
   });
 
-  const data = useMemo<ChatBootstrapData>(() => {
-    const nextData: ChatBootstrapData = query.data ?? EMPTY_CHAT_BOOTSTRAP;
+  const data = useMemo<ChatBootstrapData | null>(() => {
+    if (!user?.id) {
+      return EMPTY_CHAT_BOOTSTRAP;
+    }
+
+    const nextData = query.data ?? cachedData ?? null;
+    if (!nextData) {
+      return null;
+    }
+
     return {
       userId: nextData.userId ?? user?.id ?? null,
       promptKnowledgeBaseIds: nextData.promptKnowledgeBaseIds ?? [],
@@ -39,7 +47,7 @@ export function useChatBootstrap({
         ? (nextData.promptKnowledgeBases ?? [])
         : [],
     };
-  }, [knowledgeBaseEnabled, query.data, user?.id]);
+  }, [cachedData, knowledgeBaseEnabled, query.data, user?.id]);
 
   const refreshBootstrap = useCallback(async (targetUserId?: string | null) => {
     const effectiveUserId = targetUserId ?? user?.id ?? null;
@@ -49,21 +57,20 @@ export function useChatBootstrap({
     }
 
     await queryClient.invalidateQueries({ queryKey: queryKeys.chatBootstrap(effectiveUserId) });
-    return (await queryClient.fetchQuery({
+    return await queryClient.fetchQuery({
       queryKey: queryKeys.chatBootstrap(effectiveUserId),
       queryFn: loadChatBootstrap,
       staleTime: 30_000,
-    })) ?? {
-      ...EMPTY_CHAT_BOOTSTRAP,
-      userId: effectiveUserId,
-    };
+    });
   }, [queryClient, user?.id]);
 
   return {
-    userId: data.userId,
-    promptKnowledgeBases: data.promptKnowledgeBases,
-    promptKnowledgeBaseIds: data.promptKnowledgeBaseIds,
+    userId: data?.userId ?? null,
+    promptKnowledgeBases: data?.promptKnowledgeBases ?? [],
+    promptKnowledgeBaseIds: data?.promptKnowledgeBaseIds ?? [],
     bootstrapLoading: sessionLoading || (!!user?.id && query.isLoading),
+    hasBootstrapData: data !== null,
+    bootstrapError: query.isError ? (query.error instanceof Error ? query.error.message : '加载对话上下文失败') : null,
     refreshBootstrap,
   };
 }

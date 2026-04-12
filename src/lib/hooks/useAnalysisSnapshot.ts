@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
     loadConversationAnalysisSnapshot,
     type ConversationAnalysisSnapshot,
@@ -19,6 +19,10 @@ export interface AnalysisSnapshotCallbacks {
     onReasoningEnabled?: (enabled: boolean) => void;
     /** Called when conversationId is resolved from history */
     onConversationIdResolved?: (conversationId: string) => void;
+    /** Called after the snapshot load attempt settles */
+    onComplete?: () => void;
+    /** Called when snapshot loading fails for reasons other than not-found */
+    onError?: (message: string) => void;
 }
 
 export interface UseAnalysisSnapshotOptions {
@@ -52,46 +56,67 @@ export function useAnalysisSnapshot({
     hasExistingAnalysis,
     skip = false,
     callbacks,
-}: UseAnalysisSnapshotOptions): void {
+}: UseAnalysisSnapshotOptions): boolean {
+    const [loading, setLoading] = useState(false);
+
     useEffect(() => {
-        if (skip || hasExistingAnalysis) return;
+        if (skip || hasExistingAnalysis) {
+            setLoading(false);
+            return;
+        }
 
         let cancelled = false;
 
         const loadAnalysis = async () => {
+            setLoading(true);
             let resolvedId = conversationId ?? null;
 
-            if (!resolvedId && recordId) {
-                resolvedId = await resolveHistoryConversationId(
-                    divinationType,
-                    recordId,
-                    sessionKey,
-                );
-                if (cancelled) return;
-                if (resolvedId) {
-                    callbacks.onConversationIdResolved?.(resolvedId);
+            try {
+                if (!resolvedId && recordId) {
+                    resolvedId = await resolveHistoryConversationId(
+                        divinationType,
+                        recordId,
+                        sessionKey,
+                    );
+                    if (cancelled) return;
+                    if (resolvedId) {
+                        callbacks.onConversationIdResolved?.(resolvedId);
+                    }
+                }
+
+                if (!resolvedId) return;
+
+                const snapshot: ConversationAnalysisSnapshot | null =
+                    await loadConversationAnalysisSnapshot(resolvedId);
+                if (cancelled || !snapshot) return;
+
+                if (snapshot.analysis) {
+                    callbacks.onAnalysis(snapshot.analysis);
+                }
+                if (snapshot.reasoning) {
+                    callbacks.onReasoning?.(snapshot.reasoning);
+                }
+                if (snapshot.modelId) {
+                    callbacks.onModelId?.(snapshot.modelId);
+                }
+                callbacks.onReasoningEnabled?.(snapshot.reasoningEnabled);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : '加载分析快照失败';
+                console.error('[useAnalysisSnapshot] failed to load analysis snapshot:', error);
+                callbacks.onError?.(message);
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                    callbacks.onComplete?.();
                 }
             }
-
-            if (!resolvedId) return;
-
-            const snapshot: ConversationAnalysisSnapshot | null =
-                await loadConversationAnalysisSnapshot(resolvedId);
-            if (cancelled || !snapshot) return;
-
-            if (snapshot.analysis) {
-                callbacks.onAnalysis(snapshot.analysis);
-            }
-            if (snapshot.reasoning) {
-                callbacks.onReasoning?.(snapshot.reasoning);
-            }
-            if (snapshot.modelId) {
-                callbacks.onModelId?.(snapshot.modelId);
-            }
-            callbacks.onReasoningEnabled?.(snapshot.reasoningEnabled);
         };
 
         void loadAnalysis();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [conversationId, recordId, divinationType, sessionKey, hasExistingAnalysis, skip, callbacks]);
+
+    return loading;
 }

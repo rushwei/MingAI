@@ -1,5 +1,10 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
+import {
+    MING_RECORD_SOURCE_TYPE,
+    type DataSourceProvider,
+    type DataSourceQueryContext,
+    type DataSourceSummary,
+} from '@/lib/data-sources/types';
 
 type RecordRow = {
     id: string;
@@ -13,7 +18,7 @@ type RecordRow = {
 };
 
 export const recordProvider: DataSourceProvider<RecordRow> = {
-    type: 'ming_record',
+    type: MING_RECORD_SOURCE_TYPE,
     displayName: '命理记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
@@ -29,7 +34,7 @@ export const recordProvider: DataSourceProvider<RecordRow> = {
         if (error) throw new Error(error.message);
         return (data || []).map((row: { id: string; title: string; created_at: string }) => ({
             id: row.id,
-            type: 'ming_record',
+            type: MING_RECORD_SOURCE_TYPE,
             name: row.title,
             preview: row.title,
             createdAt: row.created_at

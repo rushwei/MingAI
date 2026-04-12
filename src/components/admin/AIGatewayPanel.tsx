@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Save } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/auth';
+import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 
 interface AIGateway {
@@ -35,38 +35,23 @@ export function AIGatewayPanel() {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const { showToast } = useToast();
 
-    const getToken = useCallback(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token;
-    }, []);
-
     const loadGateways = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            const token = await getToken();
-            if (!token) {
-                setError('未登录');
-                return;
-            }
-
-            const response = await fetch('/api/admin/ai-gateways', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || '获取网关列表失败');
-            }
-
+            const data = await requestAdminJson<{ gateways?: AIGateway[] }>(
+                '/api/admin/ai-gateways',
+                { method: 'GET' },
+                '获取网关列表失败',
+            );
             setGateways(data.gateways || []);
         } catch (e) {
             setError(e instanceof Error ? e.message : '获取网关列表失败');
         } finally {
             setLoading(false);
         }
-    }, [getToken]);
+    }, []);
 
     useEffect(() => {
         void loadGateways();
@@ -83,29 +68,24 @@ export function AIGatewayPanel() {
     const saveGateway = async (gateway: AIGateway) => {
         setUpdatingId(gateway.id);
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(`/api/admin/ai-gateways/${gateway.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
+            await requestAdminJson(
+                `/api/admin/ai-gateways/${gateway.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        displayName: gateway.displayName.trim(),
+                        baseUrl: gateway.baseUrl.trim(),
+                        apiKeyEnvVar: gateway.apiKeyEnvVar.trim(),
+                        transport: gateway.transport,
+                        isEnabled: gateway.isEnabled,
+                        notes: gateway.notes?.trim() || null,
+                    }),
                 },
-                body: JSON.stringify({
-                    displayName: gateway.displayName.trim(),
-                    baseUrl: gateway.baseUrl.trim(),
-                    apiKeyEnvVar: gateway.apiKeyEnvVar.trim(),
-                    transport: gateway.transport,
-                    isEnabled: gateway.isEnabled,
-                    notes: gateway.notes?.trim() || null,
-                }),
-            });
-
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(typeof data.error === 'string' ? data.error : '保存网关失败');
-            }
+                '保存网关失败',
+            );
 
             showToast('success', `${gateway.displayName} 已更新`);
             await loadGateways();

@@ -25,7 +25,6 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 // =====================================================
 function CommentItem({
     comment,
-    postId,
     userId,
     isAdmin,
     userVotes,
@@ -35,7 +34,6 @@ function CommentItem({
     onReport
 }: {
     comment: CommunityComment & { isAuthor?: boolean; isPostAuthor?: boolean };
-    postId: string;
     userId: string | null;
     isAdmin: boolean;
     userVotes: Map<string, VoteType>;
@@ -144,7 +142,6 @@ function CommentItem({
                                 <CommentItem
                                     key={reply.id}
                                     comment={reply}
-                                    postId={postId}
                                     userId={userId}
                                     isAdmin={isAdmin}
                                     userVotes={userVotes}
@@ -166,7 +163,6 @@ function CommentItem({
 // 评论区域
 // =====================================================
 export interface CommentSectionProps {
-    postId: string;
     comments: CommunityComment[];
     userId: string | null;
     isAdmin: boolean;
@@ -183,7 +179,6 @@ export interface CommentSectionProps {
 }
 
 export function CommentSection({
-    postId,
     comments,
     userId,
     isAdmin,
@@ -262,7 +257,6 @@ export function CommentSection({
                         <CommentItem
                             key={comment.id}
                             comment={comment}
-                            postId={postId}
                             userId={userId}
                             isAdmin={isAdmin}
                             userVotes={userVotes}

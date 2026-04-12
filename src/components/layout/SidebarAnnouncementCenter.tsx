@@ -92,6 +92,7 @@ export function SidebarAnnouncementCenter({
     const [notificationLoadingMore, setNotificationLoadingMore] = useState(false);
     const [notificationHasMore, setNotificationHasMore] = useState(false);
     const [notificationNextOffset, setNotificationNextOffset] = useState<number | null>(null);
+    const [notificationError, setNotificationError] = useState<string | null>(null);
     const [notificationProcessing, setNotificationProcessing] = useState(false);
     const [markingId, setMarkingId] = useState<string | null>(null);
     const announcementScrollRef = useRef<HTMLDivElement | null>(null);
@@ -135,10 +136,10 @@ export function SidebarAnnouncementCenter({
 
         if (result.error) {
             showToast('error', result.error.message || '获取公告失败');
+            setAnnouncementHasMore(false);
+            setAnnouncementNextOffset(null);
             if (!append) {
                 setAnnouncements([]);
-                setAnnouncementHasMore(false);
-                setAnnouncementNextOffset(null);
             }
             setAnnouncementLoading(false);
             setAnnouncementLoadingMore(false);
@@ -157,6 +158,7 @@ export function SidebarAnnouncementCenter({
     const loadNotifications = useCallback(async (options?: { append?: boolean; offset?: number }) => {
         if (!supportsNotifications || !userId) {
             setNotifications([]);
+            setNotificationError(null);
             setNotificationHasMore(false);
             setNotificationNextOffset(null);
             return;
@@ -170,6 +172,9 @@ export function SidebarAnnouncementCenter({
         }
 
         try {
+            if (!append) {
+                setNotificationError(null);
+            }
             const result = await getNotificationsPage(userId, {
                 limit: NOTIFICATION_LIMIT,
                 offset: options?.offset ?? 0,
@@ -179,11 +184,13 @@ export function SidebarAnnouncementCenter({
             setNotificationNextOffset(result.pagination.nextOffset);
         } catch (error) {
             console.error('[announcement-center] failed to load notifications:', error);
-            showToast('error', '获取通知失败');
+            const message = error instanceof Error ? error.message : '获取通知失败';
+            showToast('error', message);
+            setNotificationHasMore(false);
+            setNotificationNextOffset(null);
             if (!append) {
                 setNotifications([]);
-                setNotificationHasMore(false);
-                setNotificationNextOffset(null);
+                setNotificationError(message);
             }
         } finally {
             setNotificationLoading(false);
@@ -307,7 +314,7 @@ export function SidebarAnnouncementCenter({
         }
 
         setNotificationProcessing(true);
-        const success = await markAllAsRead(userId);
+        const success = await markAllAsRead();
         if (!success) {
             showToast('error', '一键已读失败');
             setNotificationProcessing(false);
@@ -386,6 +393,11 @@ export function SidebarAnnouncementCenter({
                         notificationLoading ? (
                             <div className="flex min-h-[200px] items-center justify-center">
                                 <SoundWaveLoader variant="inline" />
+                            </div>
+                        ) : notificationError ? (
+                            <div className="text-center py-20">
+                                <div className="text-sm font-semibold text-[#b42318] mb-2">通知加载失败</div>
+                                <p className="text-xs text-[#7a271a]">{notificationError}</p>
                             </div>
                         ) : notifications.length === 0 ? (
                             <div className="text-center py-20">

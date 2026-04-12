@@ -267,7 +267,11 @@ export function useChatMessaging({
                 if (taskDreamContext) setDreamContext(taskDreamContext);
             }
 
-            if (event.task.messages.length > 0) {
+            const shouldCachePersistedMessages = event.type === 'task_completed'
+                || event.type === 'task_stopped'
+                || (event.type === 'task_failed' && event.errorCode !== 'PERSIST_FAILED');
+
+            if (shouldCachePersistedMessages && event.task.messages.length > 0) {
                 cacheConversationMessages(convId, event.task.messages, {
                     updatedAt: new Date().toISOString(),
                 });
@@ -291,18 +295,6 @@ export function useChatMessaging({
         });
         return unsubscribe;
     }, [cacheConversationMessages, markCreditsExhausted, debouncedRefreshViewerState, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext, customProviderConfig]);
-
-    // KB event listeners
-    useEffect(() => {
-        const handler = (event: Event) => {
-            const detail = (event as CustomEvent<{ sourceType?: string }>).detail;
-            if (detail?.sourceType === 'conversation') void refreshConversationList();
-        };
-        window.addEventListener('mingai:knowledge-base:ingested', handler as EventListener);
-        return () => {
-            window.removeEventListener('mingai:knowledge-base:ingested', handler as EventListener);
-        };
-    }, [refreshConversationList]);
 
     const handleArchiveMessage = useCallback((message: ChatMessage) => {
         if (!activeConversationId || !knowledgeBaseEnabled) return;

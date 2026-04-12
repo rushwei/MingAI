@@ -11,17 +11,18 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { readLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { formatPromptLayerLabel } from '@/lib/chat/prompt-labels';
-import { supabase } from '@/lib/auth';
 import { mentionTypeLabels } from '@/components/chat/mentionStyles';
+import {
+    listKnowledgeBases,
+    type KnowledgeBaseSummary as BrowserKnowledgeBaseSummary,
+} from '@/lib/knowledge-base/browser-client';
 import type { DataSourceType, DataSourceSummary, DataSourceLoadError } from '@/lib/data-sources/types';
 import { filterMentionsByFeature } from '@/lib/data-sources/catalog';
 import type { ChatMode } from '@/lib/chat/use-chat-state';
 
-export type KnowledgeBaseSummary = {
-    id: string;
-    name: string;
-    description: string | null;
-};
+export type KnowledgeBaseSummary =
+    Pick<BrowserKnowledgeBaseSummary, 'id' | 'name' | 'description'>
+    & Partial<Omit<BrowserKnowledgeBaseSummary, 'id' | 'name' | 'description'>>;
 
 /** 缓存 TTL：10 分钟 */
 const MENTION_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -161,19 +162,12 @@ export function useComposerState(opts: UseComposerStateOptions) {
         const kbKey = `mingai.knowledge_bases.${userId}.v1`;
         try {
             setMentionLoading(true);
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
-
             const [dsResp, kbResp] = await Promise.all([
                 canMentionDataSources
-                    ? fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`, {
-                        headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-                    })
+                    ? fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`)
                     : Promise.resolve(null),
                 canUseKnowledgeBase
-                    ? fetch('/api/knowledge-base', {
-                        headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-                    })
+                    ? listKnowledgeBases()
                     : Promise.resolve(null)
             ]);
 
@@ -193,13 +187,9 @@ export function useComposerState(opts: UseComposerStateOptions) {
                 setMentionDataSourceErrors([]);
             }
 
-            if (kbResp && kbResp.ok) {
-                const kb = await kbResp.json() as { knowledgeBases?: KnowledgeBaseSummary[] };
-                const list = kb.knowledgeBases || [];
-                setMentionKnowledgeBases(list);
-                writeMentionCache(kbKey, list);
-            } else if (kbResp) {
-                setMentionLoadError('数据加载失败');
+            if (Array.isArray(kbResp)) {
+                setMentionKnowledgeBases(kbResp);
+                writeMentionCache(kbKey, kbResp);
             } else {
                 setMentionKnowledgeBases([]);
             }

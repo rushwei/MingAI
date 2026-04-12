@@ -17,7 +17,7 @@ import {
     Pin,
     Star,
 } from 'lucide-react';
-import { CommunityPost, VoteType, REPORT_REASONS } from '@/lib/community';
+import { CommunityPost, VoteType, REPORT_REASONS, createReport, updatePost } from '@/lib/community';
 import { useToast } from '@/components/ui/Toast';
 
 // =====================================================
@@ -72,6 +72,7 @@ export function ReportModal({
     targetId: string;
     onClose: () => void;
 }) {
+    const { showToast } = useToast();
     const [reason, setReason] = useState('');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
@@ -83,16 +84,11 @@ export function ReportModal({
 
         setLoading(true);
         try {
-            const response = await fetch('/api/community/reports', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetType, targetId, reason, description }),
-            });
-
-            if (response.ok) {
-                setSuccess(true);
-                setTimeout(onClose, 1500);
-            }
+            await createReport(targetType, targetId, reason as typeof REPORT_REASONS[number]['value'], description);
+            setSuccess(true);
+            setTimeout(onClose, 1500);
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '提交举报失败');
         } finally {
             setLoading(false);
         }
@@ -188,19 +184,11 @@ export function EditPostModal({
 
         setLoading(true);
         try {
-            const response = await fetch(`/api/community/posts/${post.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, content }),
-            });
-
-            if (response.ok) {
-                const updatedPost = await response.json();
-                onSave({ ...post, ...updatedPost, title, content });
-                onClose();
-            } else {
-                showToast('error', '更新失败，请重试');
-            }
+            const updatedPost = await updatePost(post.id, { title, content });
+            onSave({ ...post, ...updatedPost, title, content });
+            onClose();
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '更新失败，请重试');
         } finally {
             setLoading(false);
         }

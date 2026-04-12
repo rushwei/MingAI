@@ -19,24 +19,23 @@ import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
 import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
+import { KNOWLEDGE_BASE_SYNC_EVENT } from '@/lib/browser-api';
+import { MING_RECORD_SOURCE_TYPE } from '@/lib/data-sources/types';
+import {
+    createKnowledgeBase,
+    deleteKnowledgeBase,
+    listKnowledgeBaseArchives,
+    listKnowledgeBases,
+    removeKnowledgeBaseArchive,
+    type ArchivedSource,
+    type KnowledgeBaseSummary,
+    updateKnowledgeBase,
+    uploadKnowledgeBaseFile,
+} from '@/lib/knowledge-base/browser-client';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
-type KnowledgeBase = {
-    id: string;
-    name: string;
-    description: string | null;
+type KnowledgeBase = KnowledgeBaseSummary & {
     weight: 'low' | 'normal' | 'high';
-    created_at?: string;
-    updated_at?: string;
-};
-
-type ArchivedSource = {
-    id: string;
-    kb_id: string;
-    source_type: string;
-    source_id: string;
-    created_at?: string;
-    preview?: string | null;
 };
 
 type ArchiveBucket = {
@@ -45,6 +44,8 @@ type ArchiveBucket = {
     nextOffset: number | null;
     loaded: boolean;
     loading: boolean;
+    error: string | null;
+    appendError: string | null;
 };
 
 const ARCHIVE_PAGE_SIZE = 20;
@@ -54,7 +55,21 @@ const EMPTY_ARCHIVE_BUCKET: ArchiveBucket = {
     nextOffset: null,
     loaded: false,
     loading: false,
+    error: null,
+    appendError: null,
 };
+
+function mergeArchivedSources(current: ArchivedSource[], incoming: ArchivedSource[]) {
+    if (incoming.length === 0) {
+        return current;
+    }
+
+    const merged = new Map(current.map((item) => [item.id, item] as const));
+    for (const item of incoming) {
+        merged.set(item.id, item);
+    }
+    return Array.from(merged.values());
+}
 
 const weightLabel: Record<KnowledgeBase['weight'], string> = {
     low: '低优先级',
@@ -74,17 +89,16 @@ const sourceTypeLabel: Record<string, string> = {
     face_reading: '面相分析',
     palm_reading: '手相分析',
     mbti_reading: 'MBTI 分析',
-    ming_record: '命理记录',
+    [MING_RECORD_SOURCE_TYPE]: '命理记录',
     daily_fortune: '今日运势',
     monthly_fortune: '本月运势',
     qimen_chart: '奇门遁甲',
     daliuren_divination: '大六壬',
 };
 
-export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: boolean }) {
+function KnowledgeBaseManageContent({ embedded = false }: { embedded?: boolean }) {
     const { showToast } = useToast();
     const {
-        session,
         userId,
         sessionLoading,
         membershipInfo,
@@ -92,7 +106,8 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
         membershipResolved,
     } = useSessionMembership();
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [listError, setListError] = useState<string | null>(null);
+    const [createError, setCreateError] = useState<string | null>(null);
     const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
     const [expandedKbId, setExpandedKbId] = useState<string | null>(null);
     const [archives, setArchives] = useState<Record<string, ArchiveBucket>>({});
@@ -112,37 +127,33 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
     const [pendingDeleteKbId, setPendingDeleteKbId] = useState<string | null>(null);
     const archiveLoadMoreRef = useRef<HTMLDivElement | null>(null);
     const initializedUserIdRef = useRef<string | null>(null);
-    const accessToken = session?.access_token || null;
+    const archivesRef = useRef<Record<string, ArchiveBucket>>({});
+    const archiveRequestKeyRef = useRef<Record<string, string>>({});
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : null;
 
+    useEffect(() => {
+        archivesRef.current = archives;
+    }, [archives]);
+
     const loadKnowledgeBases = useCallback(async () => {
-        setError(null);
+        setListError(null);
         try {
-            const resp = await fetch('/api/knowledge-base', {
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-            });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                setError(typeof data.error === 'string' ? data.error : '获取知识库失败');
-                setKbs([]);
-                return;
-            }
-            const kbList = (data as { knowledgeBases?: unknown }).knowledgeBases;
-            setKbs(Array.isArray(kbList) ? (kbList as KnowledgeBase[]) : []);
-        } catch {
-            setError('获取知识库失败');
+            const kbList = await listKnowledgeBases();
+            setKbs(kbList as KnowledgeBase[]);
+        } catch (loadError) {
+            setListError(loadError instanceof Error ? loadError.message : '获取知识库失败');
             setKbs([]);
         }
-    }, [accessToken]);
+    }, []);
 
     const loadPromptKbIds = useCallback(async () => {
         const { settings, error } = await getCurrentUserSettings();
         if (error) {
-            setError(error.message || '加载知识库设置失败');
+            showToast('error', error.message || '加载知识库设置失败');
             return;
         }
         setPromptKbIds(settings?.promptKbIds ?? []);
-    }, []);
+    }, [showToast]);
 
     useEffect(() => {
         const init = async () => {
@@ -152,7 +163,6 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
             if (!userId) {
                 initializedUserIdRef.current = null;
                 setLoading(false);
-                setError('请先登录');
                 return;
             }
             if (initializedUserIdRef.current === userId) {
@@ -184,59 +194,59 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
     }, []);
 
     const loadArchives = useCallback(async (kbId: string, options?: { append?: boolean; offset?: number }) => {
-        setError(null);
         const append = options?.append === true;
-        const current = archives[kbId] ?? EMPTY_ARCHIVE_BUCKET;
+        const current = archivesRef.current[kbId] ?? EMPTY_ARCHIVE_BUCKET;
         const nextOffset = options?.offset ?? (append ? current.nextOffset ?? 0 : 0);
+        const requestKey = append ? `append:${nextOffset}` : 'initial:0';
+        if (append && archiveRequestKeyRef.current[kbId] === requestKey) {
+            return;
+        }
+        archiveRequestKeyRef.current[kbId] = requestKey;
         setArchives(prev => ({
             ...prev,
             [kbId]: {
                 ...(prev[kbId] ?? EMPTY_ARCHIVE_BUCKET),
                 loading: true,
+                error: append ? (prev[kbId]?.error ?? null) : null,
+                appendError: append ? null : (prev[kbId]?.appendError ?? null),
             },
         }));
         try {
-            const resp = await fetch(`/api/knowledge-base/archive?kbId=${encodeURIComponent(kbId)}&limit=${ARCHIVE_PAGE_SIZE}&offset=${nextOffset}`, {
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+            const archivePage = await listKnowledgeBaseArchives(kbId, {
+                limit: ARCHIVE_PAGE_SIZE,
+                offset: nextOffset,
             });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                setError(typeof data.error === 'string' ? data.error : '获取归档失败');
-                setArchives(prev => ({
-                    ...prev,
-                    [kbId]: {
-                        ...(prev[kbId] ?? EMPTY_ARCHIVE_BUCKET),
-                        loading: false,
-                        loaded: true,
-                    },
-                }));
-                return;
-            }
-            const items = (data as { archivedSources?: unknown }).archivedSources;
-            const pagination = (data as { pagination?: { hasMore?: unknown; nextOffset?: unknown } }).pagination;
-            const pageItems = Array.isArray(items) ? (items as ArchivedSource[]) : [];
             setArchives(prev => ({
                 ...prev,
                 [kbId]: {
-                    items: append ? [...(prev[kbId]?.items ?? []), ...pageItems] : pageItems,
-                    hasMore: pagination?.hasMore === true,
-                    nextOffset: typeof pagination?.nextOffset === 'number' ? pagination.nextOffset : null,
+                    items: append ? mergeArchivedSources(prev[kbId]?.items ?? [], archivePage.items) : archivePage.items,
+                    hasMore: archivePage.hasMore,
+                    nextOffset: archivePage.nextOffset,
                     loaded: true,
                     loading: false,
+                    error: null,
+                    appendError: null,
                 },
             }));
-        } catch {
-            setError('获取归档失败');
+        } catch (loadError) {
+            const message = loadError instanceof Error ? loadError.message : '获取归档失败';
             setArchives(prev => ({
                 ...prev,
                 [kbId]: {
                     ...(prev[kbId] ?? EMPTY_ARCHIVE_BUCKET),
+                    items: prev[kbId]?.items ?? [],
+                    hasMore: prev[kbId]?.hasMore ?? false,
+                    nextOffset: prev[kbId]?.nextOffset ?? null,
                     loading: false,
                     loaded: true,
+                    error: append ? (prev[kbId]?.error ?? null) : message,
+                    appendError: append ? message : null,
                 },
             }));
+        } finally {
+            delete archiveRequestKeyRef.current[kbId];
         }
-    }, [accessToken, archives]);
+    }, []);
 
     const toggleExpand = useCallback(async (kbId: string) => {
         if (expandedKbId === kbId) {
@@ -256,6 +266,7 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
             !expandedKbId
             || !bucket?.loaded
             || bucket.loading
+            || !!bucket.appendError
             || !bucket.hasMore
             || bucket.nextOffset == null
             || !archiveLoadMoreRef.current
@@ -278,41 +289,65 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
         return () => observer.disconnect();
     }, [archives, expandedKbId, loadArchives]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const handleArchiveChanged = (event: Event) => {
+            const detail = (event as CustomEvent<{
+                pathname?: string;
+                requestBody?: Record<string, unknown> | null;
+                responseData?: Record<string, unknown> | null;
+            }>).detail;
+            const pathname = detail?.pathname ?? '';
+            const kbId = pathname.startsWith('/api/knowledge-base/ingest')
+                ? detail.requestBody?.kbId
+                : detail?.responseData?.kbId;
+
+            if (typeof kbId !== 'string' || !kbId) {
+                if (pathname.startsWith('/api/knowledge-base/archive/') && expandedKbId) {
+                    invalidateArchiveBucket(expandedKbId);
+                    void loadArchives(expandedKbId);
+                }
+                return;
+            }
+
+            invalidateArchiveBucket(kbId);
+            if (expandedKbId === kbId) {
+                void loadArchives(kbId);
+            }
+        };
+
+        window.addEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleArchiveChanged as EventListener);
+        return () => {
+            window.removeEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleArchiveChanged as EventListener);
+        };
+    }, [expandedKbId, invalidateArchiveBucket, loadArchives]);
+
     const createKb = useCallback(async () => {
         const name = newName.trim();
         if (!name) {
-            setError('请输入知识库名称');
+            setCreateError('请输入知识库名称');
             return;
         }
         setCreating(true);
-        setError(null);
+        setCreateError(null);
         try {
-            const resp = await fetch('/api/knowledge-base', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
-                },
-                body: JSON.stringify({
-                    name,
-                    description: newDescription.trim() ? newDescription.trim() : null
-                })
+            await createKnowledgeBase({
+                name,
+                description: newDescription.trim() ? newDescription.trim() : null,
             });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                setError(typeof data.error === 'string' ? data.error : '创建知识库失败');
-                return;
-            }
             setNewName('');
             setNewDescription('');
             await loadKnowledgeBases();
             showToast('success', '知识库创建成功');
-        } catch {
-            setError('创建知识库失败');
+        } catch (createError) {
+            setCreateError(createError instanceof Error ? createError.message : '创建知识库失败');
         } finally {
             setCreating(false);
         }
-    }, [accessToken, loadKnowledgeBases, newDescription, newName, showToast]);
+    }, [loadKnowledgeBases, newDescription, newName, showToast]);
 
     const togglePromptKb = useCallback(async (kbId: string) => {
         if (!userId) return;
@@ -333,7 +368,6 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
         setPromptSavingId(null);
         if (!saved) {
             setPromptKbIds(promptKbIds);
-            setError('保存知识库失败');
             showToast('error', '保存知识库失败');
             return;
         }
@@ -342,89 +376,58 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
 
     const updateKb = useCallback(async (kb: KnowledgeBase) => {
         setSavingKbId(kb.id);
-        setError(null);
         try {
-            const resp = await fetch(`/api/knowledge-base/${kb.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
-                },
-                body: JSON.stringify({
-                    name: kb.name,
-                    description: kb.description,
-                    weight: kb.weight
-                })
+            await updateKnowledgeBase(kb.id, {
+                name: kb.name,
+                description: kb.description,
+                weight: kb.weight,
             });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                setError(typeof data.error === 'string' ? data.error : '更新知识库失败');
-                return;
-            }
             await loadKnowledgeBases();
             showToast('success', '知识库已更新');
-        } catch {
-            setError('更新知识库失败');
+        } catch (saveError) {
+            showToast('error', saveError instanceof Error ? saveError.message : '更新知识库失败');
         } finally {
             setSavingKbId(null);
         }
-    }, [accessToken, loadKnowledgeBases, showToast]);
+    }, [loadKnowledgeBases, showToast]);
 
     const deleteKb = useCallback(async (kbId: string) => {
         setDeletingKbId(kbId);
-        setError(null);
         try {
-            const resp = await fetch(`/api/knowledge-base/${kbId}`, {
-                method: 'DELETE',
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-            });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                const message = typeof data.error === 'string' ? data.error : '删除知识库失败';
-                setError(message);
-                showToast('error', message);
-                return;
-            }
+            await deleteKnowledgeBase(kbId);
             if (expandedKbId === kbId) setExpandedKbId(null);
             invalidateArchiveBucket(kbId);
             await loadKnowledgeBases();
             showToast('success', '知识库已删除');
             setPendingDeleteKbId(null);
-        } catch {
-            setError('删除知识库失败');
-            showToast('error', '删除知识库失败');
+        } catch (deleteError) {
+            const message = deleteError instanceof Error ? deleteError.message : '删除知识库失败';
+            showToast('error', message);
         } finally {
             setDeletingKbId(null);
         }
-    }, [accessToken, expandedKbId, invalidateArchiveBucket, loadKnowledgeBases, showToast]);
+    }, [expandedKbId, invalidateArchiveBucket, loadKnowledgeBases, showToast]);
 
-    const removeArchive = useCallback(async (archiveId: string) => {
-        setRemovingArchiveId(archiveId);
-        setError(null);
+    const removeArchive = useCallback(async (archive: ArchivedSource) => {
+        setRemovingArchiveId(archive.id);
         try {
-            const resp = await fetch(`/api/knowledge-base/archive/${archiveId}`, {
-                method: 'DELETE',
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+            await removeKnowledgeBaseArchive(archive.id, {
+                sourceType: archive.source_type,
+                sourceId: archive.source_id,
+                kbId: archive.kb_id,
             });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                const message = typeof data.error === 'string' ? data.error : '取消归档失败';
-                setError(message);
-                showToast('error', message);
-                return;
-            }
             if (expandedKbId) {
                 invalidateArchiveBucket(expandedKbId);
                 await loadArchives(expandedKbId);
             }
             showToast('success', '已取消归档');
-        } catch {
-            setError('取消归档失败');
-            showToast('error', '取消归档失败');
+        } catch (removeError) {
+            const message = removeError instanceof Error ? removeError.message : '取消归档失败';
+            showToast('error', message);
         } finally {
             setRemovingArchiveId(null);
         }
-    }, [accessToken, expandedKbId, invalidateArchiveBucket, loadArchives, showToast]);
+    }, [expandedKbId, invalidateArchiveBucket, loadArchives, showToast]);
 
     const uploadKnowledgeFile = useCallback(async () => {
         if (!uploadKbId) {
@@ -439,19 +442,7 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
         setUploadError(null);
         setUploadSuccess(null);
         try {
-            const formData = new FormData();
-            formData.append('kbId', uploadKbId);
-            formData.append('file', uploadFile);
-            const resp = await fetch('/api/knowledge-base/upload', {
-                method: 'POST',
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined,
-                body: formData
-            });
-            const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-            if (!resp.ok) {
-                setUploadError(typeof data.error === 'string' ? data.error : '上传失败');
-                return;
-            }
+            await uploadKnowledgeBaseFile(uploadKbId, uploadFile);
             setUploadFile(null);
             // Reset file input value
             const fileInput = document.getElementById('kb-file-upload') as HTMLInputElement;
@@ -465,12 +456,12 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
             invalidateArchiveBucket(uploadKbId);
             await loadArchives(uploadKbId);
             showToast('success', '文件上传成功');
-        } catch {
-            setUploadError('上传失败');
+        } catch (uploadFailure) {
+            setUploadError(uploadFailure instanceof Error ? uploadFailure.message : '上传失败');
         } finally {
             setUploading(false);
         }
-    }, [accessToken, expandedKbId, invalidateArchiveBucket, loadArchives, showToast, uploadFile, uploadKbId]);
+    }, [expandedKbId, invalidateArchiveBucket, loadArchives, showToast, uploadFile, uploadKbId]);
 
     if (!sessionLoading && !userId) {
         return <SettingsLoginRequired title="请先登录后使用知识库" />;
@@ -523,7 +514,7 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
                                 {creating ? <SoundWaveLoader variant="inline" /> : <Plus className="w-3.5 h-3.5" />}
                                 创建知识库
                             </button>
-                            {error && <div className="text-[10px] text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</div>}
+                            {createError && <div className="text-[10px] text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{createError}</div>}
                         </div>
                     </div>
 
@@ -601,6 +592,19 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
                         <Database className="w-4 h-4 text-accent" />
                         我的知识库列表
                     </h2>
+
+                    {listError && (
+                        <div className="rounded-md border border-red-200/70 bg-red-50/60 px-4 py-3 text-xs text-red-600 flex items-center justify-between gap-3">
+                            <span>{listError}</span>
+                            <button
+                                type="button"
+                                onClick={() => { void loadKnowledgeBases(); }}
+                                className="rounded-md border border-red-200/70 px-2.5 py-1 text-[11px] font-medium"
+                            >
+                                重试
+                            </button>
+                        </div>
+                    )}
 
                     {loading ? (
                         <div className="grid grid-cols-1 gap-3">
@@ -766,6 +770,17 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
                                                         </div>
                                                     ))}
                                                 </div>
+                                            ) : archiveState.error && archiveState.items.length === 0 ? (
+                                                <div className="text-center py-6 rounded-md border border-dashed border-red-200/70 bg-red-50/60">
+                                                    <p className="text-xs text-red-600">{archiveState.error}</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { void loadArchives(kb.id); }}
+                                                        className="mt-2 text-[10px] font-medium text-red-600"
+                                                    >
+                                                        重试
+                                                    </button>
+                                                </div>
                                             ) : archiveState.items.length === 0 ? (
                                                 <div className="text-center py-6 rounded-md border border-dashed border-border/50">
                                                     <p className="text-xs text-foreground-secondary">暂无归档数据</p>
@@ -792,7 +807,7 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
                                                             </div>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => removeArchive(a.id)}
+                                                                onClick={() => removeArchive(a)}
                                                                 disabled={removingArchiveId === a.id}
                                                                 className="p-1.5 rounded-md text-foreground-tertiary hover:text-red-500 hover:bg-red-50 transition-colors duration-150 opacity-0 group-hover:opacity-100 focus:opacity-100"
                                                                 title="移除归档"
@@ -801,12 +816,37 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
                                                             </button>
                                                         </div>
                                                     ))}
+                                                    {archiveState.error ? (
+                                                        <div className="sm:col-span-2 rounded-md border border-red-200/70 bg-red-50/60 px-3 py-2 text-[10px] text-red-600">
+                                                            {archiveState.error}
+                                                        </div>
+                                                    ) : null}
+                                                    {archiveState.appendError ? (
+                                                        <div className="sm:col-span-2 rounded-md border border-red-200/70 bg-red-50/60 px-3 py-2 text-[10px] text-red-600 flex items-center justify-between gap-3">
+                                                            <span>{archiveState.appendError}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { void loadArchives(kb.id, { append: true, offset: archiveState.nextOffset ?? 0 }); }}
+                                                                className="rounded-md border border-red-200/70 px-2.5 py-1 text-[11px] font-medium"
+                                                            >
+                                                                重试加载更多
+                                                            </button>
+                                                        </div>
+                                                    ) : null}
                                                     {archiveState.hasMore && (
                                                         <div ref={archiveLoadMoreRef} className="sm:col-span-2 py-3 flex justify-center">
                                                             {archiveState.loading ? (
                                                                 <div className="flex items-center gap-2 text-xs text-foreground-secondary">
                                                                     <SoundWaveLoader variant="inline" />
                                                                 </div>
+                                                            ) : archiveState.appendError ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { void loadArchives(kb.id, { append: true, offset: archiveState.nextOffset ?? 0 }); }}
+                                                                    className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-secondary transition-colors hover:bg-background-secondary"
+                                                                >
+                                                                    重试加载更多
+                                                                </button>
                                                             ) : (
                                                                 <div className="text-xs text-foreground-secondary">
                                                                     继续下滑加载更多
@@ -849,6 +889,10 @@ export function KnowledgeBaseManageContent({ embedded = false }: { embedded?: bo
     );
 }
 
-export default function KnowledgeBaseManagePage() {
+function KnowledgeBaseManagePage() {
     return <SettingsRouteLauncher tab="knowledge-base" />;
 }
+
+const KnowledgeBaseManagePageEntry = Object.assign(KnowledgeBaseManagePage, { Content: KnowledgeBaseManageContent });
+
+export default KnowledgeBaseManagePageEntry;

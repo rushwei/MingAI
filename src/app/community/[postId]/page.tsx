@@ -9,36 +9,27 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { CommunityPost, CommunityComment, VoteType } from '@/lib/community';
-import { getCurrentUserProfileBundle, supabase } from '@/lib/auth';
+import {
+    adminDeletePost,
+    adminFeaturePost,
+    adminPinPost,
+    CommunityPost,
+    CommunityComment,
+    createComment,
+    deleteComment,
+    deletePost,
+    getPostDetail,
+    vote,
+    VoteType,
+} from '@/lib/community';
+import { supabase } from '@/lib/auth';
+import { loadAdminClientAccessState } from '@/lib/admin/client';
 import { useToast } from '@/components/ui/Toast';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PostNavBar, ReportModal, EditPostModal } from '@/components/community/PostActions';
 import { PostDetail } from '@/components/community/PostDetail';
 import { CommentSection } from '@/components/community/CommentSection';
-
-// 客户端 fetch 重试工具
-async function fetchWithRetry(
-    url: string,
-    options?: RequestInit,
-    retries = 3,
-    delay = 500
-): Promise<Response> {
-    let lastError: unknown;
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await fetch(url, options);
-            return response;
-        } catch (err) {
-            lastError = err;
-            if (i < retries - 1) {
-                await new Promise(r => setTimeout(r, delay * (i + 1)));
-            }
-        }
-    }
-    throw lastError;
-}
 
 export default function PostDetailPage() {
     const router = useRouter();
@@ -49,9 +40,11 @@ export default function PostDetailPage() {
     const [loading, setLoading] = useState(true);
     const [post, setPost] = useState<CommunityPost | null>(null);
     const [comments, setComments] = useState<CommunityComment[]>([]);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [isAuthor, setIsAuthor] = useState(false);
     const [user, setUser] = useState<{ id: string } | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [authResolved, setAuthResolved] = useState(false);
     const [userVotes, setUserVotes] = useState<Map<string, VoteType>>(new Map());
     const [postVote, setPostVote] = useState<VoteType | null>(null);
     const [commentContent, setCommentContent] = useState('');
@@ -64,81 +57,68 @@ export default function PostDetailPage() {
     // 加载用户信息
     useEffect(() => {
         const checkAuth = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-            if (user) {
-                const bundle = await getCurrentUserProfileBundle();
-                setIsAdmin(bundle?.profile?.is_admin || false);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                setUser(user);
+                if (user) {
+                    try {
+                        const access = await loadAdminClientAccessState();
+                        setIsAdmin(access.isAdmin);
+                    } catch (error) {
+                        console.error('获取社区管理员状态失败:', error);
+                        setIsAdmin(false);
+                        showToast('error', error instanceof Error ? error.message : '管理员权限获取失败');
+                    }
+                } else {
+                    setIsAdmin(false);
+                }
+            } catch (error) {
+                console.error('获取社区登录态失败:', error);
+                setUser(null);
+                setIsAdmin(false);
+                showToast('error', error instanceof Error ? error.message : '认证状态获取失败');
+            } finally {
+                setAuthResolved(true);
             }
         };
-        checkAuth();
-    }, []);
+        void checkAuth();
+    }, [showToast]);
 
     // 加载帖子
     const loadPost = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/community/posts/${postId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setPost(data.post);
-                setComments(data.comments);
-                setIsAuthor(data.isAuthor);
-            } else {
-                router.push('/community');
+            const detail = await getPostDetail(postId);
+            if (!detail) {
+                setPost(null);
+                setComments([]);
+                setIsAuthor(false);
+                setPostVote(null);
+                setUserVotes(new Map());
+                setLoadError(null);
+                return;
             }
+            setPost(detail.post);
+            setComments(detail.comments);
+            setIsAuthor(detail.viewer.isAuthor || detail.isAuthor);
+            setPostVote(detail.viewerVotes.post);
+            setUserVotes(new Map(Object.entries(detail.viewerVotes.comments)));
+            setLoadError(null);
+        } catch (error) {
+            setPost(null);
+            setComments([]);
+            setIsAuthor(false);
+            setPostVote(null);
+            setUserVotes(new Map());
+            setLoadError(error instanceof Error ? error.message : '获取帖子失败');
         } finally {
             setLoading(false);
         }
-    }, [postId, router]);
-
-    // 加载投票状态
-    const loadVotes = useCallback(async () => {
-        if (!user) return;
-
-        try {
-            const postVoteRes = await fetchWithRetry(`/api/community/votes?targetType=post&targetId=${postId}`);
-            if (postVoteRes.ok) {
-                const data = await postVoteRes.json();
-                setPostVote(data.vote);
-            }
-        } catch { /* ignore network errors */ }
-
-        const loadCommentVotes = async (commentList: CommunityComment[]) => {
-            const newVotes = new Map<string, VoteType>();
-            const processComments = async (list: CommunityComment[]) => {
-                for (const comment of list) {
-                    try {
-                        const res = await fetchWithRetry(`/api/community/votes?targetType=comment&targetId=${comment.id}`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.vote) {
-                                newVotes.set(comment.id, data.vote);
-                            }
-                        }
-                    } catch { /* ignore */ }
-                    if (comment.replies?.length) {
-                        await processComments(comment.replies);
-                    }
-                }
-            };
-            await processComments(commentList);
-            return newVotes;
-        };
-
-        if (comments.length > 0) {
-            const commentVotes = await loadCommentVotes(comments);
-            setUserVotes(commentVotes);
-        }
-    }, [user, postId, comments]);
+    }, [postId]);
 
     useEffect(() => {
-        loadPost();
+        void loadPost();
     }, [loadPost]);
-
-    useEffect(() => {
-        loadVotes();
-    }, [loadVotes]);
 
     // 投票
     const handleVote = async (targetType: 'post' | 'comment', targetId: string, voteType: VoteType) => {
@@ -197,16 +177,8 @@ export default function PostDetailPage() {
         }
 
         try {
-            const response = await fetch('/api/community/votes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetType, targetId, voteType }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Vote failed');
-            }
-        } catch {
+            await vote(targetType, targetId, voteType);
+        } catch (error) {
             // 回滚
             if (targetType === 'post' && post) {
                 setPostVote(currentVote);
@@ -227,6 +199,7 @@ export default function PostDetailPage() {
                 });
                 setComments(prev => updateCommentVotes(prev, targetId, -upChange, -downChange));
             }
+            showToast('error', error instanceof Error ? error.message : '投票失败');
         }
     };
 
@@ -261,32 +234,20 @@ export default function PostDetailPage() {
 
         setSubmitting(true);
         try {
-            const response = await fetch('/api/community/comments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    post_id: postId,
-                    content: commentContent,
-                    parent_id: replyTo,
-                }),
+            const newComment = await createComment({
+                post_id: postId,
+                content: commentContent.trim(),
+                parent_id: replyTo || undefined,
             });
+            setCommentContent('');
 
-            if (response.ok) {
-                const newComment = await response.json();
-                setCommentContent('');
-
-                if (replyTo) {
-                    setComments(prev => addReplyToComment(prev, replyTo, newComment));
-                } else {
-                    setComments(prev => [...prev, { ...newComment, replies: [] }]);
-                }
-
-                setPost(prev => prev ? { ...prev, comment_count: prev.comment_count + 1 } : null);
-                setReplyTo(null);
+            if (replyTo) {
+                setComments(prev => addReplyToComment(prev, replyTo, { ...newComment, replies: [] }));
             } else {
-                const data = await response.json().catch(() => null) as { error?: string } | null;
-                throw new Error(data?.error || '发表评论失败');
+                setComments(prev => [...prev, { ...newComment, replies: [] }]);
             }
+            setPost(prev => prev ? { ...prev, comment_count: prev.comment_count + 1 } : null);
+            setReplyTo(null);
         } catch (err) {
             showToast('error', err instanceof Error ? err.message : '发表评论失败，请重试');
         } finally {
@@ -317,46 +278,62 @@ export default function PostDetailPage() {
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        const response = await fetch(`/api/community/comments/${commentId}`, { method: 'DELETE' });
-        if (response.ok) {
+        if (!user) {
+            showToast('warning', '请先登录');
+            return;
+        }
+
+        try {
+            await deleteComment(commentId);
             setComments(prev => removeCommentFromList(prev, commentId));
             setPost(prev => prev ? { ...prev, comment_count: Math.max(0, prev.comment_count - 1) } : null);
             setConfirmDeleteState(null);
-        } else {
-            showToast('error', '删除评论失败');
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '删除评论失败');
         }
     };
 
     const removeCommentFromList = (commentList: CommunityComment[], commentId: string): CommunityComment[] => {
-        return commentList.filter(comment => {
-            if (comment.id === commentId) return false;
-            if (comment.replies && comment.replies.length > 0) {
-                comment.replies = removeCommentFromList(comment.replies, commentId);
+        return commentList.reduce<CommunityComment[]>((acc, comment) => {
+            if (comment.id === commentId) {
+                return acc;
             }
-            return true;
-        });
+            const nextReplies = comment.replies?.length
+                ? removeCommentFromList(comment.replies, commentId)
+                : comment.replies;
+            acc.push(nextReplies !== comment.replies ? { ...comment, replies: nextReplies } : comment);
+            return acc;
+        }, []);
     };
 
     const handleDeletePost = async () => {
-        const response = await fetch(`/api/community/posts/${postId}`, { method: 'DELETE' });
-        if (!response.ok) {
-            showToast('error', '删除帖子失败');
-            return;
+        try {
+            await deletePost(postId);
+            setConfirmDeleteState(null);
+            router.push('/community');
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '删除帖子失败');
         }
-        setConfirmDeleteState(null);
-        router.push('/community');
     };
 
     const handleAdminAction = async (action: 'pin' | 'feature' | 'delete', value?: boolean) => {
-        await fetch(`/api/community/posts/${postId}/admin`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, value }),
-        });
-        loadPost();
+        try {
+            if (action === 'pin') {
+                await adminPinPost(postId, value === true);
+            } else if (action === 'feature') {
+                await adminFeaturePost(postId, value === true);
+            } else {
+                await adminDeletePost(postId);
+                router.push('/community');
+                return;
+            }
+            await loadPost();
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '管理员操作失败');
+        }
     };
 
-    if (loading) {
+    if (loading || !authResolved) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <SoundWaveLoader variant="block" />
@@ -368,12 +345,12 @@ export default function PostDetailPage() {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-foreground-secondary mb-4">帖子不存在或已被删除</p>
+                    <p className="text-foreground-secondary mb-4">{loadError || '帖子不存在或已被删除'}</p>
                     <button
-                        onClick={() => router.push('/community')}
+                        onClick={() => { if (loadError) { void loadPost(); } else { router.push('/community'); } }}
                         className="px-4 py-2 bg-background-secondary rounded-lg hover:bg-background-tertiary transition-colors"
                     >
-                        返回社区
+                        {loadError ? '重试' : '返回社区'}
                     </button>
                 </div>
             </div>
@@ -401,7 +378,6 @@ export default function PostDetailPage() {
                 />
 
                 <CommentSection
-                    postId={postId}
                     comments={comments}
                     userId={user?.id || null}
                     isAdmin={isAdmin}

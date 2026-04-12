@@ -23,6 +23,6 @@ export async function loadAdminClientAccessState(): Promise<AdminClientAccessSta
   return {
     loading: false,
     isAuthed: true,
-    isAdmin: !!bundle?.profile?.is_admin,
+    isAdmin: !!bundle.profile?.is_admin,
   };
 }

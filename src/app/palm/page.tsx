@@ -5,17 +5,17 @@
  */
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Upload, Hand, AlertCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import dynamic from 'next/dynamic';
 
 const HistoryDrawer = dynamic(
@@ -26,8 +26,8 @@ const HistoryDrawer = dynamic(
 export default function PalmPage() {
     const router = useRouter();
     const { showToast } = useToast();
+    const { user } = useSessionSafe();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
 
     const [selectedType, setSelectedType] = useState('full');
     const [handType, setHandType] = useState<HandType>('left');
@@ -39,14 +39,6 @@ export default function PalmPage() {
     const [selectedModel, setSelectedModel] = useState(DEFAULT_VISION_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
-
-    useEffect(() => {
-        const loadSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setAccessToken(session?.access_token || null);
-        };
-        loadSession();
-    }, []);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -108,7 +100,7 @@ export default function PalmPage() {
             return;
         }
 
-        if (!accessToken) {
+        if (!user) {
             showToast('error', '请先登录');
             return;
         }
@@ -120,7 +112,6 @@ export default function PalmPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({
                     action: 'analyze',

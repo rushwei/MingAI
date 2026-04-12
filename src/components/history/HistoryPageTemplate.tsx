@@ -18,6 +18,8 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { ConfirmDeleteModal } from '@/components/common/ConfirmDeleteModal';
+import { useToast } from '@/components/ui/Toast';
+import { HISTORY_SUMMARY_DELETED_EVENT, KNOWLEDGE_BASE_SYNC_EVENT } from '@/lib/browser-api';
 import {
     applyHistoryRestorePayload,
     deleteHistorySummary,
@@ -92,6 +94,18 @@ export interface CardActions {
 }
 
 const HISTORY_PAGE_BATCH_SIZE = 12;
+
+function mergeHistoryItems(current: HistorySummaryItem[], incoming: HistorySummaryItem[]) {
+    if (incoming.length === 0) {
+        return current;
+    }
+
+    const merged = new Map(current.map((item) => [item.id, item] as const));
+    for (const item of incoming) {
+        merged.set(item.id, item);
+    }
+    return Array.from(merged.values());
+}
 
 const HISTORY_THEME_STYLES: Record<string, {
     cardBorder: string;
@@ -281,6 +295,7 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     } = config;
 
     const router = useRouter();
+    const { showToast } = useToast();
     const { user, loading: sessionLoading } = useSessionSafe();
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [items, setItems] = useState<HistorySummaryItem[]>([]);
@@ -288,12 +303,29 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
     const [nextOffset, setNextOffset] = useState<number | null>(null);
+    const [appendError, setAppendError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+    const appendRequestKeyRef = useRef<string | null>(null);
     const basePath = `/${sourceType}`;
+    const resolvedKbSourceType = kbSourceType || `${sourceType}_reading`;
+
+    const removeHistoryItem = useCallback((id: string) => {
+        let removed = false;
+        setItems((prev) => {
+            const next = prev.filter((item) => item.id !== id);
+            removed = next.length !== prev.length;
+            return removed ? next : prev;
+        });
+        if (removed) {
+            setNextOffset((prev) => prev == null ? null : Math.max(prev - 1, 0));
+        }
+        return removed;
+    }, []);
 
     const loadItems = useCallback(async (options?: { append?: boolean; offset?: number }) => {
         if (!user?.id) {
@@ -302,8 +334,15 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
         }
 
         const append = options?.append === true;
+        const targetOffset = options?.offset ?? 0;
+        const requestKey = append ? `append:${targetOffset}` : 'initial:0';
+        if (append && appendRequestKeyRef.current === requestKey) {
+            return;
+        }
         if (append) {
+            appendRequestKeyRef.current = requestKey;
             setLoadingMore(true);
+            setAppendError(null);
         } else {
             setLoading(true);
         }
@@ -311,20 +350,34 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
         try {
             const page = await loadHistorySummariesPage(sourceType, {
                 limit: HISTORY_PAGE_BATCH_SIZE,
-                offset: options?.offset ?? 0,
+                offset: targetOffset,
             });
 
-            setItems((prev) => append ? [...prev, ...page.items] : page.items);
+            setErrorMessage(null);
+            setAppendError(null);
+            setItems((prev) => append ? mergeHistoryItems(prev, page.items) : page.items);
             setHasMore(page.pagination.hasMore);
             setNextOffset(page.pagination.nextOffset);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '加载历史记录失败';
+            if (append) {
+                setAppendError(message);
+            } else {
+                setErrorMessage(message);
+                setHasMore(false);
+                setNextOffset(null);
+                setItems([]);
+            }
+            showToast('error', message);
         } finally {
             if (append) {
+                appendRequestKeyRef.current = null;
                 setLoadingMore(false);
             } else {
                 setLoading(false);
             }
         }
-    }, [basePath, router, sourceType, user?.id]);
+    }, [basePath, router, showToast, sourceType, user?.id]);
 
     useEffect(() => {
         if (sessionLoading) {
@@ -339,6 +392,7 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
         if (
             loading
             || loadingMore
+            || !!appendError
             || !hasMore
             || nextOffset == null
             || !loadMoreSentinelRef.current
@@ -356,30 +410,39 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
 
         observer.observe(loadMoreSentinelRef.current);
         return () => observer.disconnect();
-    }, [hasMore, loadItems, loading, loadingMore, nextOffset]);
+    }, [appendError, hasMore, loadItems, loading, loadingMore, nextOffset]);
 
     const handleDelete = async (id: string) => {
-        const success = await deleteHistorySummary(sourceType, id);
-        if (success) {
-            let removed = false;
-            setItems(prev => {
-                removed = prev.some((record) => record.id === id);
-                return prev.filter(r => r.id !== id);
-            });
-            if (removed) {
-                setNextOffset((prev) => prev == null ? null : Math.max(prev - 1, 0));
-            }
+        try {
+            await deleteHistorySummary(sourceType, id);
+            setErrorMessage(null);
+            setAppendError(null);
+            removeHistoryItem(id);
             if (invalidateTypes?.length) {
                 window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: invalidateTypes } }));
             }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '删除历史记录失败';
+            setErrorMessage(message);
+            showToast('error', message);
+        } finally {
+            setDeleteConfirmId(null);
         }
-        setDeleteConfirmId(null);
     };
 
     const handleView = async (item: HistorySummaryItem) => {
-        const payload = await loadHistoryRestore(sourceType, item.id, restoreTimezone);
-        if (!payload) return;
-        router.push(applyHistoryRestorePayload(payload));
+        try {
+            const payload = await loadHistoryRestore(sourceType, item.id, restoreTimezone);
+            if (!payload) {
+                throw new Error('未找到历史记录');
+            }
+            setErrorMessage(null);
+            router.push(applyHistoryRestorePayload(payload));
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '加载历史记录失败';
+            setErrorMessage(message);
+            showToast('error', message);
+        }
     };
 
     const defaultFilter = (item: HistorySummaryItem, query: string) => {
@@ -394,6 +457,60 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
         return (filterFn || defaultFilter)(item, searchQuery);
     });
 
+    useEffect(() => {
+        if (
+            !searchQuery.trim()
+            || loading
+            || loadingMore
+            || !!appendError
+            || !hasMore
+            || nextOffset == null
+            || filteredItems.length > 0
+        ) {
+            return;
+        }
+
+        void loadItems({ append: true, offset: nextOffset });
+    }, [appendError, filteredItems.length, hasMore, loadItems, loading, loadingMore, nextOffset, searchQuery]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const handleHistorySummaryDeleted = (event: Event) => {
+            const detail = (event as CustomEvent<{ type?: string | null; id?: string | null }>).detail;
+            if (detail?.type !== sourceType || !detail.id) {
+                return;
+            }
+            removeHistoryItem(detail.id);
+        };
+
+        const handleArchiveChanged = (event: Event) => {
+            const detail = (event as CustomEvent<{
+                pathname?: string;
+                requestBody?: Record<string, unknown> | null;
+                responseData?: Record<string, unknown> | null;
+            }>).detail;
+            const pathname = detail?.pathname ?? '';
+            const isArchiveMutation = pathname.startsWith('/api/knowledge-base/archive');
+            const kbSourceType = detail?.pathname?.startsWith('/api/knowledge-base/ingest')
+                ? detail.requestBody?.sourceType
+                : detail?.responseData?.sourceType;
+            if (!isArchiveMutation && kbSourceType !== resolvedKbSourceType) {
+                return;
+            }
+            void loadItems();
+        };
+
+        window.addEventListener(HISTORY_SUMMARY_DELETED_EVENT, handleHistorySummaryDeleted as EventListener);
+        window.addEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleArchiveChanged as EventListener);
+        return () => {
+            window.removeEventListener(HISTORY_SUMMARY_DELETED_EVENT, handleHistorySummaryDeleted as EventListener);
+            window.removeEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleArchiveChanged as EventListener);
+        };
+    }, [loadItems, removeHistoryItem, resolvedKbSourceType, sourceType]);
+
     const makeActions = (item: HistorySummaryItem): CardActions => ({
         onView: () => void handleView(item),
         onDelete: () => setDeleteConfirmId(item.id),
@@ -406,7 +523,6 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
         formatDate,
     });
 
-    const resolvedKbSourceType = kbSourceType || `${sourceType}_reading`;
     const resolvedEmptyHref = emptyActionHref || basePath;
 
     return (
@@ -431,8 +547,25 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
                     </div>
                 </div>
 
+                {errorMessage && !loading && (
+                    <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                        {errorMessage}
+                    </div>
+                )}
+
                 {loading ? (
                     layout === 'grid' ? <SkeletonGrid count={skeletonCount} /> : <SkeletonList count={skeletonCount} />
+                ) : errorMessage && filteredItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-4 py-20 bg-background-secondary/30 rounded-3xl border border-red-200 border-dashed">
+                        <div className="text-sm text-red-600">{errorMessage}</div>
+                        <button
+                            type="button"
+                            onClick={() => { void loadItems(); }}
+                            className="px-5 py-2 rounded-xl bg-accent text-white hover:bg-accent/90 transition-colors text-sm font-medium"
+                        >
+                            重试
+                        </button>
+                    </div>
                 ) : filteredItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-background-secondary/30 rounded-3xl border border-border border-dashed">
                         <div className="w-16 h-16 rounded-full bg-background-secondary flex items-center justify-center mb-4">
@@ -472,6 +605,14 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
                             <div className="flex items-center gap-2 text-sm text-foreground-secondary">
                                 <SoundWaveLoader variant="inline" />
                             </div>
+                        ) : appendError ? (
+                            <button
+                                type="button"
+                                onClick={() => { void loadItems({ append: true, offset: nextOffset ?? 0 }); }}
+                                className="rounded-xl border border-border px-4 py-2 text-sm text-foreground-secondary transition-colors hover:bg-background-secondary"
+                            >
+                                重试加载更多
+                            </button>
                         ) : (
                             <div className="text-sm text-foreground-secondary">
                                 继续下滑加载更多

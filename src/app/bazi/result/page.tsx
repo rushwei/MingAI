@@ -43,10 +43,17 @@ function BaziResultContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const chartId = searchParams.get('chart');
+    const hasFormParams = useMemo(() => {
+        const params = ['name', 'gender', 'year', 'month', 'day', 'hour', 'minute', 'calendar', 'leap', 'place'];
+        return params.some((key) => searchParams.has(key));
+    }, [searchParams]);
     const [activeTab, setActiveTab] = useState<ResultTab>('professional');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(() => Boolean(chartId) && !hasFormParams);
+    const [notFound, setNotFound] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [chartFromDb, setChartFromDb] = useState<BaziFormData | null>(null);
     const [savedWuxingAnalysis, setSavedWuxingAnalysis] = useState<string | null>(null);
     const [savedWuxingReasoning, setSavedWuxingReasoning] = useState<string | null>(null);
@@ -83,17 +90,14 @@ function BaziResultContent() {
     const [selectedLiuRiDate, setSelectedLiuRiDate] = useState<string>('');
     const [hasMountedNotes, setHasMountedNotes] = useState(false);
 
-    const chartId = searchParams.get('chart');
-    const hasFormParams = useMemo(() => {
-        const params = ['name', 'gender', 'year', 'month', 'day', 'hour', 'minute', 'calendar', 'leap', 'place'];
-        return params.some((key) => searchParams.has(key));
-    }, [searchParams]);
-
     // 编辑模式：优先使用 URL 参数，避免覆盖为数据库旧数据
     useEffect(() => {
         if (hasFormParams) {
             setChartFromDb(null);
             setSaved(false);
+            setNotFound(false);
+            setLoadError(null);
+            setLoading(false);
             setSavedWuxingAnalysis(null);
             setSavedWuxingReasoning(null);
             setSavedWuxingModelId(null);
@@ -105,55 +109,86 @@ function BaziResultContent() {
 
     // 从数据库加载命盘（仅查看已保存命盘时）
     useEffect(() => {
-        if (chartId && !hasFormParams) {
-            setLoading(true);
-
-            // 同时查询命盘数据和 AI 分析
-            Promise.all([
-                loadSavedChart('bazi', chartId),
-                loadLatestConversationAnalysisSnapshot({
-                    sourceType: 'bazi_wuxing',
-                    chartId,
-                }),
-                loadLatestConversationAnalysisSnapshot({
-                    sourceType: 'bazi_personality',
-                    chartId,
-                }),
-            ]).then(([chartData, wuxingAnalysis, personalityAnalysis]) => {
-                const data = chartData as SavedBaziChartRow | null;
-                if (data) {
-                    const [year, month, day] = data.birth_date.split('-').map(Number);
-                    const hasTime = Boolean(data.birth_time);
-                    const parsedBirthTime = hasTime ? parseBirthTimeString(data.birth_time as string) : null;
-
-                    setChartFromDb({
-                        name: data.name,
-                        gender: data.gender as Gender,
-                        birthYear: year,
-                        birthMonth: month,
-                        birthDay: day,
-                        birthHour: parsedBirthTime?.hour || 12,
-                        birthMinute: parsedBirthTime?.minute || 0,
-                        isUnknownTime: !hasTime,
-                        calendarType: (data.calendar_type as CalendarType) || 'solar',
-                        isLeapMonth: data.is_leap_month || false,
-                        birthPlace: data.birth_place || undefined,
-                        longitude: parseLongitude(data.longitude),
-                    });
-
-                    setSavedWuxingAnalysis(wuxingAnalysis?.analysis ?? null);
-                    setSavedWuxingReasoning(wuxingAnalysis?.reasoning ?? null);
-                    setSavedWuxingModelId(wuxingAnalysis?.modelId ?? null);
-
-                    setSavedPersonalityAnalysis(personalityAnalysis?.analysis ?? null);
-                    setSavedPersonalityReasoning(personalityAnalysis?.reasoning ?? null);
-                    setSavedPersonalityModelId(personalityAnalysis?.modelId ?? null);
-                    setSaved(true);
-                }
-                setLoading(false);
-            });
+        if (!chartId || hasFormParams) {
+            return;
         }
 
+        let cancelled = false;
+
+        const loadChart = async () => {
+            setLoading(true);
+            setNotFound(false);
+            setLoadError(null);
+
+            try {
+                const [chartData, wuxingAnalysis, personalityAnalysis] = await Promise.all([
+                    loadSavedChart('bazi', chartId),
+                    loadLatestConversationAnalysisSnapshot({
+                        sourceType: 'bazi_wuxing',
+                        chartId,
+                    }),
+                    loadLatestConversationAnalysisSnapshot({
+                        sourceType: 'bazi_personality',
+                        chartId,
+                    }),
+                ]);
+
+                if (cancelled) {
+                    return;
+                }
+
+                const data = chartData as SavedBaziChartRow | null;
+                if (!data) {
+                    setNotFound(true);
+                    return;
+                }
+
+                const [year, month, day] = data.birth_date.split('-').map(Number);
+                const hasTime = Boolean(data.birth_time);
+                const parsedBirthTime = hasTime ? parseBirthTimeString(data.birth_time as string) : null;
+                if (hasTime && !parsedBirthTime) {
+                    setLoadError('该八字命盘缺少有效出生时辰，无法加载');
+                    return;
+                }
+
+                setChartFromDb({
+                    name: data.name,
+                    gender: data.gender as Gender,
+                    birthYear: year,
+                    birthMonth: month,
+                    birthDay: day,
+                    birthHour: parsedBirthTime?.hour || 12,
+                    birthMinute: parsedBirthTime?.minute || 0,
+                    isUnknownTime: !hasTime,
+                    calendarType: (data.calendar_type as CalendarType) || 'solar',
+                    isLeapMonth: data.is_leap_month || false,
+                    birthPlace: data.birth_place || undefined,
+                    longitude: parseLongitude(data.longitude),
+                });
+
+                setSavedWuxingAnalysis(wuxingAnalysis?.analysis ?? null);
+                setSavedWuxingReasoning(wuxingAnalysis?.reasoning ?? null);
+                setSavedWuxingModelId(wuxingAnalysis?.modelId ?? null);
+
+                setSavedPersonalityAnalysis(personalityAnalysis?.analysis ?? null);
+                setSavedPersonalityReasoning(personalityAnalysis?.reasoning ?? null);
+                setSavedPersonalityModelId(personalityAnalysis?.modelId ?? null);
+                setSaved(true);
+            } catch (error) {
+                if (!cancelled) {
+                    setLoadError(error instanceof Error ? error.message : '加载命盘失败');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        void loadChart();
+        return () => {
+            cancelled = true;
+        };
     }, [chartId, hasFormParams]);
 
     // 表单数据
@@ -500,6 +535,28 @@ function BaziResultContent() {
 
     if (loading) {
         return <SoundWaveLoader variant="block" text="" />;
+    }
+
+    if (notFound) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-foreground/40 mb-6">未找到对应八字命盘</p>
+                <Link href="/bazi" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">
+                    返回重新输入
+                </Link>
+            </div>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-foreground/40 mb-6">{loadError}</p>
+                <Link href="/bazi" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">
+                    返回重新输入
+                </Link>
+            </div>
+        );
     }
 
     if (!baziOutput || !baziMeta || !proData || !canonicalBazi) {

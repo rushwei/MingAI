@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Ban, Key, Users, Activity } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/auth';
+import { requestAdminJson } from '@/lib/admin/request';
 
 interface McpKeyRow {
     id: string;
@@ -32,44 +32,38 @@ export function McpKeyManagementPanel() {
     const [unbanning, setUnbanning] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const getToken = useCallback(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token || '';
-    }, []);
-
     const fetchKeys = useCallback(async () => {
         try {
             setError(null);
-            const token = await getToken();
-            const res = await fetch('/api/admin/mcp-keys', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || '获取失败');
+            const data = await requestAdminJson<{ keys?: McpKeyRow[] }>(
+                '/api/admin/mcp-keys',
+                { method: 'GET' },
+                '获取失败',
+            );
             setKeys(data.keys || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : '获取失败');
         } finally {
             setLoading(false);
         }
-    }, [getToken]);
+    }, []);
 
     useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
     const handleRevoke = async (userId: string) => {
         setRevoking(userId);
         try {
-            const token = await getToken();
-            const res = await fetch('/api/admin/mcp-keys', {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
+            await requestAdminJson(
+                '/api/admin/mcp-keys',
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId }),
                 },
-                body: JSON.stringify({ userId }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || '封禁失败');
+                '封禁失败',
+            );
             await fetchKeys();
         } catch (err) {
             setError(err instanceof Error ? err.message : '封禁失败');
@@ -81,17 +75,17 @@ export function McpKeyManagementPanel() {
     const handleUnban = async (userId: string) => {
         setUnbanning(userId);
         try {
-            const token = await getToken();
-            const res = await fetch('/api/admin/mcp-keys', {
-                method: 'PATCH',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
+            await requestAdminJson(
+                '/api/admin/mcp-keys',
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId }),
                 },
-                body: JSON.stringify({ userId }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || '解除封禁失败');
+                '解除封禁失败',
+            );
             await fetchKeys();
         } catch (err) {
             setError(err instanceof Error ? err.message : '解除封禁失败');

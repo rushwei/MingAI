@@ -496,7 +496,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center" role="dialog" aria-modal="true">
             {/* 背景遮罩 */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"

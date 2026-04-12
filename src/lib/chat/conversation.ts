@@ -43,6 +43,11 @@ type ConversationListApiRow = {
     archived_kb_ids?: string[] | null;
 };
 
+export type ConversationLoadResult =
+    | { ok: true; conversation: Conversation }
+    | { ok: false; notFound: true }
+    | { ok: false; notFound: false; error: string };
+
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 const CONVERSATION_PAGE_SIZE = 7;
 const CONVERSATION_MAX_PAGES = 50;
@@ -95,6 +100,44 @@ async function parseJson<T>(response: Response): Promise<T | null> {
     return await response.json().catch(() => null) as T | null;
 }
 
+async function parseErrorMessage(response: Response, fallbackMessage: string): Promise<string> {
+    const payload = await parseJson<{ error?: string }>(response);
+    return payload?.error || fallbackMessage;
+}
+
+async function requestConversationPayload<T>(
+    url: string,
+    options: {
+        signal?: AbortSignal;
+        fallbackMessage: string;
+    },
+): Promise<T> {
+    let response: Response;
+
+    try {
+        response = await fetch(url, {
+            credentials: 'include',
+            signal: options.signal,
+        });
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            throw error;
+        }
+        throw new Error(error instanceof Error ? error.message : options.fallbackMessage);
+    }
+
+    if (!response.ok) {
+        throw new Error(await parseErrorMessage(response, options.fallbackMessage));
+    }
+
+    const payload = await parseJson<T>(response);
+    if (!payload) {
+        throw new Error(options.fallbackMessage);
+    }
+
+    return payload;
+}
+
 export async function createConversation(params: {
     userId: string;
     personality?: AIPersonality;
@@ -128,23 +171,16 @@ export async function loadConversations(
         offset?: number;
         signal?: AbortSignal;
     } = {},
-): Promise<PaginatedConversations | null> {
+): Promise<PaginatedConversations> {
     void userId;
     const { limit = CONVERSATION_PAGE_SIZE, offset = 0, signal } = options;
-    const response = await fetch(`/api/conversations?limit=${limit}&offset=${offset}`, {
-        credentials: 'include',
-        signal,
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 加载对话列表失败');
-        return null;
-    }
-
-    const payload = await parseJson<{
+    const payload = await requestConversationPayload<{
         conversations?: ConversationListApiRow[];
         pagination?: { hasMore?: boolean; nextOffset?: number | null };
-    }>(response);
+    }>(`/api/conversations?limit=${limit}&offset=${offset}`, {
+        signal,
+        fallbackMessage: '加载对话列表失败',
+    });
 
     return {
         conversations: (payload?.conversations || []).map(toConversationListItem),
@@ -163,7 +199,7 @@ export async function loadConversationWindow(
         pageSize?: number;
         signal?: AbortSignal;
     }
-): Promise<PaginatedConversations | null> {
+): Promise<PaginatedConversations> {
     const { targetCount, preserveIds = [], pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
     const minimumCount = Math.max(targetCount, pageSize);
     const remainingIds = new Set(preserveIds);
@@ -178,10 +214,6 @@ export async function loadConversationWindow(
             offset,
             signal,
         });
-
-        if (!payload) {
-            return null;
-        }
 
         rows.push(...payload.conversations);
         payload.conversations.forEach((conversation) => {
@@ -210,18 +242,46 @@ export async function loadConversationWindow(
     };
 }
 
-export async function loadConversation(conversationId: string): Promise<Conversation | null> {
-    const response = await fetch(`/api/conversations/${conversationId}`, {
-        credentials: 'include',
-    });
+export async function loadConversation(conversationId: string): Promise<ConversationLoadResult> {
+    let response: Response;
+
+    try {
+        response = await fetch(`/api/conversations/${conversationId}`, {
+            credentials: 'include',
+        });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '加载对话失败';
+        console.error('[conversation] 加载对话失败:', errorMessage);
+        return {
+            ok: false,
+            notFound: false,
+            error: errorMessage,
+        };
+    }
 
     if (!response.ok) {
-        console.error('[conversation] 加载对话失败');
-        return null;
+        if (response.status === 404) {
+            return { ok: false, notFound: true };
+        }
+
+        const errorMessage = await parseErrorMessage(response, '加载对话失败');
+        console.error('[conversation] 加载对话失败:', errorMessage);
+        return {
+            ok: false,
+            notFound: false,
+            error: errorMessage,
+        };
     }
 
     const payload = await parseJson<{ conversation?: ConversationDetailApiRow | null }>(response);
-    return payload?.conversation ? toConversation(payload.conversation) : null;
+    if (!payload?.conversation) {
+        return { ok: false, notFound: true };
+    }
+
+    return {
+        ok: true,
+        conversation: toConversation(payload.conversation),
+    };
 }
 
 export async function saveConversation(

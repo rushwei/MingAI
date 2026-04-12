@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Megaphone, PencilLine, Plus, RefreshCw, Save, Trash2, GripVertical } from 'lucide-react';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/auth';
+import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 import type { Announcement } from '@/lib/announcement';
 import { invalidateQueriesForPath } from '@/lib/query/invalidation';
@@ -65,29 +65,16 @@ export function AnnouncementManagementPanel() {
         selectedIdRef.current = selectedId;
     }, [selectedId]);
 
-    const getToken = useCallback(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token || null;
-    }, []);
-
     const loadAnnouncements = useCallback(async (preferredSelectedId?: string | null) => {
         setLoading(true);
         setError(null);
 
         try {
-            const token = await getToken();
-            if (!token) {
-                throw new Error('未登录');
-            }
-
-            const response = await fetch('/api/admin/announcements', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(typeof payload.error === 'string' ? payload.error : '获取公告列表失败');
-            }
-
+            const payload = await requestAdminJson<{ announcements?: Announcement[] }>(
+                '/api/admin/announcements',
+                { method: 'GET' },
+                '获取公告列表失败',
+            );
             const nextAnnouncements = (payload.announcements || []) as Announcement[];
             setAnnouncements(nextAnnouncements);
 
@@ -111,7 +98,7 @@ export function AnnouncementManagementPanel() {
         } finally {
             setLoading(false);
         }
-    }, [getToken]);
+    }, []);
 
     useEffect(() => {
         void loadAnnouncements();
@@ -142,28 +129,19 @@ export function AnnouncementManagementPanel() {
 
         setSaving(true);
         try {
-            const token = await getToken();
-            if (!token) {
-                throw new Error('未登录');
-            }
-
-            const response = await fetch(
+            const payload = await requestAdminJson<{ announcement?: Announcement }>(
                 form.id ? `/api/admin/announcements/${form.id}` : '/api/admin/announcements',
                 {
                     method: form.id ? 'PATCH' : 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
                     },
                     body: JSON.stringify({
                         content: form.content,
                     }),
                 },
+                '保存公告失败',
             );
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(typeof payload.error === 'string' ? payload.error : '保存公告失败');
-            }
 
             const saved = payload.announcement as Announcement;
             setMode('edit');
@@ -182,21 +160,13 @@ export function AnnouncementManagementPanel() {
     const deleteAnnouncement = async (announcement: Announcement) => {
         setDeletingId(announcement.id);
         try {
-            const token = await getToken();
-            if (!token) {
-                throw new Error('未登录');
-            }
-
-            const response = await fetch(`/api/admin/announcements/${announcement.id}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
+            await requestAdminJson(
+                `/api/admin/announcements/${announcement.id}`,
+                {
+                    method: 'DELETE',
                 },
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(typeof payload.error === 'string' ? payload.error : '删除公告失败');
-            }
+                '删除公告失败',
+            );
 
             if (selectedId === announcement.id) {
                 startCreateAnnouncement();

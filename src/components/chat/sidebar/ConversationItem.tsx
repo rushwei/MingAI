@@ -122,7 +122,7 @@ export const ConversationItem = memo(function ConversationItem({
                             onSaveRename?.();
                         }}
                         disabled={!editTitle.trim()}
-                        className="ounded-md text-accent hover:bg-accent/10 disabled:opacity-50 transition-colors"
+                        className="rounded-md text-accent hover:bg-accent/10 disabled:opacity-50 transition-colors"
                         aria-label="确认重命名"
                     >
                         <Check className="w-4.5 h-4.5" />

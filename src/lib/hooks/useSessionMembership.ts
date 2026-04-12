@@ -7,12 +7,12 @@ import { useAppBootstrap } from '@/lib/hooks/useAppBootstrap';
 export function useSessionMembership() {
   const { session, user, loading: sessionLoading } = useSessionSafe();
   const bootstrap = useAppBootstrap();
-  const membershipResolved = !user || bootstrap.data.viewerLoaded;
+  const membershipResolved = !user || bootstrap.viewerStateResolved;
 
   const refreshMembership = useCallback(async (userId?: string | null) => {
     void userId;
-    await bootstrap.refresh();
-    return bootstrap.data.membership;
+    const nextBootstrap = await bootstrap.refresh();
+    return nextBootstrap.viewerLoaded ? nextBootstrap.membership : null;
   }, [bootstrap]);
 
   return {
@@ -20,10 +20,10 @@ export function useSessionMembership() {
     user,
     userId: user?.id ?? null,
     sessionLoading,
-    membershipInfo: bootstrap.data.membership,
-    membershipLoading: sessionLoading || bootstrap.isLoading,
+    membershipInfo: bootstrap.viewerStateLoaded ? bootstrap.data.membership : null,
+    membershipLoading: sessionLoading || (!!user && !bootstrap.viewerStateResolved),
     membershipResolved,
-    membershipError: bootstrap.error instanceof Error ? bootstrap.error : null,
+    membershipError: bootstrap.viewerStateError,
     refreshMembership,
   };
 }

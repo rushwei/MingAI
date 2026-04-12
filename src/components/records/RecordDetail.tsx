@@ -1,5 +1,5 @@
 /**
- * 记录详情相关组件：表单模态框、小记、导入导出、知识库归档
+ * 记录详情相关组件：表单模态框、小记、导入导出
  *
  * 'use client' 标记说明：
  * - 使用 React hooks (useState)
@@ -16,32 +16,44 @@ import {
     Upload,
     BookOpen,
     ChevronRight,
-    X,
 } from 'lucide-react';
 import {
+    createNote,
+    createRecord,
+    deleteNote,
+    downloadExportData,
+    exportData,
+    importData,
     MingRecord,
     MingNote,
     RecordCategory,
     RECORD_CATEGORIES,
+    readImportFile,
     NOTE_MOODS,
-    NoteMood
+    NoteMood,
+    updateRecord,
 } from '@/lib/records';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error && error.message ? error.message : fallback;
+}
 
 // =====================================================
 // 记录表单模态框
 // =====================================================
 export function RecordFormModal({
+    userId,
     record,
     onClose,
     onSave
 }: {
+    userId: string | null;
     record?: MingRecord | null;
     onClose: () => void;
-    onSave: () => void;
+    onSave: () => void | Promise<void>;
 }) {
     const [title, setTitle] = useState(record?.title || '');
     const [content, setContent] = useState(record?.content || '');
@@ -54,6 +66,10 @@ export function RecordFormModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!userId) {
+            setError('请先登录后再保存记录');
+            return;
+        }
         if (!title.trim()) {
             setError('标题不能为空');
             return;
@@ -64,21 +80,23 @@ export function RecordFormModal({
 
         try {
             const tags = tagsInput.split(/[,，]/).map(t => t.trim()).filter(Boolean);
-            const data = { title, content, category, event_date: eventDate || null, tags };
-            const response = await fetch(record ? `/api/records/${record.id}` : '/api/records', {
-                method: record ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            const payload = await response.json().catch(() => ({} as { error?: string }));
+            const data = {
+                title: title.trim(),
+                content: content.trim() || undefined,
+                category,
+                event_date: eventDate || undefined,
+                tags,
+            };
 
-            if (!response.ok) {
-                throw new Error(payload.error || '保存失败，请重试');
+            if (record) {
+                await updateRecord(record.id, data);
+            } else {
+                await createRecord(data);
             }
 
-            onSave();
+            await Promise.resolve(onSave());
         } catch (saveError) {
-            const message = saveError instanceof Error ? saveError.message : '保存失败，请重试';
+            const message = getErrorMessage(saveError, '保存失败，请重试');
             setError(message);
             showToast('error', message);
         } finally {
@@ -198,38 +216,41 @@ export function RecordFormModal({
 // 小记组件
 // =====================================================
 export function DailyNotes({
+    userId,
     notes,
     onRefresh
 }: {
+    userId: string | null;
     notes: MingNote[];
-    onRefresh: () => void;
+    onRefresh: () => void | Promise<void>;
 }) {
     const [content, setContent] = useState('');
     const [mood, setMood] = useState<NoteMood>('neutral');
     const [loading, setLoading] = useState(false);
     const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+    const [error, setError] = useState('');
     const { showToast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!content.trim()) return;
+        if (!userId) {
+            const message = '请先登录后再记录小记';
+            setError(message);
+            showToast('error', message);
+            return;
+        }
 
         setLoading(true);
+        setError('');
         try {
-            const response = await fetch('/api/notes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content, mood }),
-            });
-            const payload = await response.json().catch(() => ({} as { error?: string }));
-
-            if (!response.ok) {
-                throw new Error(payload.error || '创建小记失败');
-            }
+            await createNote(userId, { content: content.trim(), mood });
             setContent('');
-            onRefresh();
+            await Promise.resolve(onRefresh());
         } catch (submitError) {
-            showToast('error', submitError instanceof Error ? submitError.message : '创建小记失败');
+            const message = getErrorMessage(submitError, '创建小记失败');
+            setError(message);
+            showToast('error', message);
         } finally {
             setLoading(false);
         }
@@ -237,16 +258,13 @@ export function DailyNotes({
 
     const handleDelete = async (id: string) => {
         try {
-            const response = await fetch(`/api/notes?id=${id}`, { method: 'DELETE' });
-            const payload = await response.json().catch(() => ({} as { error?: string }));
-
-            if (!response.ok) {
-                throw new Error(payload.error || '删除小记失败');
-            }
-
-            onRefresh();
+            setError('');
+            await deleteNote(id);
+            await Promise.resolve(onRefresh());
         } catch (deleteError) {
-            showToast('error', deleteError instanceof Error ? deleteError.message : '删除小记失败');
+            const message = getErrorMessage(deleteError, '删除小记失败');
+            setError(message);
+            showToast('error', message);
         } finally {
             setDeleteNoteId(null);
         }
@@ -265,6 +283,12 @@ export function DailyNotes({
                     <p className="text-xs text-foreground-secondary">记录当下的心情与感悟</p>
                 </div>
             </div>
+
+            {error && (
+                <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-500 relative z-10">
+                    {error}
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="mb-6 relative z-10">
                 <div className="flex flex-col gap-3">
@@ -383,11 +407,13 @@ export function DailyNotes({
 // 导入导出模态框
 // =====================================================
 export function ImportExportModal({
+    userId,
     onClose,
     onImport
 }: {
+    userId: string | null;
     onClose: () => void;
-    onImport: () => void;
+    onImport: () => void | Promise<void>;
 }) {
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
@@ -395,13 +421,19 @@ export function ImportExportModal({
     const [success, setSuccess] = useState('');
 
     const handleExport = async () => {
+        if (!userId) {
+            setError('请先登录后再导出数据');
+            return;
+        }
         setExporting(true);
         setError('');
+        setSuccess('');
         try {
-            window.open('/api/records/export', '_blank');
+            const data = await exportData(userId);
+            downloadExportData(data);
             setSuccess('导出成功！');
-        } catch {
-            setError('导出失败');
+        } catch (exportError) {
+            setError(getErrorMessage(exportError, '导出失败'));
         } finally {
             setExporting(false);
         }
@@ -410,32 +442,26 @@ export function ImportExportModal({
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        if (!userId) {
+            setError('请先登录后再导入数据');
+            e.target.value = '';
+            return;
+        }
 
         setImporting(true);
         setError('');
         setSuccess('');
 
         try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-
-            const response = await fetch('/api/records/import', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-
-            const result = await response.json();
-            if (response.ok) {
-                setSuccess(result.message);
-                onImport();
-            } else {
-                setError(result.error || '导入失败');
-            }
-        } catch {
-            setError('文件解析失败，请确保是有效的JSON文件');
+            const data = await readImportFile(file);
+            const result = await importData(userId, data);
+            setSuccess(`成功导入 ${result.recordsImported} 条记录和 ${result.notesImported} 条小记`);
+            await Promise.resolve(onImport());
+        } catch (importError) {
+            setError(getErrorMessage(importError, '导入失败'));
         } finally {
             setImporting(false);
+            e.target.value = '';
         }
     };
 
@@ -491,146 +517,6 @@ export function ImportExportModal({
                         className="w-full px-4 py-2 text-foreground-secondary hover:text-foreground transition-colors"
                     >
                         关闭
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// =====================================================
-// 知识库归档模态框
-// =====================================================
-interface KnowledgeBaseModalProps {
-    targetRecord: MingRecord;
-    kbLoading: boolean;
-    kbSaving: boolean;
-    kbError: string | null;
-    kbSuccess: string | null;
-    kbList: Array<{ id: string; name: string; description: string | null }>;
-    kbSelectedId: string;
-    kbNewName: string;
-    onSelectKb: (id: string) => void;
-    onNewNameChange: (name: string) => void;
-    onCreateKb: () => void;
-    onIngest: () => void;
-    onClose: () => void;
-}
-
-export function KnowledgeBaseModal({
-    targetRecord,
-    kbLoading,
-    kbSaving,
-    kbError,
-    kbSuccess,
-    kbList,
-    kbSelectedId,
-    kbNewName,
-    onSelectKb,
-    onNewNameChange,
-    onCreateKb,
-    onIngest,
-    onClose,
-}: KnowledgeBaseModalProps) {
-    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
-
-    if (!knowledgeBaseEnabled) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-            <div className="bg-background/95 backdrop-blur-xl rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="p-4 sm:p-6 border-b border-border/50 flex items-center justify-between">
-                    <div className="min-w-0">
-                        <div className="text-base font-semibold truncate">加入知识库</div>
-                        <div className="text-xs text-foreground-secondary truncate">{targetRecord.title}</div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                        aria-label="关闭"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div className="p-4 sm:p-6 space-y-4">
-                    {kbLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                            <SoundWaveLoader variant="inline" />
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {kbList.length === 0 ? (
-                                <div className="text-sm text-foreground-secondary">你还没有知识库，先创建一个。</div>
-                            ) : (
-                                <div className="space-y-2 max-h-56 overflow-auto pr-1">
-                                    {kbList.map(kb => (
-                                        <label
-                                            key={kb.id}
-                                            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${kbSelectedId === kb.id ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border hover:bg-background-secondary'}`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="kb"
-                                                className="mt-1"
-                                                checked={kbSelectedId === kb.id}
-                                                onChange={() => onSelectKb(kb.id)}
-                                            />
-                                            <div className="min-w-0">
-                                                <div className="text-sm font-medium truncate">{kb.name}</div>
-                                                <div className="text-xs text-foreground-secondary truncate">{kb.description || '知识库'}</div>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="border-t border-border/50 pt-4 space-y-2">
-                        <div className="text-sm font-medium">创建新知识库</div>
-                        <div className="flex items-center gap-2">
-                            <input
-                                value={kbNewName}
-                                onChange={(e) => onNewNameChange(e.target.value)}
-                                className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
-                                placeholder="例如：我的命理笔记"
-                            />
-                            <button
-                                type="button"
-                                onClick={onCreateKb}
-                                disabled={kbSaving || !kbNewName.trim()}
-                                className="px-3 py-2 text-sm rounded-xl bg-background border border-border hover:border-emerald-500/40 hover:text-emerald-500 disabled:opacity-50 transition-colors"
-                            >
-                                创建
-                            </button>
-                        </div>
-                    </div>
-
-                    {kbError && (
-                        <div className="text-sm text-red-500">{kbError}</div>
-                    )}
-                    {kbSuccess && (
-                        <div className="text-sm text-emerald-500">{kbSuccess}</div>
-                    )}
-                </div>
-
-                <div className="p-4 sm:p-6 border-t border-border/50 flex items-center justify-end gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm rounded-xl bg-background border border-border hover:bg-background-secondary transition-colors"
-                    >
-                        取消
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onIngest}
-                        disabled={kbSaving || kbLoading || !kbSelectedId}
-                        className="px-4 py-2 text-sm rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors"
-                    >
-                        加入
                     </button>
                 </div>
             </div>

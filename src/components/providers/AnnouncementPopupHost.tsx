@@ -113,7 +113,7 @@ export function AnnouncementPopupHost({
     }, [notificationsEnabled, userId]);
 
     useEffect(() => {
-        if (!userId || authLoading || !notificationsEnabled) {
+        if (!userId || authLoading || !notificationsEnabled || unreadNotificationCount == null) {
             previousUnreadCountRef.current = null;
             return;
         }

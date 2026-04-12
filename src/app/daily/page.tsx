@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useMemo, useEffect, Suspense, useCallback } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 
@@ -27,15 +27,16 @@ import { DailyAIChat } from '@/components/daily/DailyAIChat';
 import { ShareCard } from '@/components/fortune/ShareCard';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { InterpretationModeToggle, type InterpretationMode } from '@/components/fortune/InterpretationModeToggle';
-import { supabase } from '@/lib/auth';
 import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, fortuneLevelToChartValue, isLevelFavorable, type DailyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/divination/calendar';
 
 import type { FortuneLevel } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { loadSavedBaziChart, loadUserChartBundle, toSavedBaziChart, type SavedBaziChart } from '@/lib/user/charts-client';
+import { useToast } from '@/components/ui/Toast';
+import { loadPrimarySavedBaziChart, loadSavedBaziChart, type SavedBaziChart } from '@/lib/user/charts-client';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 const scoreItems = [
     { key: 'overall', label: '综合运势', icon: Star, color: 'text-amber-500' },
@@ -65,58 +66,59 @@ function parseDateParam(dateStr: string | null): Date {
 function DailyPageContent() {
     const searchParams = useSearchParams();
     const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const { user, loading: sessionLoading } = useSessionSafe();
     const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
     const [selectedDate, setSelectedDate] = useState(() => parseDateParam(searchParams.get('date')));
     const [baziChart, setBaziChart] = useState<SavedBaziChart | null>(null);
     const [loading, setLoading] = useState(true);
-    const [userId, setUserId] = useState<string | null>(null);
+    const [chartLoadError, setChartLoadError] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
     const [interpretationMode, setInterpretationMode] = useState<InterpretationMode>('colloquial');
+    const [reloadToken, setReloadToken] = useState(0);
 
     const [showAuthModal, setShowAuthModal] = useState(false);
-
-    // 加载用户所有八字命盘
-    const loadUserCharts = useCallback(async (uid: string) => {
-        void uid;
-        try {
-            const bundle = await loadUserChartBundle();
-            const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
-            if (rows.length > 0) {
-                const charts = rows
-                    .map(toSavedBaziChart)
-                    .filter((chart): chart is SavedBaziChart => chart !== null);
-                const defaultId = bundle?.defaultChartIds?.bazi ?? null;
-                const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
-                if (charts.length > 0) {
-                    setBaziChart(defaultChart || charts[0]);
-                }
-            }
-        } catch (err) {
-            console.error('加载命盘失败:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const { showToast } = useToast();
 
     // 初始化
     useEffect(() => {
+        let cancelled = false;
+
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                setUserId(session.user.id);
-                if (baziFeatureEnabled) {
-                    await loadUserCharts(session.user.id);
-                } else {
+            if (sessionLoading) return;
+            if (!user || !baziFeatureEnabled) {
+                if (!cancelled) {
                     setBaziChart(null);
+                    setChartLoadError(null);
                     setLoading(false);
                 }
-            } else {
-                setLoading(false);
+                return;
+            }
+
+            setLoading(true);
+            setChartLoadError(null);
+            try {
+                const nextChart = await loadPrimarySavedBaziChart();
+                if (!cancelled) {
+                    setBaziChart(nextChart);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setBaziChart(null);
+                    setChartLoadError(err instanceof Error ? err.message : '加载命盘失败');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
-        init();
-    }, [baziFeatureEnabled, loadUserCharts]);
+
+        void init();
+        return () => {
+            cancelled = true;
+        };
+    }, [baziFeatureEnabled, reloadToken, sessionLoading, user]);
 
     // 当 URL 参数变化时同步日期
     useEffect(() => {
@@ -156,11 +158,17 @@ function DailyPageContent() {
     };
 
     const handleSelectChart = async (chart: ChartItem) => {
-        const fullChart = await loadSavedBaziChart(chart.id);
-        if (fullChart) {
+        try {
+            const fullChart = await loadSavedBaziChart(chart.id);
+            if (!fullChart) {
+                throw new Error('未找到所选命盘');
+            }
             setBaziChart(fullChart);
-        } else {
-            console.error('加载选中命盘失败:', chart.id);
+            setChartLoadError(null);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '加载命盘失败';
+            setChartLoadError(message);
+            showToast('error', message);
         }
         setShowChartSelector(false);
     };
@@ -240,12 +248,41 @@ function DailyPageContent() {
     return (
         <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
             <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
-                {baziFeatureEnabled && userId && (
+                {chartLoadError ? (
+                    <section className="rounded-md border border-[#f5c2c7] bg-[#fff5f5] px-4 py-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="space-y-1">
+                                <h2 className="text-sm font-semibold text-[#b42318]">命盘加载失败</h2>
+                                <p className="text-sm text-[#7a271a]">
+                                    {chartLoadError}。当前不会伪装成个性化结果，你可以重试或重新选择命盘。
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setReloadToken((value) => value + 1)}
+                                    className="rounded-md border border-[#f0d5dd] bg-white px-3 py-2 text-sm font-medium text-[#7a271a] transition-colors hover:bg-[#fff1f3]"
+                                >
+                                    重试
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowChartSelector(true)}
+                                    className="rounded-md bg-[#2383e2] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1d70c7]"
+                                >
+                                    重新选择命盘
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                ) : null}
+
+                {baziFeatureEnabled && user && (
                     <ChartPickerModal
                         isOpen={showChartSelector}
                         onClose={() => setShowChartSelector(false)}
                         onSelect={handleSelectChart}
-                        userId={userId}
+                        userId={user.id}
                         title="选择八字命盘"
                         filterType="bazi"
                     />
@@ -422,9 +459,9 @@ function DailyPageContent() {
 
                 {/* AI Chat 模块 - 嵌入式极简设计 */}
                 <section className="bg-background border border-border rounded-md overflow-hidden">
-                    {userId ? (
+                    {user ? (
                         <div className="p-1">
-                            <DailyAIChat date={selectedDate} userId={userId} />
+                            <DailyAIChat date={selectedDate} userId={user.id} />
                         </div>
                     ) : (
                         <div className="p-12 text-center">

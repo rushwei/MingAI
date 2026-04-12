@@ -10,10 +10,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
-import type { KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
+import {
+    createKnowledgeBase,
+    ingestKnowledgeBaseSource,
+    listKnowledgeBases,
+    type KnowledgeBaseSummary,
+} from '@/lib/knowledge-base/browser-client';
 
 export function AddToKnowledgeBaseModal({
     open,
@@ -41,38 +45,22 @@ export function AddToKnowledgeBaseModal({
     const { showToast } = useToast();
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
 
-    const getAccessToken = useCallback(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token || null;
-    }, []);
-
     const loadKnowledgeBases = useCallback(async () => {
         setKbLoading(true);
         setKbError(null);
         try {
-            const accessToken = await getAccessToken();
-            const resp = await fetch('/api/knowledge-base', {
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-            });
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                setKbError(typeof data.error === 'string' ? data.error : '获取知识库失败');
-                setKbList([]);
-                return;
-            }
-            const data = await resp.json() as { knowledgeBases?: KnowledgeBaseSummary[] };
-            const list = data.knowledgeBases || [];
+            const list = await listKnowledgeBases();
             setKbList(list);
             if (!kbSelectedId && list.length) {
                 setKbSelectedId(list[0].id);
             }
-        } catch {
-            setKbError('获取知识库失败');
+        } catch (loadError) {
+            setKbError(loadError instanceof Error ? loadError.message : '获取知识库失败');
             setKbList([]);
         } finally {
             setKbLoading(false);
         }
-    }, [getAccessToken, kbSelectedId]);
+    }, [kbSelectedId]);
 
     useEffect(() => {
         if (!open || !knowledgeBaseEnabled) return;
@@ -88,30 +76,16 @@ export function AddToKnowledgeBaseModal({
         setKbSaving(true);
         setKbError(null);
         try {
-            const accessToken = await getAccessToken();
-            const resp = await fetch('/api/knowledge-base', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
-                },
-                body: JSON.stringify({ name })
-            });
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                setKbError(typeof data.error === 'string' ? data.error : '创建知识库失败');
-                return;
-            }
-            const created = await resp.json() as { id: string };
+            const created = await createKnowledgeBase({ name });
             setKbNewName('');
             setKbSelectedId(created.id);
             await loadKnowledgeBases();
-        } catch {
-            setKbError('创建知识库失败');
+        } catch (createError) {
+            setKbError(createError instanceof Error ? createError.message : '创建知识库失败');
         } finally {
             setKbSaving(false);
         }
-    }, [getAccessToken, kbNewName, loadKnowledgeBases]);
+    }, [kbNewName, loadKnowledgeBases]);
 
     const handleIngest = useCallback(async () => {
         if (!kbSelectedId) {
@@ -121,39 +95,23 @@ export function AddToKnowledgeBaseModal({
         setKbSaving(true);
         setKbError(null);
         try {
-            const accessToken = await getAccessToken();
-            const resp = await fetch('/api/knowledge-base/ingest', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
-                },
-                body: JSON.stringify({
-                    kbId: kbSelectedId,
-                    sourceType,
-                    sourceId,
-                    sourceMeta
-                })
+            await ingestKnowledgeBaseSource({
+                kbId: kbSelectedId,
+                sourceType,
+                sourceId,
+                sourceMeta,
             });
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                const message = typeof data.error === 'string' ? data.error : '加入知识库失败';
-                setKbError(message);
-                showToast('error', message);
-                return;
-            }
             onSuccess?.({ sourceType, sourceId, kbId: kbSelectedId });
-            window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['knowledge_base', sourceType] } }));
-            window.dispatchEvent(new CustomEvent('mingai:knowledge-base:ingested', { detail: { sourceType, sourceId, kbId: kbSelectedId } }));
             showToast('success', '已加入知识库');
             onClose();
-        } catch {
-            setKbError('加入知识库失败');
-            showToast('error', '加入知识库失败');
+        } catch (ingestError) {
+            const message = ingestError instanceof Error ? ingestError.message : '加入知识库失败';
+            setKbError(message);
+            showToast('error', message);
         } finally {
             setKbSaving(false);
         }
-    }, [getAccessToken, kbSelectedId, onClose, onSuccess, showToast, sourceId, sourceMeta, sourceType]);
+    }, [kbSelectedId, onClose, onSuccess, showToast, sourceId, sourceMeta, sourceType]);
 
     if (!open || !knowledgeBaseEnabled) return null;
 

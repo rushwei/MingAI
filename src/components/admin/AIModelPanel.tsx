@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { supabase } from '@/lib/auth';
+import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 import { getVendorIcon } from '@/lib/ai/vendor-config';
@@ -293,34 +293,17 @@ export function AIModelPanel() {
         });
     };
 
-    // 获取 token
-    const getToken = useCallback(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token;
-    }, []);
-
     // 加载模型列表
     const loadModels = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            const token = await getToken();
-            if (!token) {
-                setError('未登录');
-                return;
-            }
-
-            const response = await fetch('/api/admin/ai-models?includeDisabled=true', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || '获取模型列表失败');
-            }
-
+            const data = await requestAdminJson<{ models?: AIModel[] }>(
+                '/api/admin/ai-models?includeDisabled=true',
+                { method: 'GET' },
+                '获取模型列表失败',
+            );
             const loadedModels = data.models || [];
             setModels(loadedModels);
             setModelDrafts(
@@ -333,7 +316,7 @@ export function AIModelPanel() {
         } finally {
             setLoading(false);
         }
-    }, [getToken]);
+    }, []);
 
     useEffect(() => {
         loadModels();
@@ -390,22 +373,17 @@ export function AIModelPanel() {
         setUpdating(modelId);
 
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(`/api/admin/ai-models/${modelId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
+            await requestAdminJson(
+                `/api/admin/ai-models/${modelId}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updates),
                 },
-                body: JSON.stringify(updates),
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || '更新失败');
-            }
+                '更新失败',
+            );
 
             // 刷新列表
             await loadModels();
@@ -432,45 +410,40 @@ export function AIModelPanel() {
 
         setUpdating('creating');
         try {
-            const token = await getToken();
-            if (!token) return;
-
             const customParameters = parseCustomParametersText(newModel.customParametersText);
 
-            const response = await fetch('/api/admin/ai-models', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
+            await requestAdminJson(
+                '/api/admin/ai-models',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        modelKey: newModel.modelKey.trim(),
+                        displayName: newModel.displayName.trim(),
+                        vendor,
+                        usageType: newModel.usageType,
+                        routingMode: newModel.routingMode,
+                        primaryGatewayKey: newModel.primaryGatewayKey,
+                        requiredTier: newModel.requiredTier,
+                        supportsReasoning: newModel.supportsReasoning,
+                        reasoningRequiredTier: newModel.reasoningRequiredTier,
+                        isReasoningDefault: newModel.isReasoningDefault,
+                        supportsVision: newModel.supportsVision,
+                        defaultTemperature: newModel.defaultTemperature,
+                        defaultTopP: newModel.defaultTopP,
+                        defaultPresencePenalty: newModel.defaultPresencePenalty,
+                        defaultFrequencyPenalty: newModel.defaultFrequencyPenalty,
+                        defaultMaxTokens: newModel.defaultMaxTokens,
+                        defaultReasoningEffort: newModel.supportsReasoning ? newModel.defaultReasoningEffort : null,
+                        reasoningEffortFormat: newModel.supportsReasoning ? newModel.reasoningEffortFormat : null,
+                        customParameters,
+                        description: newModel.description.trim() || undefined,
+                    }),
                 },
-                body: JSON.stringify({
-                    modelKey: newModel.modelKey.trim(),
-                    displayName: newModel.displayName.trim(),
-                    vendor,
-                    usageType: newModel.usageType,
-                    routingMode: newModel.routingMode,
-                    primaryGatewayKey: newModel.primaryGatewayKey,
-                    requiredTier: newModel.requiredTier,
-                    supportsReasoning: newModel.supportsReasoning,
-                    reasoningRequiredTier: newModel.reasoningRequiredTier,
-                    isReasoningDefault: newModel.isReasoningDefault,
-                    supportsVision: newModel.supportsVision,
-                    defaultTemperature: newModel.defaultTemperature,
-                    defaultTopP: newModel.defaultTopP,
-                    defaultPresencePenalty: newModel.defaultPresencePenalty,
-                    defaultFrequencyPenalty: newModel.defaultFrequencyPenalty,
-                    defaultMaxTokens: newModel.defaultMaxTokens,
-                    defaultReasoningEffort: newModel.supportsReasoning ? newModel.defaultReasoningEffort : null,
-                    reasoningEffortFormat: newModel.supportsReasoning ? newModel.reasoningEffortFormat : null,
-                    customParameters,
-                    description: newModel.description.trim() || undefined,
-                }),
-            });
-
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(typeof data.error === 'string' ? data.error : '创建模型失败');
-            }
+                '创建模型失败',
+            );
 
             showToast('success', '模型已创建');
             setShowCreateForm(false);
@@ -536,21 +509,13 @@ export function AIModelPanel() {
         setUpdating(modelId);
 
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(
+            await requestAdminJson(
                 `/api/admin/ai-models/${modelId}/sources/${sourceId}`,
                 {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${token}` },
-                }
+                },
+                '切换来源失败',
             );
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || '切换来源失败');
-            }
 
             // 刷新列表
             await loadModels();
@@ -578,16 +543,12 @@ export function AIModelPanel() {
 
         setUpdating(modelId);
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(
+            await requestAdminJson(
                 `/api/admin/ai-models/${modelId}/sources/${sourceId}`,
                 {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
                     },
                     body: JSON.stringify({
                         modelIdOverride: normalizeSourceModelIdInput(editingDraft.modelIdOverride, modelKey),
@@ -596,13 +557,9 @@ export function AIModelPanel() {
                         isEnabled: editingDraft.isEnabled,
                         notes: editingDraft.notes.trim() || null,
                     }),
-                }
+                },
+                '保存来源失败',
             );
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(typeof data.error === 'string' ? data.error : '保存来源失败');
-            }
 
             setEditingSourceId(null);
             setEditingDraft(null);
@@ -619,29 +576,24 @@ export function AIModelPanel() {
     const addSource = async (modelId: string, modelKey: string) => {
         setUpdating(modelId);
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(`/api/admin/ai-models/${modelId}/sources`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
+            await requestAdminJson(
+                `/api/admin/ai-models/${modelId}/sources`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sourceKey: newSource.sourceKey,
+                        modelIdOverride: normalizeSourceModelIdInput(newSource.modelIdOverride, modelKey),
+                        reasoningModelId: newSource.reasoningModelId.trim() || null,
+                        priority: newSource.priority,
+                        isEnabled: newSource.isEnabled,
+                        notes: newSource.notes.trim() || null,
+                    }),
                 },
-                body: JSON.stringify({
-                    sourceKey: newSource.sourceKey,
-                    modelIdOverride: normalizeSourceModelIdInput(newSource.modelIdOverride, modelKey),
-                    reasoningModelId: newSource.reasoningModelId.trim() || null,
-                    priority: newSource.priority,
-                    isEnabled: newSource.isEnabled,
-                    notes: newSource.notes.trim() || null,
-                }),
-            });
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(typeof data.error === 'string' ? data.error : '添加来源失败');
-            }
+                '添加来源失败',
+            );
 
             setAddingToModel(null);
             resetNewSource();
@@ -658,21 +610,13 @@ export function AIModelPanel() {
     const deleteSource = async (modelId: string, sourceId: string) => {
         setUpdating(modelId);
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(
+            await requestAdminJson(
                 `/api/admin/ai-models/${modelId}/sources/${sourceId}`,
                 {
                     method: 'DELETE',
-                    headers: { Authorization: `Bearer ${token}` },
-                }
+                },
+                '删除来源失败',
             );
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(typeof data.error === 'string' ? data.error : '删除来源失败');
-            }
 
             await loadModels();
             invalidateQueriesForPath('/api/admin/ai-models');
@@ -688,18 +632,13 @@ export function AIModelPanel() {
     const deleteModel = async (modelId: string) => {
         setUpdating(modelId);
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch(`/api/admin/ai-models/${modelId}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(typeof data.error === 'string' ? data.error : '删除模型失败');
-            }
+            await requestAdminJson(
+                `/api/admin/ai-models/${modelId}`,
+                {
+                    method: 'DELETE',
+                },
+                '删除模型失败',
+            );
 
             if (expandedModel === modelId) {
                 setExpandedModel(null);
@@ -718,18 +657,15 @@ export function AIModelPanel() {
     // 清除缓存
     const clearCache = async () => {
         try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await fetch('/api/admin/ai-models/cache', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            if (response.ok) {
-                invalidateQueriesForPath('/api/admin/ai-models/cache');
-                showToast('success', '缓存已清除');
-            }
+            await requestAdminJson(
+                '/api/admin/ai-models/cache',
+                {
+                    method: 'POST',
+                },
+                '清除缓存失败',
+            );
+            invalidateQueriesForPath('/api/admin/ai-models/cache');
+            showToast('success', '缓存已清除');
         } catch (e) {
             console.error('Clear cache failed:', e);
         }

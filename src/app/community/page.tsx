@@ -26,7 +26,7 @@ import {
     type LucideProps
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
+import { CommunityPost, PostCategory, POST_CATEGORIES, getPosts } from '@/lib/community';
 import { supabase } from '@/lib/auth';
 
 // =====================================================
@@ -124,6 +124,7 @@ export default function CommunityPage() {
     const [loading, setLoading] = useState(true);
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [total, setTotal] = useState(0);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState<PostCategory | ''>('');
@@ -145,20 +146,19 @@ export default function CommunityPage() {
     const loadPosts = useCallback(async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({
-                page: String(page),
-                pageSize: String(pageSize),
+            const result = await getPosts({
                 sortBy,
-            });
-            if (search) params.set('search', search);
-            if (category) params.set('category', category);
-
-            const response = await fetch(`/api/community/posts?${params}`);
-            if (response.ok) {
-                const data = await response.json();
-                setPosts(data.posts);
-                setTotal(data.total);
-            }
+                ...(search ? { search } : {}),
+                ...(category ? { category } : {}),
+            }, page, pageSize);
+            setPosts(result.posts);
+            setTotal(result.total);
+            setLoadError(null);
+        } catch (error) {
+            console.error('加载帖子失败:', error);
+            setPosts([]);
+            setTotal(0);
+            setLoadError(error instanceof Error ? error.message : '加载帖子失败');
         } finally {
             setLoading(false);
         }
@@ -263,6 +263,12 @@ export default function CommunityPage() {
                         </div>
                     </div>
                 </div>
+
+                {loadError ? (
+                    <div className="rounded-xl border border-[#ead9bf] bg-[#fcf8ee] px-4 py-3 text-sm text-[#946c21]">
+                        {loadError}
+                    </div>
+                ) : null}
 
                 {/* 帖子列表 */}
                 {loading ? (

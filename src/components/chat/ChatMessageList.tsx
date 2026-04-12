@@ -39,18 +39,6 @@ export function ChatMessageList({
         [isLoading, lastMessage?.role]
     );
 
-    if (messages.length === 0) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
-                <div className="relative z-10 max-w-2xl w-full flex flex-col items-center animate-fade-in-up">
-                    <p className="text-xl text-foreground-secondary mb-8">
-                        今天运势如何？
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6 max-w-3xl mx-auto pb-24 md:pb-4">
             {messages.map((message, index) => (

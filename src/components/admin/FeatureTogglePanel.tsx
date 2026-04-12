@@ -8,8 +8,8 @@
 'use client';
 
 import { useState } from "react";
+import { requestAdminJson } from '@/lib/admin/request';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from "@/lib/auth";
 import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
 import { getFeatureModules } from '@/lib/navigation/registry';
 
@@ -27,30 +27,17 @@ export function FeatureTogglePanel() {
         setError("");
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-
-            if (!token) {
-                setError("请先登录");
-                setSavingId(null);
-                return;
-            }
-
-            const response = await fetch("/api/feature-toggles", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
+            await requestAdminJson(
+                "/api/feature-toggles",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ featureId, disabled: currentlyEnabled }),
                 },
-                body: JSON.stringify({ featureId, disabled: currentlyEnabled }),
-            });
-
-            const result = await response.json();
-            if (!response.ok) {
-                setError(result.error || "更新失败");
-                setSavingId(null);
-                return;
-            }
+                "更新失败",
+            );
 
             await refresh(true, true);
         } catch (err) {

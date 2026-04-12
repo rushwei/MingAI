@@ -26,7 +26,7 @@ export function useCurrentUserProfile(options?: { enabled?: boolean }) {
   const { user, loading: sessionLoading } = useSessionSafe();
   const bootstrap = useAppBootstrap({ enabled });
   const profile = toUserProfile(bootstrap.data);
-  const profileResolved = !user || bootstrap.data.viewerLoaded;
+  const profileResolved = bootstrap.viewerStateResolved;
 
   const refresh = useCallback(async (force = false) => {
     void force;
@@ -35,9 +35,9 @@ export function useCurrentUserProfile(options?: { enabled?: boolean }) {
 
   return {
     profile: user ? profile : null,
-    loading: enabled ? sessionLoading || bootstrap.isLoading : false,
+    loading: enabled ? sessionLoading || (!!user && !bootstrap.viewerStateResolved) : false,
     resolved: profileResolved,
-    error: bootstrap.error instanceof Error ? bootstrap.error : null,
+    error: bootstrap.viewerStateError,
     refresh,
   };
 }

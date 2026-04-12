@@ -37,7 +37,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { session, userId: sessionUserId, membershipInfo, refreshMembership } = useSessionMembership();
+    const { userId: sessionUserId, membershipInfo, refreshMembership } = useSessionMembership();
     const remainingCredits = sessionUserId === userId
         ? (membershipInfo?.aiChatCount ?? null)
         : null;
@@ -102,15 +102,11 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
 
 请基于以上黄历信息，用专业但易懂的方式回答用户的问题。`;
 
-            // 获取访问令牌
-            const accessToken = session?.access_token;
-
             // 调用AI API
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
                 },
                 body: JSON.stringify({
                     messages: [
@@ -148,7 +144,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
         } finally {
             setIsLoading(false);
         }
-    }, [userId, dateDisplay, almanac, isLoading, refreshMembership, session?.access_token]);
+    }, [userId, dateDisplay, almanac, isLoading, refreshMembership]);
 
     const handleSubmit = useCallback(() => {
         sendMessage(inputValue);

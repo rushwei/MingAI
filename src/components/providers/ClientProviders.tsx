@@ -11,9 +11,10 @@ import type { Session, User } from '@supabase/supabase-js';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { ChatTaskToastBridge } from '@/components/providers/ChatTaskToastBridge';
 import { AnnouncementPopupHost } from '@/components/providers/AnnouncementPopupHost';
-import { supabase } from '@/lib/auth';
+import { authSessionCacheConstants, supabase } from '@/lib/auth';
 import { getLinuxDoAuthErrorMessage } from '@/lib/auth-feedback';
 import { createAppQueryClient, registerBrowserQueryClient } from '@/lib/query/client';
+import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 
 interface ClientProvidersProps {
     children: ReactNode;
@@ -67,27 +68,68 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
     useEffect(() => {
         let isMounted = true;
+        let lastForcedSyncAt = 0;
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        const syncSessionFromServer = async (force = false) => {
+            const result = force
+                ? await supabase.auth.revalidateSession()
+                : await supabase.auth.getSession();
+            if (!isMounted) return;
+            setState((current) => {
+                const session = result.data.session;
+                if (result.error && !session) {
+                    return {
+                        ...current,
+                        loading: false,
+                    };
+                }
+
+                return {
+                    session,
+                    user: session?.user ?? null,
+                    loading: false,
+                };
+            });
+        };
+
+        void syncSessionFromServer();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (!isMounted) return;
             setState({
                 session,
                 user: session?.user ?? null,
                 loading: false,
             });
+            if (event !== 'INITIAL_SESSION') {
+                invalidateQueriesForPath('/api/auth');
+            }
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (!isMounted) return;
-            setState({
-                session,
-                user: session?.user ?? null,
-                loading: false,
-            });
-        });
+        const handleForcedSync = () => {
+            const now = Date.now();
+            if ((now - lastForcedSyncAt) < authSessionCacheConstants.SESSION_REVALIDATE_EVENT_COOLDOWN_MS) {
+                return;
+            }
+            lastForcedSyncAt = now;
+            void syncSessionFromServer(true);
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                handleForcedSync();
+            }
+        };
+
+        window.addEventListener('focus', handleForcedSync);
+        window.addEventListener('pageshow', handleForcedSync);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
             isMounted = false;
+            window.removeEventListener('focus', handleForcedSync);
+            window.removeEventListener('pageshow', handleForcedSync);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             subscription.unsubscribe();
         };
     }, []);

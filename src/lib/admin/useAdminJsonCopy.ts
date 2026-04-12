@@ -20,9 +20,10 @@ export function useAdminJsonCopy(jsonPayload: unknown) {
                 if (!cancelled) {
                     setIsAdmin(access.isAdmin);
                 }
-            } catch {
+            } catch (error) {
                 if (!cancelled) {
                     setIsAdmin(false);
+                    showToast('error', error instanceof Error ? error.message : '加载管理员权限失败');
                 }
             }
         };
@@ -39,7 +40,7 @@ export function useAdminJsonCopy(jsonPayload: unknown) {
                 window.clearTimeout(resetTimerRef.current);
             }
         };
-    }, []);
+    }, [showToast]);
 
     const copyJson = useCallback(async () => {
         if (!isAdmin || jsonPayload == null) return;

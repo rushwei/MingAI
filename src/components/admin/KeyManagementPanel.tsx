@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { supabase } from '@/lib/auth';
+import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 
 interface ActivationKey {
@@ -55,9 +55,6 @@ export function KeyManagementPanel() {
 
     const fetchKeys = useCallback(async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) return;
-
             let url = '/api/activation-keys';
             const params = new URLSearchParams();
             if (filterUsed !== null) {
@@ -67,14 +64,12 @@ export function KeyManagementPanel() {
                 url += '?' + params.toString();
             }
 
-            const response = await fetch(url, {
-                headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                setKeys(data.data || []);
-            }
+            const data = await requestAdminJson<{ success?: boolean; data?: ActivationKey[] }>(
+                url,
+                { method: 'GET' },
+                '获取激活码失败',
+            );
+            setKeys(data.data || []);
         } catch (error) {
             console.error('Failed to fetch keys:', error);
         } finally {
@@ -89,9 +84,6 @@ export function KeyManagementPanel() {
     const handleCreate = async () => {
         setCreating(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) return;
-
             const body: Record<string, unknown> = {
                 action: 'create',
                 count: createCount,
@@ -105,16 +97,17 @@ export function KeyManagementPanel() {
                 body.membershipType = createType;
             }
 
-            const response = await fetch('/api/activation-keys', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session.access_token}`,
+            const data = await requestAdminJson<{ success?: boolean; error?: string }>(
+                '/api/activation-keys',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body),
                 },
-                body: JSON.stringify(body),
-            });
-
-            const data = await response.json();
+                '创建失败',
+            );
             if (data.success) {
                 setShowCreateForm(false);
                 setCreateCount(1);
@@ -132,15 +125,13 @@ export function KeyManagementPanel() {
 
     const handleDelete = async (keyId: string) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) return;
-
-            const response = await fetch(`/api/activation-keys?id=${keyId}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-
-            const data = await response.json();
+            const data = await requestAdminJson<{ success?: boolean; error?: string }>(
+                `/api/activation-keys?id=${keyId}`,
+                {
+                    method: 'DELETE',
+                },
+                '删除失败',
+            );
             if (data.success) {
                 setKeys(keys.filter(k => k.id !== keyId));
                 setDeleteKeyId(null);

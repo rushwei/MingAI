@@ -10,30 +10,24 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { PostCategory, POST_CATEGORIES } from '@/lib/community';
-import { supabase } from '@/lib/auth';
+import { PostCategory, POST_CATEGORIES, createPost } from '@/lib/community';
 
 export default function NewPostPage() {
     const router = useRouter();
+    const { user, loading: sessionLoading } = useSessionSafe();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState<PostCategory>('general');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [user, setUser] = useState<{ id: string } | null>(null);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                router.push('/community');
-                return;
-            }
-            setUser(user);
-        };
-        checkAuth();
-    }, [router]);
+        if (!sessionLoading && !user) {
+            router.push('/community');
+        }
+    }, [router, sessionLoading, user]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,34 +41,33 @@ export default function NewPostPage() {
         setError('');
 
         try {
-            const response = await fetch('/api/community/posts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title,
-                    content,
-                    category,
-                }),
+            const post = await createPost({
+                title,
+                content,
+                category,
             });
-
-            if (response.ok) {
-                const post = await response.json();
-                router.push(`/community/${post.id}`);
-            } else {
-                const data = await response.json();
-                setError(data.error || '发帖失败');
-            }
-        } catch {
-            setError('发帖失败，请重试');
+            router.push(`/community/${post.id}`);
+        } catch (submitError) {
+            setError(submitError instanceof Error ? submitError.message : '发帖失败，请重试');
         } finally {
             setLoading(false);
         }
     };
 
-    if (!user) {
+    if (sessionLoading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <SoundWaveLoader variant="block" />
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center px-4">
+                <div className="rounded-xl border border-[#ead9bf] bg-[#fcf8ee] px-5 py-4 text-sm text-[#946c21]">
+                    {error || '认证失败，请返回社区后重试。'}
+                </div>
             </div>
         );
     }

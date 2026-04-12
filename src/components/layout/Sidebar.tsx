@@ -102,7 +102,7 @@ function SidebarInner() {
     const unreadCount = useNotificationUnreadCount(user?.id ?? null, {
         enabled: notificationsEnabled,
     });
-    const badgeCount = (notificationsEnabled ? unreadCount : 0) + announcementPromptCount;
+    const badgeCount = (notificationsEnabled ? (unreadCount ?? 0) : 0) + announcementPromptCount;
 
     // 当前是否在具体某个对话中
     const activeConvId = searchParams.get('id');

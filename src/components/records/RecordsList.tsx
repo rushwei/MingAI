@@ -174,27 +174,58 @@ export function RecordsList({
 }: RecordsListProps) {
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
 
+    const pagination = totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-3 pt-8 pb-4">
+            <button
+                onClick={() => onPageChange(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-lg hover:bg-background-secondary disabled:opacity-50 disabled:hover:bg-transparent transition-colors text-foreground-secondary"
+            >
+                <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-medium text-foreground px-4 py-1.5 bg-background-secondary rounded-lg">
+                {page} / {totalPages}
+            </span>
+            <button
+                onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages}
+                className="p-2 rounded-lg hover:bg-background-secondary disabled:opacity-50 disabled:hover:bg-transparent transition-colors text-foreground-secondary"
+            >
+                <ChevronRight className="w-5 h-5" />
+            </button>
+        </div>
+    ) : null;
+
     if (loading) {
         return <SoundWaveLoader variant="block" text="加载记录中" />;
     }
 
     if (records.length === 0) {
         return (
-            <div className="py-20 text-center">
-                <div className="w-24 h-24 bg-background-secondary/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <FileText className="w-10 h-10 text-foreground-secondary/50" />
+            <>
+                <div className="py-20 text-center">
+                    <div className="w-24 h-24 bg-background-secondary/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FileText className="w-10 h-10 text-foreground-secondary/50" />
+                    </div>
+                    <h3 className="text-lg font-medium text-foreground mb-2">
+                        {totalPages > 1 ? '当前页暂无记录' : '暂无记录'}
+                    </h3>
+                    <p className="text-foreground-secondary mb-6 max-w-xs mx-auto">
+                        {totalPages > 1
+                            ? '这一页已经空了，可以切换到上一页继续查看。'
+                            : '还没有添加任何命理记录。开始记录你的第一次感悟吧！'}
+                    </p>
+                    {totalPages > 1 ? null : (
+                        <button
+                            onClick={onCreateNew}
+                            className="px-6 py-2.5 bg-background border border-border hover:border-emerald-500/50 hover:text-emerald-500 rounded-xl transition-all shadow-sm hover:shadow-md"
+                        >
+                            立即添加
+                        </button>
+                    )}
                 </div>
-                <h3 className="text-lg font-medium text-foreground mb-2">暂无记录</h3>
-                <p className="text-foreground-secondary mb-6 max-w-xs mx-auto">
-                    还没有添加任何命理记录。开始记录你的第一次感悟吧！
-                </p>
-                <button
-                    onClick={onCreateNew}
-                    className="px-6 py-2.5 bg-background border border-border hover:border-emerald-500/50 hover:text-emerald-500 rounded-xl transition-all shadow-sm hover:shadow-md"
-                >
-                    立即添加
-                </button>
-            </div>
+                {pagination}
+            </>
         );
     }
 
@@ -214,27 +245,7 @@ export function RecordsList({
                 ))}
             </div>
 
-            {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 pt-8 pb-4">
-                    <button
-                        onClick={() => onPageChange(Math.max(1, page - 1))}
-                        disabled={page === 1}
-                        className="p-2 rounded-lg hover:bg-background-secondary disabled:opacity-50 disabled:hover:bg-transparent transition-colors text-foreground-secondary"
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <span className="text-sm font-medium text-foreground px-4 py-1.5 bg-background-secondary rounded-lg">
-                        {page} / {totalPages}
-                    </span>
-                    <button
-                        onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-                        disabled={page === totalPages}
-                        className="p-2 rounded-lg hover:bg-background-secondary disabled:opacity-50 disabled:hover:bg-transparent transition-colors text-foreground-secondary"
-                    >
-                        <ChevronRight className="w-5 h-5" />
-                    </button>
-                </div>
-            )}
+            {pagination}
         </>
     );
 }

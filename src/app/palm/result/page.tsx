@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Hand, MessageCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
@@ -15,8 +15,7 @@ import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
-import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
-import { resolveHistoryConversationId } from '@/lib/history/client';
+import { useAnalysisSnapshot, type AnalysisSnapshotCallbacks } from '@/lib/hooks/useAnalysisSnapshot';
 
 interface PalmResultData {
     readingId?: string;
@@ -37,6 +36,23 @@ export default function PalmResultPage() {
     const [analysis, setAnalysis] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [awaitingSnapshot, setAwaitingSnapshot] = useState(false);
+    const snapshotCallbacks = useMemo<AnalysisSnapshotCallbacks>(() => ({
+        onAnalysis: (nextAnalysis: string) => setAnalysis(nextAnalysis),
+        onConversationIdResolved: (conversationId: string) => {
+            setResultData((prev) => (prev ? { ...prev, conversationId } : prev));
+        },
+        onComplete: () => setAwaitingSnapshot(false),
+    }), []);
+    const snapshotLoading = useAnalysisSnapshot({
+        conversationId: resultData?.conversationId,
+        recordId: resultData?.readingId,
+        divinationType: 'palm',
+        sessionKey: 'palm_result',
+        hasExistingAnalysis: !!analysis,
+        skip: !resultData,
+        callbacks: snapshotCallbacks,
+    });
 
     // 设置移动端 Header 菜单项
     useEffect(() => {
@@ -76,38 +92,20 @@ export default function PalmResultPage() {
             if (parsed) {
                 try {
                     setResultData(parsed);
-
                     if (parsed.analysis) {
                         setAnalysis(parsed.analysis);
-                        setLoading(false);
-                        // sessionStorage.removeItem('palm_result'); // 保留以支持刷新和Strict Mode
-                        return;
+                        setAwaitingSnapshot(false);
+                    } else {
+                        setAwaitingSnapshot(Boolean(parsed.conversationId || parsed.readingId));
                     }
-
-                    let resolvedConversationId = parsed.conversationId || null;
-                    if (!resolvedConversationId && parsed.readingId) {
-                        resolvedConversationId = await resolveHistoryConversationId('palm', parsed.readingId, 'palm_result');
-                        if (resolvedConversationId) {
-                            setResultData(prev => prev ? { ...prev, conversationId: resolvedConversationId } : prev);
-                        }
-                    }
-
-                    if (resolvedConversationId) {
-                        const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
-                        if (snapshot?.analysis) {
-                            setAnalysis(snapshot.analysis);
-                        }
-                    }
-
-                    // sessionStorage.removeItem('palm_result');
                     setLoading(false);
                     return;
                 } catch {
-                    // sessionStorage.removeItem('palm_result');
                 }
             }
 
             // 没有数据，显示错误
+            setAwaitingSnapshot(false);
             setError('未找到分析结果，请重新进行分析');
             setLoading(false);
         };
@@ -132,7 +130,7 @@ export default function PalmResultPage() {
         }
     };
 
-    if (loading) {
+    if (loading || awaitingSnapshot || snapshotLoading) {
         return (
             <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
                 {/* Background Effects Removed */}

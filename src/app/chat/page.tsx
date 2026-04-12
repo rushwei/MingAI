@@ -7,7 +7,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenText, MessageCircleHeart } from 'lucide-react';
+import { BookOpenText, MessageCircleHeart, RefreshCw } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
@@ -37,11 +37,27 @@ export default function ChatPage() {
     const {
         promptKnowledgeBases,
         bootstrapLoading: promptKnowledgeBasesLoading,
+        bootstrapError,
+        hasBootstrapData,
+        refreshBootstrap,
     } = useChatBootstrap({ user, sessionLoading, knowledgeBaseEnabled });
     const userId = user?.id ?? null;
-    const membership = appBootstrap.data.membership;
+    const viewerStateErrorMessage = appBootstrap.viewerStateError?.message ?? null;
+    const membership = appBootstrap.viewerStateLoaded ? appBootstrap.data.membership : null;
     const credits = membership?.aiChatCount ?? null;
     const bootstrapLoading = promptKnowledgeBasesLoading || appBootstrap.isLoading;
+    const bootstrapErrorMessage = bootstrapError
+        || viewerStateErrorMessage
+        || (appBootstrap.error instanceof Error ? appBootstrap.error.message : null);
+    const bootstrapLocked = Boolean(
+        userId
+        && !bootstrapLoading
+        && (
+            (bootstrapError && !hasBootstrapData)
+            || !!appBootstrap.viewerStateError
+            || (appBootstrap.error instanceof Error && !appBootstrap.hasBootstrapData)
+        ),
+    );
 
     const state = useChatState({ userId, sessionLoading, bootstrapLoading, router, searchParams });
 
@@ -75,11 +91,43 @@ export default function ChatPage() {
     const isCreditLocked = typeof credits === 'number' && credits <= 0 && !state.customProviderActive;
     const [showAuthModal, setShowAuthModal] = useState(false);
 
+    if (bootstrapLocked) {
+        return (
+            <>
+                <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center px-4 py-10">
+                    <div className="w-full max-w-md rounded-2xl border border-[#ead9bf] bg-[#fcf8ee] p-6 text-center shadow-sm">
+                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ead3] text-[#946c21]">
+                            <RefreshCw className="h-5 w-5" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-[#37352f]">加载对话上下文失败</h2>
+                        <p className="mt-2 text-sm text-[#6b665c]">{bootstrapErrorMessage}</p>
+                        <button
+                            type="button"
+                            onClick={() => void Promise.all([
+                                refreshBootstrap(),
+                                appBootstrap.refresh(),
+                            ])}
+                            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#efedea] px-4 py-2 text-sm font-medium text-[#37352f] transition-colors hover:bg-[#e7e4de]"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            重新加载
+                        </button>
+                    </div>
+                </div>
+                <AuthModal
+                    isOpen={showAuthModal}
+                    onClose={() => setShowAuthModal(false)}
+                />
+            </>
+        );
+    }
+
     return (
         <>
             <ChatLayout
                 activeConversationId={state.activeConversationId}
                 conversationLoading={state.conversationLoading}
+                conversationError={state.conversationError}
                 messages={state.messages}
                 isLoading={state.isLoading}
                 isSendingToList={state.isSendingToList}
@@ -93,9 +141,10 @@ export default function ChatPage() {
                 onSend={messaging.handleSend}
                 onStop={messaging.handleStop}
                 onAuthRequired={!userId ? () => setShowAuthModal(true) : undefined}
+                onRetryConversationLoad={state.retryConversationLoad}
                 inputValue={state.inputValue}
                 onInputChange={state.setInputValue}
-                disabled={isCreditLocked}
+                disabled={isCreditLocked || bootstrapLocked}
                 chatMode={state.chatMode}
                 onChatModeChange={state.setChatMode}
                 selectedModel={state.selectedModel}
@@ -105,7 +154,7 @@ export default function ChatPage() {
                 customProviderActive={state.customProviderActive}
                 customProviderLabel={state.customProviderLabel}
                 userId={userId}
-                membershipType={membership?.type || 'free'}
+                membershipType={membership?.type ?? 'free'}
                 attachmentState={state.attachmentState}
                 onAttachmentChange={state.setAttachmentState}
                 mentions={state.mentions}

@@ -55,7 +55,7 @@ export default function QimenPage() {
             const useTime = timeMode === 'now' ? getNow() : { year, month, day, hour, minute };
 
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
+            if (!session?.user) {
                 showToast('error', '请先登录');
                 setIsLoading(false);
                 return;
@@ -65,7 +65,6 @@ export default function QimenPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
                 },
                 body: JSON.stringify({
                     action: 'calculate',

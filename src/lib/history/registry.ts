@@ -1,4 +1,5 @@
 import { getModelName } from '@/lib/ai/ai-config';
+import { PERSONALITY_BASICS, type MBTIType } from '@/lib/divination/mbti';
 
 export const HISTORY_TYPES = [
   'tarot',
@@ -67,7 +68,7 @@ export const HISTORY_CONFIG: Record<HistoryType, HistoryConfig> = {
     historyPath: '/mbti/history',
     detailPath: '/mbti/result',
     sessionKey: 'mbti_result',
-    summarySelect: 'id, mbti_type, conversation_id, created_at, conversation:conversations(source_data)',
+    summarySelect: 'id, mbti_type, scores, percentages, conversation_id, created_at, conversation:conversations(source_data)',
   },
   hepan: {
     label: '合盘历史',
@@ -156,11 +157,26 @@ export async function buildHistorySummary(
   }
 
   if (type === 'mbti') {
+    const mbtiType = String(row.mbti_type || '未知') as MBTIType;
+    const personalityTitle = PERSONALITY_BASICS[mbtiType]?.title || `${mbtiType} 人格`;
+    const percentages = row.percentages as {
+      EI?: { E?: number; I?: number };
+      SN?: { S?: number; N?: number };
+      TF?: { T?: number; F?: number };
+      JP?: { J?: number; P?: number };
+    } | null | undefined;
     return {
       id: String(row.id),
-      title: `${String(row.mbti_type || '未知')} 人格`,
+      title: mbtiType,
+      question: personalityTitle,
       createdAt: String(row.created_at || ''),
       modelName,
+      badges: percentages ? [
+        `E${percentages.EI?.E ?? 50}% / I${percentages.EI?.I ?? 50}%`,
+        `S${percentages.SN?.S ?? 50}% / N${percentages.SN?.N ?? 50}%`,
+        `T${percentages.TF?.T ?? 50}% / F${percentages.TF?.F ?? 50}%`,
+        `J${percentages.JP?.J ?? 50}% / P${percentages.JP?.P ?? 50}%`,
+      ] : undefined,
       conversationId: typeof row.conversation_id === 'string' ? row.conversation_id : null,
     };
   }

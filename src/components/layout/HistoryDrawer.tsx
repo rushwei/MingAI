@@ -12,9 +12,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { writeSessionJSON } from '@/lib/cache/session-storage';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
-import { loadHistoryRestore, loadHistorySummariesPage } from '@/lib/history/client';
+import { useToast } from '@/components/ui/Toast';
+import { HISTORY_SUMMARY_DELETED_EVENT } from '@/lib/browser-api';
+import { applyHistoryRestorePayload, loadHistoryRestore, loadHistorySummariesPage } from '@/lib/history/client';
 import {
     HISTORY_CONFIG,
     type HistorySummaryItem,
@@ -34,28 +35,64 @@ interface HistoryDrawerProps {
 
 const HISTORY_DRAWER_BATCH_SIZE = 10;
 
+function mergeHistoryItemsById(current: HistorySummaryItem[], incoming: HistorySummaryItem[]) {
+    if (incoming.length === 0) {
+        return current;
+    }
+
+    const merged = new Map(current.map((item) => [item.id, item] as const));
+    for (const item of incoming) {
+        merged.set(item.id, item);
+    }
+    return Array.from(merged.values());
+}
+
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
     const router = useRouter();
+    const { showToast } = useToast();
     const { user, loading: sessionLoading } = useSessionSafe();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
     const [nextOffset, setNextOffset] = useState<number | null>(null);
+    const [appendError, setAppendError] = useState<string | null>(null);
     const [navigating, setNavigating] = useState<string | null>(null);
     const [items, setItems] = useState<HistorySummaryItem[]>([]);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+    const inFlightRequestKeyRef = useRef<string | null>(null);
     const defaultTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
     const config = HISTORY_CONFIG[type];
+
+    const removeHistoryItem = useCallback((id: string) => {
+        let removed = false;
+        setItems((prev) => {
+            const next = prev.filter((item) => item.id !== id);
+            removed = next.length !== prev.length;
+            return removed ? next : prev;
+        });
+        if (removed) {
+            setNextOffset((prev) => prev == null ? null : Math.max(prev - 1, 0));
+        }
+        return removed;
+    }, []);
 
     const loadHistory = useCallback(async (options?: { append?: boolean; offset?: number }) => {
         if (!user?.id) return;
 
         const append = options?.append === true;
+        const offset = options?.offset ?? 0;
+        const requestKey = append ? `append:${offset}` : 'initial:0';
+        if (append && inFlightRequestKeyRef.current === requestKey) {
+            return;
+        }
         if (append) {
+            inFlightRequestKeyRef.current = requestKey;
             setLoadingMore(true);
+            setAppendError(null);
         } else {
             setLoading(true);
         }
@@ -63,26 +100,35 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         try {
             const result = await loadHistorySummariesPage(type, {
                 limit: HISTORY_DRAWER_BATCH_SIZE,
-                offset: options?.offset ?? 0,
+                offset,
             });
-            setItems((prev) => append ? [...prev, ...result.items] : result.items);
+            setErrorMessage(null);
+            setAppendError(null);
+            setItems((prev) => append ? mergeHistoryItemsById(prev, result.items) : result.items);
             setHasMore(result.pagination.hasMore);
             setNextOffset(result.pagination.nextOffset);
         } catch (error) {
-            console.error('[history-drawer] failed to load history:', error);
-            if (!append) {
-                setItems([]);
+            const message = error instanceof Error ? error.message : '加载历史记录失败';
+            if (append) {
+                setAppendError(message);
+            } else {
+                setErrorMessage(message);
                 setHasMore(false);
                 setNextOffset(null);
             }
+            showToast('error', message);
+            if (!append) {
+                setItems([]);
+            }
         } finally {
             if (append) {
+                inFlightRequestKeyRef.current = null;
                 setLoadingMore(false);
             } else {
                 setLoading(false);
             }
         }
-    }, [type, user?.id]);
+    }, [showToast, type, user?.id]);
 
     const handleToggle = useCallback(() => {
         if (!isOpen) {
@@ -96,6 +142,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
             !isOpen
             || loading
             || loadingMore
+            || !!appendError
             || !hasMore
             || nextOffset == null
             || !scrollContainerRef.current
@@ -115,7 +162,26 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
 
         observer.observe(loadMoreSentinelRef.current);
         return () => observer.disconnect();
-    }, [hasMore, isOpen, loadHistory, loading, loadingMore, nextOffset]);
+    }, [appendError, hasMore, isOpen, loadHistory, loading, loadingMore, nextOffset]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const handleHistorySummaryDeleted = (event: Event) => {
+            const detail = (event as CustomEvent<{ type?: string | null; id?: string | null }>).detail;
+            if (detail?.type !== type || !detail.id) {
+                return;
+            }
+            removeHistoryItem(detail.id);
+        };
+
+        window.addEventListener(HISTORY_SUMMARY_DELETED_EVENT, handleHistorySummaryDeleted as EventListener);
+        return () => {
+            window.removeEventListener(HISTORY_SUMMARY_DELETED_EVENT, handleHistorySummaryDeleted as EventListener);
+        };
+    }, [removeHistoryItem, type]);
 
     // 点击查看历史记录详情
     const handleViewItem = useCallback(async (itemId: string) => {
@@ -124,24 +190,20 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         try {
             const payload = await loadHistoryRestore(type, itemId, defaultTimeZone);
             if (!payload) {
-                console.error('[history-drawer] failed to restore record:', itemId);
-                setNavigating(null);
-                return;
+                throw new Error('未找到历史记录');
             }
 
-            writeSessionJSON(payload.sessionKey, payload.sessionData);
-
+            setErrorMessage(null);
             setIsOpen(false);
-            setNavigating(null);
-            const targetPath = payload.useTimestamp
-                ? `${payload.detailPath}?from=history&t=${Date.now()}`
-                : payload.detailPath;
-            router.push(targetPath);
+            router.push(applyHistoryRestorePayload(payload));
         } catch (err) {
-            console.error('[history-drawer] navigation error:', err);
+            const message = err instanceof Error ? err.message : '加载历史记录失败';
+            setErrorMessage(message);
+            showToast('error', message);
+        } finally {
             setNavigating(null);
         }
-    }, [defaultTimeZone, router, type]);
+    }, [defaultTimeZone, router, showToast, type]);
 
     if (sessionLoading || !user?.id) return null;
 
@@ -262,6 +324,17 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                     </div>
                                 ))}
                             </div>
+                        ) : errorMessage && items.length === 0 ? (
+                            <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 text-center text-sm text-red-600">
+                                <span>{errorMessage}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => { void loadHistory(); }}
+                                    className="rounded-md bg-[#2383e2] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#2383e2]/90"
+                                >
+                                    重试
+                                </button>
+                            </div>
                         ) : items.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-64 text-foreground/40 gap-3">
                                 <History className="w-8 h-8 opacity-20" />
@@ -269,6 +342,11 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                             </div>
                         ) : (
                             <div className="space-y-1.5">
+                                {errorMessage && (
+                                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                                        {errorMessage}
+                                    </div>
+                                )}
                                 {items.map(item => (
                                     <div
                                         key={item.id}
@@ -330,6 +408,14 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                             <div className="flex items-center gap-2 text-xs text-foreground/50">
                                                 <SoundWaveLoader variant="inline" />
                                             </div>
+                                        ) : appendError ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => { void loadHistory({ append: true, offset: nextOffset ?? 0 }); }}
+                                                className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-secondary transition-colors hover:bg-background-secondary"
+                                            >
+                                                重试加载更多
+                                            </button>
                                         ) : (
                                             <div className="text-xs text-foreground/50">
                                                 继续下滑加载更多

@@ -27,6 +27,13 @@ export function useFeatureToggles(options: UseFeatureTogglesOptions = {}): Featu
   const bootstrap = useAppBootstrap({ enabled });
   const toggles = bootstrap.data.featureToggles;
   const togglesLoaded = bootstrap.data.featureTogglesLoaded;
+  const toggleError = !togglesLoaded
+    ? (
+      bootstrap.error instanceof Error && !bootstrap.hasBootstrapData
+        ? bootstrap.error
+        : new Error(bootstrap.data.featureTogglesErrorMessage || '功能状态加载失败')
+    )
+    : null;
 
   const refresh = useCallback(async (force = false, showLoading = false) => {
     void force;
@@ -53,7 +60,7 @@ export function useFeatureToggles(options: UseFeatureTogglesOptions = {}): Featu
     isLoading: enabled ? bootstrap.isLoading : false,
     isRefreshing: enabled ? bootstrap.isFetching && !bootstrap.isLoading : false,
     loaded: enabled ? togglesLoaded : true,
-    error: bootstrap.error instanceof Error ? bootstrap.error : null,
+    error: enabled ? toggleError : null,
     isFeatureEnabled,
     refresh,
   };

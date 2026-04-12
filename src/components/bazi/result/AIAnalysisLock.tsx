@@ -7,10 +7,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Lock, Sparkles, Coins } from 'lucide-react';
 import { requestBrowserJson } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { openSettingsCenter } from '@/lib/settings-center';
 
 interface AIAnalysisLockProps {
     /** 分析类型 */
@@ -47,7 +47,6 @@ export function AIAnalysisLock({
     onUnlock,
     onLoginRequired,
 }: AIAnalysisLockProps) {
-    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -109,14 +108,14 @@ export function AIAnalysisLock({
                         </div>
                         <h3 className="text-lg font-bold mb-2">积分不足</h3>
                         <p className="text-sm text-foreground-secondary mb-4">
-                            您的积分已用完，请前往会员中心通过签到、激活码或会员权益继续获取积分
+                            您的积分已用完，请前往会员与积分页面通过签到、激活码或会员权益继续获取积分
                         </p>
                         <button
-                            onClick={() => router.push('/user/upgrade')}
+                            onClick={() => openSettingsCenter('upgrade')}
                             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90 transition-opacity"
                         >
                             <Coins className="w-4 h-4" />
-                            前往会员中心
+                            前往会员与积分
                         </button>
                     </div>
                 </div>

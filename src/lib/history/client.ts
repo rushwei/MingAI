@@ -1,4 +1,4 @@
-import { requestBrowserJson } from '@/lib/browser-api';
+import { requestBrowserData } from '@/lib/browser-api';
 import { updateSessionJSON, writeSessionJSON } from '@/lib/cache/session-storage';
 import type {
   HistoryRestorePayload,
@@ -12,7 +12,14 @@ type HistoryPagination = {
 };
 
 const HISTORY_PAGE_SIZE = 100;
-const HISTORY_MAX_PAGES = 50;
+
+async function requestHistoryJson<T>(
+  url: string,
+  init?: RequestInit,
+  fallbackMessage = '请求失败',
+): Promise<T> {
+  return await requestBrowserData<T>(url, init, { fallbackMessage }) as T;
+}
 
 export async function loadHistorySummariesPage(
   type: HistoryType,
@@ -26,43 +33,16 @@ export async function loadHistorySummariesPage(
     offset: String(offset),
   });
 
-  const result = await requestBrowserJson<{ items?: HistorySummaryItem[]; pagination?: HistoryPagination }>(`/api/history-summaries?${params.toString()}`, {
-    method: 'GET',
-  });
-
-  if (result.error) {
-    console.error('[history-client] failed to load summaries:', result.error.message);
-    return {
-      items: [],
-      pagination: { hasMore: false, nextOffset: null },
-    };
-  }
+  const data = await requestHistoryJson<{ items?: HistorySummaryItem[]; pagination?: HistoryPagination }>(
+    `/api/history-summaries?${params.toString()}`,
+    { method: 'GET' },
+    '加载历史记录失败',
+  );
 
   return {
-    items: result.data?.items || [],
-    pagination: result.data?.pagination || { hasMore: false, nextOffset: null },
+    items: data.items || [],
+    pagination: data.pagination || { hasMore: false, nextOffset: null },
   };
-}
-
-export async function loadHistorySummaries(type: HistoryType): Promise<HistorySummaryItem[]> {
-  const items: HistorySummaryItem[] = [];
-  let offset = 0;
-
-  for (let page = 0; page < HISTORY_MAX_PAGES; page += 1) {
-    const result = await loadHistorySummariesPage(type, {
-      limit: HISTORY_PAGE_SIZE,
-      offset,
-    });
-
-    items.push(...result.items);
-    if (!result.pagination.hasMore || result.pagination.nextOffset == null) {
-      break;
-    }
-
-    offset = result.pagination.nextOffset;
-  }
-
-  return items;
 }
 
 export async function loadHistoryRestore(
@@ -78,34 +58,29 @@ export async function loadHistoryRestore(
     query.set('timezone', timezone);
   }
 
-  const result = await requestBrowserJson<{ item?: HistoryRestorePayload | null }>(`/api/history-summaries?${query.toString()}`, {
-    method: 'GET',
-  });
+  const data = await requestHistoryJson<{ item?: HistoryRestorePayload | null }>(
+    `/api/history-summaries?${query.toString()}`,
+    { method: 'GET' },
+    '加载历史记录失败',
+  );
 
-  if (result.error) {
-    console.error('[history-client] failed to load restore payload:', result.error.message);
-    return null;
-  }
-
-  return result.data?.item ?? null;
+  return data.item ?? null;
 }
 
-export async function deleteHistorySummary(type: HistoryType, id: string): Promise<boolean> {
+export async function deleteHistorySummary(type: HistoryType, id: string): Promise<void> {
   const query = new URLSearchParams({
     type,
     id,
   });
 
-  const result = await requestBrowserJson<{ success?: boolean }>(`/api/history-summaries?${query.toString()}`, {
-    method: 'DELETE',
-  });
-
-  if (result.error) {
-    console.error('[history-client] failed to delete history item:', result.error.message);
-    return false;
+  const data = await requestHistoryJson<{ success?: boolean }>(
+    `/api/history-summaries?${query.toString()}`,
+    { method: 'DELETE' },
+    '删除历史记录失败',
+  );
+  if (data.success !== true) {
+    throw new Error('删除历史记录失败');
   }
-
-  return result.data?.success === true;
 }
 
 export function applyHistoryRestorePayload(payload: HistoryRestorePayload) {

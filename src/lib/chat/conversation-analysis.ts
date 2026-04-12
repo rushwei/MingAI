@@ -12,8 +12,13 @@ export async function loadConversationAnalysisSnapshot(
     credentials: 'include',
   });
 
-  if (!response.ok) {
+  if (response.status === 404) {
     return null;
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || '加载分析快照失败');
   }
 
   const payload = await response.json().catch(() => null) as {
@@ -39,8 +44,12 @@ export async function loadLatestConversationAnalysisSnapshot(filters: {
   const response = await fetch(`/api/conversations?${query.toString()}`, {
     credentials: 'include',
   });
-  if (!response.ok) {
+  if (response.status === 404) {
     return null;
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || '加载分析快照失败');
   }
 
   const payload = await response.json().catch(() => null) as {

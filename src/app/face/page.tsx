@@ -5,17 +5,17 @@
  */
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Upload, AlertTriangle, X, ScanFace } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import dynamic from 'next/dynamic';
 
 const HistoryDrawer = dynamic(
@@ -26,8 +26,8 @@ const HistoryDrawer = dynamic(
 export default function FacePage() {
     const router = useRouter();
     const { showToast } = useToast();
+    const { user } = useSessionSafe();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
 
     const [selectedType, setSelectedType] = useState('full');
     const [question, setQuestion] = useState('');
@@ -40,14 +40,6 @@ export default function FacePage() {
     const [selectedModel, setSelectedModel] = useState(DEFAULT_VISION_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
-
-    useEffect(() => {
-        const loadSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setAccessToken(session?.access_token || null);
-        };
-        loadSession();
-    }, []);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -112,7 +104,7 @@ export default function FacePage() {
             return;
         }
 
-        if (!accessToken) {
+        if (!user) {
             showToast('error', '请先登录');
             return;
         }
@@ -129,7 +121,6 @@ export default function FacePage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({
                     action: 'analyze',

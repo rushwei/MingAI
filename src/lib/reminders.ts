@@ -4,6 +4,7 @@
  * 管理节气提醒、运势提醒、关键日提醒等
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
 import { calculateDailyFortune, generateEnhancedKeyDates, compareLevels, isLevelFavorable } from '@/lib/divination/fortune';
@@ -43,14 +44,29 @@ type ReminderNotificationPayload = {
 
 type ReminderDeliveryStatus = 'sent' | 'skipped' | 'not_claimed';
 
+export class ReminderReadError extends Error {
+    constructor(message = '获取提醒订阅失败') {
+        super(message);
+        this.name = 'ReminderReadError';
+    }
+}
+
+type ReminderClient = Pick<SupabaseClient, 'from'>;
+
+function resolveReminderClient(options?: { client?: ReminderClient }) {
+    return options?.client ?? getSystemAdminClient();
+}
+
 // ===== 订阅管理 =====
 
 /**
  * 获取用户提醒订阅设置
  */
-export async function getReminderSubscriptions(userId: string): Promise<ReminderSubscription[]> {
-    // 使用 service client 绕过 RLS
-    const serviceClient = getSystemAdminClient();
+export async function getReminderSubscriptions(
+    userId: string,
+    options?: { client?: ReminderClient },
+): Promise<ReminderSubscription[]> {
+    const serviceClient = resolveReminderClient(options);
     const { data, error } = await serviceClient
         .from('reminder_subscriptions')
         .select('*')
@@ -58,7 +74,7 @@ export async function getReminderSubscriptions(userId: string): Promise<Reminder
 
     if (error) {
         console.error('[reminders] 获取订阅设置失败:', error);
-        return [];
+        throw new ReminderReadError('获取提醒订阅失败');
     }
 
     return (data || []).map(d => ({
@@ -77,10 +93,10 @@ export async function getReminderSubscriptions(userId: string): Promise<Reminder
 export async function updateReminderSubscription(
     userId: string,
     reminderType: ReminderType,
-    settings: { enabled?: boolean; notifyEmail?: boolean; notifySite?: boolean }
+    settings: { enabled?: boolean; notifyEmail?: boolean; notifySite?: boolean },
+    options?: { client?: ReminderClient },
 ): Promise<boolean> {
-    // 使用 service client 绕过 RLS
-    const serviceClient = getSystemAdminClient();
+    const serviceClient = resolveReminderClient(options);
     const { error } = await serviceClient
         .from('reminder_subscriptions')
         .upsert({
@@ -105,9 +121,12 @@ export async function updateReminderSubscription(
 /**
  * 检查用户是否订阅了某类型提醒
  */
-export async function isSubscribed(userId: string, reminderType: ReminderType): Promise<boolean> {
-    // 使用 service client 绕过 RLS
-    const serviceClient = getSystemAdminClient();
+export async function isSubscribed(
+    userId: string,
+    reminderType: ReminderType,
+    options?: { client?: ReminderClient },
+): Promise<boolean> {
+    const serviceClient = resolveReminderClient(options);
     const { data: subscription, error: subscriptionError } = await serviceClient
         .from('reminder_subscriptions')
         .select('enabled, notify_site')
@@ -117,7 +136,7 @@ export async function isSubscribed(userId: string, reminderType: ReminderType): 
 
     if (subscriptionError) {
         console.error('[reminders] 获取订阅状态失败:', subscriptionError);
-        return false;
+        throw new ReminderReadError('获取提醒订阅状态失败');
     }
 
     if (!subscription?.enabled || !subscription?.notify_site) {
@@ -134,6 +153,7 @@ export async function isSubscribed(userId: string, reminderType: ReminderType): 
 
     if (settingsError) {
         console.error('[reminders] 获取通知偏好失败:', settingsError);
+        throw new ReminderReadError('获取通知偏好失败');
     } else if (settings) {
         notificationsEnabled = settings.notifications_enabled ?? true;
         settingsNotifySite = settings.notify_site ?? true;

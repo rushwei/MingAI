@@ -7,233 +7,222 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Download } from 'lucide-react';
-import { MingRecord, MingNote, RecordCategory } from '@/lib/records';
-import { supabase } from '@/lib/auth';
+import { MING_RECORD_SOURCE_TYPE } from '@/lib/data-sources/types';
+import {
+    deleteRecord,
+    getNotesByDate,
+    getRecords,
+    MingRecord,
+    MingNote,
+    RecordCategory,
+    toggleRecordPin,
+} from '@/lib/records';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { RecordFilters } from '@/components/records/RecordFilters';
 import { RecordsList } from '@/components/records/RecordsList';
 import {
     RecordFormModal,
     DailyNotes,
     ImportExportModal,
-    KnowledgeBaseModal,
 } from '@/components/records/RecordDetail';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import {
+    KNOWLEDGE_BASE_SYNC_EVENT,
+} from '@/lib/browser-api';
 
 const PAGE_SIZE = 10;
 
+function SectionError({
+    message,
+    onRetry,
+}: {
+    message: string;
+    onRetry: () => void | Promise<void>;
+}) {
+    return (
+        <div className="p-6">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-500 space-y-3">
+                <p>{message}</p>
+                <button
+                    type="button"
+                    onClick={() => { void onRetry(); }}
+                    className="inline-flex rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/10"
+                >
+                    重试
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function RecordsPage() {
     const [loading, setLoading] = useState(true);
+    const [notesLoading, setNotesLoading] = useState(true);
     const [records, setRecords] = useState<MingRecord[]>([]);
     const [notes, setNotes] = useState<MingNote[]>([]);
     const [total, setTotal] = useState(0);
+    const [recordsError, setRecordsError] = useState<string | null>(null);
+    const [notesError, setNotesError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState<RecordCategory | ''>('');
     const [showRecordForm, setShowRecordForm] = useState(false);
     const [editingRecord, setEditingRecord] = useState<MingRecord | null>(null);
     const [showImportExport, setShowImportExport] = useState(false);
-    const [user, setUser] = useState<{ id: string } | null>(null);
-
-    // 知识库相关状态
-    const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbLoading, setKbLoading] = useState(false);
-    const [kbSaving, setKbSaving] = useState(false);
-    const [kbError, setKbError] = useState<string | null>(null);
-    const [kbSuccess, setKbSuccess] = useState<string | null>(null);
-    const [kbList, setKbList] = useState<Array<{ id: string; name: string; description: string | null }>>([]);
-    const [kbSelectedId, setKbSelectedId] = useState<string>('');
-    const [kbNewName, setKbNewName] = useState('');
     const [kbTargetRecord, setKbTargetRecord] = useState<MingRecord | null>(null);
     const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
     const { showToast } = useToast();
+    const { user, loading: sessionLoading } = useSessionSafe();
 
-    // 检查登录状态
-    useEffect(() => {
-        const checkAuth = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-        };
-        checkAuth();
-    }, []);
-
-    const loadKnowledgeBases = useCallback(async () => {
-        setKbLoading(true);
-        setKbError(null);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
-            const resp = await fetch('/api/knowledge-base', {
-                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-            });
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                setKbError(typeof data.error === 'string' ? data.error : '获取知识库失败');
-                setKbList([]);
-                return;
-            }
-            const data = await resp.json() as { knowledgeBases?: Array<{ id: string; name: string; description: string | null }> };
-            const list = data.knowledgeBases || [];
-            setKbList(list);
-            if (!kbSelectedId && list.length) {
-                setKbSelectedId(list[0].id);
-            }
-        } catch {
-            setKbError('获取知识库失败');
-            setKbList([]);
-        } finally {
-            setKbLoading(false);
-        }
-    }, [kbSelectedId]);
-
-    const openAddToKb = useCallback(async (record: MingRecord) => {
+    const openAddToKb = useCallback((record: MingRecord) => {
         setKbTargetRecord(record);
-        setKbModalOpen(true);
-        setKbSuccess(null);
-        setKbError(null);
-        if (!kbSelectedId) setKbSelectedId('');
-        await loadKnowledgeBases();
-    }, [kbSelectedId, loadKnowledgeBases]);
+    }, []);
 
     const closeKbModal = useCallback(() => {
-        setKbModalOpen(false);
         setKbTargetRecord(null);
-        setKbError(null);
-        setKbSuccess(null);
-        setKbSaving(false);
-        setKbNewName('');
     }, []);
-
-    const createKnowledgeBase = useCallback(async () => {
-        const name = kbNewName.trim();
-        if (!name) {
-            setKbError('请输入知识库名称');
-            return;
-        }
-        setKbSaving(true);
-        setKbError(null);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
-            const resp = await fetch('/api/knowledge-base', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
-                },
-                body: JSON.stringify({ name })
-            });
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                setKbError(typeof data.error === 'string' ? data.error : '创建知识库失败');
-                return;
-            }
-            const created = await resp.json() as { id: string };
-            setKbNewName('');
-            setKbSelectedId(created.id);
-            await loadKnowledgeBases();
-        } catch {
-            setKbError('创建知识库失败');
-        } finally {
-            setKbSaving(false);
-        }
-    }, [kbNewName, loadKnowledgeBases]);
-
-    const ingestRecordToKb = useCallback(async () => {
-        if (!kbTargetRecord) return;
-        if (!kbSelectedId) {
-            setKbError('请选择知识库');
-            return;
-        }
-        setKbSaving(true);
-        setKbError(null);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
-            const resp = await fetch('/api/knowledge-base/ingest', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
-                },
-                body: JSON.stringify({
-                    kbId: kbSelectedId,
-                    sourceType: 'record',
-                    sourceId: kbTargetRecord.id
-                })
-            });
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                setKbError(typeof data.error === 'string' ? data.error : '加入知识库失败');
-                return;
-            }
-            setKbSuccess('已加入知识库');
-            closeKbModal();
-        } catch {
-            setKbError('加入知识库失败');
-        } finally {
-            setKbSaving(false);
-        }
-    }, [closeKbModal, kbSelectedId, kbTargetRecord]);
 
     // 加载记录
     const loadRecords = useCallback(async () => {
-        if (!user) return;
+        if (!user) {
+            const message = '请先登录后查看命理记录';
+            setRecords([]);
+            setTotal(0);
+            setRecordsError(message);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
+        setRecordsError(null);
         try {
-            const params = new URLSearchParams({
-                page: String(page),
-                pageSize: String(PAGE_SIZE),
-            });
-            if (search) params.set('search', search);
-            if (category) params.set('category', category);
-
-            const response = await fetch(`/api/records?${params}`);
-            if (response.ok) {
-                const data = await response.json();
-                setRecords(data.records);
-                setTotal(data.total);
-            }
+            const { records: nextRecords, total: nextTotal } = await getRecords(
+                {
+                    search: search || undefined,
+                    category: category || undefined,
+                },
+                page,
+                PAGE_SIZE,
+            );
+            setRecords(nextRecords);
+            setTotal(nextTotal);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '获取记录失败';
+            setRecords([]);
+            setTotal(0);
+            setRecordsError(message);
+            showToast('error', message);
         } finally {
             setLoading(false);
         }
-    }, [page, search, category, user]);
+    }, [category, page, search, showToast, user]);
 
     // 加载今日小记
     const loadNotes = useCallback(async () => {
-        if (!user) return;
-        const today = new Date().toISOString().split('T')[0];
-        const response = await fetch(`/api/notes?date=${today}`);
-        if (response.ok) {
-            const data = await response.json();
-            setNotes(data.notes);
-        }
-    }, [user]);
-
-    useEffect(() => {
-        if (user) {
-            loadRecords();
-            loadNotes();
-        }
-    }, [user, loadRecords, loadNotes]);
-
-    const handleDelete = async (id: string) => {
-        const response = await fetch(`/api/records/${id}`, { method: 'DELETE' });
-        if (!response.ok) {
-            showToast('error', '删除记录失败');
+        if (!user) {
+            const message = '请先登录后查看今日小记';
+            setNotes([]);
+            setNotesError(message);
+            setNotesLoading(false);
             return;
         }
-        setDeleteRecordId(null);
-        loadRecords();
+        setNotesLoading(true);
+        setNotesError(null);
+        const today = new Date().toISOString().split('T')[0];
+        try {
+            const nextNotes = await getNotesByDate(user.id, today);
+            setNotes(nextNotes);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '获取小记失败';
+            setNotes([]);
+            setNotesError(message);
+            showToast('error', message);
+        } finally {
+            setNotesLoading(false);
+        }
+    }, [showToast, user]);
+
+    const handleKnowledgeBaseSuccess = useCallback((payload: {
+        sourceId: string;
+        kbId: string;
+    }) => {
+        setRecords((prev) => prev.map((record) => {
+            if (record.id !== payload.sourceId) {
+                return record;
+            }
+
+            const archivedKbIds = Array.isArray(record.archived_kb_ids)
+                ? Array.from(new Set([...record.archived_kb_ids, payload.kbId]))
+                : [payload.kbId];
+            return {
+                ...record,
+                is_archived: true,
+                archived_kb_ids: archivedKbIds,
+            };
+        }));
+        closeKbModal();
+    }, [closeKbModal]);
+
+    useEffect(() => {
+        if (sessionLoading) {
+            return;
+        }
+        void loadRecords();
+        void loadNotes();
+    }, [sessionLoading, user, loadRecords, loadNotes]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const handleArchiveChanged = (event: Event) => {
+            const detail = (event as CustomEvent<{
+                pathname?: string;
+                requestBody?: Record<string, unknown> | null;
+                responseData?: Record<string, unknown> | null;
+            }>).detail;
+            const sourceType = detail?.pathname?.startsWith('/api/knowledge-base/ingest')
+                ? detail.requestBody?.sourceType
+                : detail?.responseData?.sourceType;
+            if (sourceType !== 'record' && sourceType !== 'ming_record') {
+                return;
+            }
+            void loadRecords();
+        };
+
+        window.addEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleArchiveChanged as EventListener);
+        return () => {
+            window.removeEventListener(KNOWLEDGE_BASE_SYNC_EVENT, handleArchiveChanged as EventListener);
+        };
+    }, [loadRecords]);
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteRecord(id);
+            setDeleteRecordId(null);
+            const nextTotal = Math.max(total - 1, 0);
+            const nextPage = Math.min(page, Math.max(1, Math.ceil(nextTotal / PAGE_SIZE)));
+            setTotal(nextTotal);
+            if (nextPage !== page) {
+                setPage(nextPage);
+                return;
+            }
+            await loadRecords();
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '删除记录失败');
+        }
     };
 
     const handleTogglePin = async (id: string) => {
-        await fetch(`/api/records/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ togglePin: true }),
-        });
-        loadRecords();
+        try {
+            await toggleRecordPin(id);
+            await loadRecords();
+        } catch (error) {
+            showToast('error', error instanceof Error ? error.message : '更新记录失败');
+        }
     };
 
     const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -270,7 +259,15 @@ export default function RecordsPage() {
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">今日小记</h2>
                         <div className="bg-background border border-border rounded-md overflow-hidden">
-                            <DailyNotes notes={notes} onRefresh={loadNotes} />
+                            {notesError ? (
+                                <SectionError message={notesError} onRetry={loadNotes} />
+                            ) : notesLoading ? (
+                                <div className="p-6">
+                                    <SoundWaveLoader variant="block" text="加载小记中" />
+                                </div>
+                            ) : (
+                                <DailyNotes userId={user?.id ?? null} notes={notes} onRefresh={loadNotes} />
+                            )}
                         </div>
                     </section>
 
@@ -286,18 +283,22 @@ export default function RecordsPage() {
                             />
 
                             <div className="bg-background border border-border rounded-md overflow-hidden">
-                                <RecordsList
-                                    loading={loading}
-                                    records={records}
-                                    page={page}
-                                    totalPages={totalPages}
-                                    onPageChange={setPage}
-                                    onEdit={(record) => { setEditingRecord(record); setShowRecordForm(true); }}
-                                    onDelete={(id) => setDeleteRecordId(id)}
-                                    onTogglePin={handleTogglePin}
-                                    onAddToKnowledgeBase={openAddToKb}
-                                    onCreateNew={() => setShowRecordForm(true)}
-                                />
+                                {recordsError && !loading ? (
+                                    <SectionError message={recordsError} onRetry={loadRecords} />
+                                ) : (
+                                    <RecordsList
+                                        loading={loading}
+                                        records={records}
+                                        page={page}
+                                        totalPages={totalPages}
+                                        onPageChange={setPage}
+                                        onEdit={(record) => { setEditingRecord(record); setShowRecordForm(true); }}
+                                        onDelete={(id) => setDeleteRecordId(id)}
+                                        onTogglePin={handleTogglePin}
+                                        onAddToKnowledgeBase={openAddToKb}
+                                        onCreateNew={() => setShowRecordForm(true)}
+                                    />
+                                )}
                             </div>
                         </div>
                     </section>
@@ -306,34 +307,29 @@ export default function RecordsPage() {
                 {/* 模态框 */}
                 {showRecordForm && (
                     <RecordFormModal
+                        userId={user?.id ?? null}
                         record={editingRecord}
                         onClose={() => { setShowRecordForm(false); setEditingRecord(null); }}
-                        onSave={() => { setShowRecordForm(false); setEditingRecord(null); loadRecords(); }}
+                        onSave={() => { setShowRecordForm(false); setEditingRecord(null); void loadRecords(); }}
                     />
                 )}
 
                 {showImportExport && (
                     <ImportExportModal
+                        userId={user?.id ?? null}
                         onClose={() => setShowImportExport(false)}
-                        onImport={() => { loadRecords(); loadNotes(); }}
+                        onImport={() => { void loadRecords(); void loadNotes(); }}
                     />
                 )}
 
-                {kbModalOpen && kbTargetRecord && (
-                    <KnowledgeBaseModal
-                        targetRecord={kbTargetRecord}
-                        kbLoading={kbLoading}
-                        kbSaving={kbSaving}
-                        kbError={kbError}
-                        kbSuccess={kbSuccess}
-                        kbList={kbList}
-                        kbSelectedId={kbSelectedId}
-                        kbNewName={kbNewName}
-                        onSelectKb={setKbSelectedId}
-                        onNewNameChange={setKbNewName}
-                        onCreateKb={createKnowledgeBase}
-                        onIngest={ingestRecordToKb}
+                {kbTargetRecord && (
+                    <AddToKnowledgeBaseModal
+                        open
                         onClose={closeKbModal}
+                        onSuccess={({ sourceId, kbId }) => handleKnowledgeBaseSuccess({ sourceId, kbId })}
+                        sourceTitle={kbTargetRecord.title}
+                        sourceType={MING_RECORD_SOURCE_TYPE}
+                        sourceId={kbTargetRecord.id}
                     />
                 )}
 

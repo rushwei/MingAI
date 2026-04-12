@@ -9,7 +9,8 @@
 import { useState, useEffect, useMemo, useCallback, createElement, type ComponentType } from 'react';
 import { X, Search, Star } from 'lucide-react';
 import { YinYangIcon } from '@phosphor-icons/react';
-import { loadUserChartBundle } from '@/lib/user/charts-client';
+import { useToast } from '@/components/ui/Toast';
+import { listSelectableCharts } from '@/lib/user/charts-client';
 
 export interface ChartItem {
     id: string;
@@ -33,8 +34,6 @@ export interface ChartPickerModalProps {
     filterType?: 'bazi' | 'ziwei';  // 只显示某一类型
 }
 
-type ChartQueryRow = Pick<ChartItem, 'id' | 'name' | 'gender' | 'birth_date' | 'birth_time'>;
-
 type PickerIcon = ComponentType<{ className?: string; size?: number | string }>;
 
 function phosphor(Icon: ComponentType<Record<string, unknown>>): PickerIcon {
@@ -49,29 +48,6 @@ function phosphor(Icon: ComponentType<Record<string, unknown>>): PickerIcon {
 
 const PYinYang = phosphor(YinYangIcon);
 
-function toChartRows(value: unknown): ChartQueryRow[] {
-    if (!Array.isArray(value)) {
-        return [];
-    }
-
-    return value.filter((item): item is ChartQueryRow => (
-        typeof item === 'object'
-        && item !== null
-        && typeof (item as { id?: unknown }).id === 'string'
-        && typeof (item as { name?: unknown }).name === 'string'
-        && typeof (item as { birth_date?: unknown }).birth_date === 'string'
-        && (
-            (item as { birth_time?: unknown }).birth_time === null
-            || typeof (item as { birth_time?: unknown }).birth_time === 'string'
-        )
-        && (
-            (item as { gender?: unknown }).gender === null
-            || (item as { gender?: unknown }).gender === 'male'
-            || (item as { gender?: unknown }).gender === 'female'
-        )
-    ));
-}
-
 export function ChartPickerModal({
     isOpen,
     onClose,
@@ -82,7 +58,9 @@ export function ChartPickerModal({
 }: ChartPickerModalProps) {
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const { showToast } = useToast();
 
     // 加载用户命盘
     useEffect(() => {
@@ -90,56 +68,51 @@ export function ChartPickerModal({
 
         const loadCharts = async () => {
             setLoading(true);
-            const allCharts: ChartItem[] = [];
+            setLoadError(null);
+            try {
+                const rows = await listSelectableCharts();
+                const allCharts = rows
+                    .filter((chart) => !filterType || chart.type === filterType)
+                    .map((chart) => {
+                        let year = 0;
+                        let month = 0;
+                        let day = 0;
+                        if (chart.birth_date) {
+                            const date = new Date(`${chart.birth_date}T00:00:00`);
+                            year = date.getFullYear();
+                            month = date.getMonth() + 1;
+                            day = date.getDate();
+                        }
 
-            const bundle = await loadUserChartBundle();
-            const sourceRows: Array<{ type: 'bazi' | 'ziwei'; rows: ChartQueryRow[] }> = [];
-            if (!filterType || filterType === 'bazi') {
-                sourceRows.push({
-                    type: 'bazi',
-                    rows: toChartRows(bundle?.baziCharts),
-                });
-            }
-            if (!filterType || filterType === 'ziwei') {
-                sourceRows.push({
-                    type: 'ziwei',
-                    rows: toChartRows(bundle?.ziweiCharts),
-                });
-            }
+                        let hour: number | undefined;
+                        if (chart.birth_time?.includes(':')) {
+                            const [rawHour] = chart.birth_time.split(':');
+                            const parsedHour = parseInt(rawHour, 10);
+                            hour = Number.isNaN(parsedHour) ? undefined : parsedHour;
+                        }
 
-            for (const source of sourceRows) {
-                allCharts.push(...source.rows.map((c) => {
-                    let year = 0, month = 0, day = 0;
-                    if (c.birth_date) {
-                        const date = new Date(`${c.birth_date}T00:00:00`);
-                        year = date.getFullYear();
-                        month = date.getMonth() + 1;
-                        day = date.getDate();
-                    }
-                    let hour: number | undefined = undefined;
-                    const birthTimeStr = c.birth_time as string | null;
-                    if (birthTimeStr && birthTimeStr.includes(':')) {
-                        const [h] = birthTimeStr.split(':');
-                        hour = parseInt(h);
-                        if (isNaN(hour)) hour = undefined;
-                    }
-                    return {
-                        ...c,
-                        type: source.type,
-                        birth_year: year,
-                        birth_month: month,
-                        birth_day: day,
-                        birth_hour: hour,
-                    };
-                }));
-            }
+                        return {
+                            ...chart,
+                            birth_year: year,
+                            birth_month: month,
+                            birth_day: day,
+                            birth_hour: hour,
+                        };
+                    });
 
-            setCharts(allCharts);
-            setLoading(false);
+                setCharts(allCharts);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : '加载命盘失败';
+                setCharts([]);
+                setLoadError(message);
+                showToast('error', message);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        loadCharts();
-    }, [isOpen, userId, filterType]);
+        void loadCharts();
+    }, [filterType, isOpen, showToast, userId]);
 
     // 过滤命盘
     const filteredCharts = useMemo(() => {
@@ -211,6 +184,10 @@ export function ChartPickerModal({
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    ) : loadError ? (
+                        <div className="text-center py-8 text-sm text-[#b42318]">
+                            {loadError}
                         </div>
                     ) : filteredCharts.length === 0 ? (
                         <div className="text-center py-8 text-foreground-secondary text-sm">

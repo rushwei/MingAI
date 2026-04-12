@@ -8,7 +8,7 @@
 'use client';
 
 import { memo, useState, useMemo, useCallback, useRef } from 'react';
-import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
+import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe, KeyRound } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource, Mention } from '@/types';
 import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
@@ -21,6 +21,7 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { SourcePanel } from '@/components/chat/SourcePanel';
 import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
+import { openSettingsCenter } from '@/lib/settings-center';
 
 interface ChatMessageItemProps {
     message: ChatMessage;
@@ -267,6 +268,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     }
 
     // AI 消息
+    const showCheckKeyAction = message.metadata?.customProviderErrorAction === 'check-key';
     return (
         <div className="group w-full">
             {/* 显示思考过程 */}
@@ -295,6 +297,16 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                 </div>
             )}
             <MarkdownContent content={message.content} className="text-base text-foreground leading-relaxed" />
+            {showCheckKeyAction && !isCurrentStreaming && (
+                <button
+                    type="button"
+                    onClick={() => openSettingsCenter('personalization')}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-500/5 px-3 py-1.5 text-sm text-amber-700 transition-colors hover:bg-amber-500/10 dark:border-amber-400/30 dark:text-amber-200"
+                >
+                    <KeyRound className="h-4 w-4" />
+                    检查 Key
+                </button>
+            )}
             {isCurrentStreaming && !message.content && (
                 <div className="mt-3 inline-flex items-center gap-[3px] h-4">
                     {[0, 1, 2, 3].map((i) => (

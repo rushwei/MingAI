@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
     CalendarRange as CalendarIcon,
     ChevronLeft,
@@ -17,71 +17,73 @@ import {
 import Link from 'next/link';
 import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { useToast } from '@/components/ui/Toast';
 
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
-import { supabase } from '@/lib/auth';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/display-helpers';
 import type { FortuneLevel } from '@/types';
-import { loadSavedBaziChart, loadUserChartBundle, toSavedBaziChart, type SavedBaziChart } from '@/lib/user/charts-client';
+import { loadPrimarySavedBaziChart, loadSavedBaziChart, type SavedBaziChart } from '@/lib/user/charts-client';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 
 function MonthlyPageContent() {
     const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const { user, loading: sessionLoading } = useSessionSafe();
     const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
     const [baziChart, setBaziChart] = useState<SavedBaziChart | null>(null);
     const [loading, setLoading] = useState(true);
-    const [userId, setUserId] = useState<string | null>(null);
+    const [chartLoadError, setChartLoadError] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showTrendChart, setShowTrendChart] = useState(true);
-
-    // 加载用户所有八字命盘
-    const loadUserCharts = useCallback(async (uid: string) => {
-        void uid;
-        try {
-            const bundle = await loadUserChartBundle();
-            const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
-            if (rows.length > 0) {
-                const charts = rows
-                    .map(toSavedBaziChart)
-                    .filter((chart): chart is SavedBaziChart => chart !== null);
-                const defaultId = bundle?.defaultChartIds?.bazi ?? null;
-                const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
-                if (charts.length > 0) {
-                    setBaziChart(defaultChart || charts[0]);
-                }
-            }
-        } catch (err) {
-            console.error('加载命盘失败:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const [reloadToken, setReloadToken] = useState(0);
+    const { showToast } = useToast();
 
     // 初始化
     useEffect(() => {
+        let cancelled = false;
+
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                setUserId(session.user.id);
-                if (baziFeatureEnabled) {
-                    await loadUserCharts(session.user.id);
-                } else {
+            if (sessionLoading) return;
+            if (!user || !baziFeatureEnabled) {
+                if (!cancelled) {
                     setBaziChart(null);
+                    setChartLoadError(null);
                     setLoading(false);
                 }
-            } else {
-                setLoading(false);
+                return;
+            }
+
+            setLoading(true);
+            setChartLoadError(null);
+            try {
+                const nextChart = await loadPrimarySavedBaziChart();
+                if (!cancelled) {
+                    setBaziChart(nextChart);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setBaziChart(null);
+                    setChartLoadError(err instanceof Error ? err.message : '加载命盘失败');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
-        init();
-    }, [baziFeatureEnabled, loadUserCharts]);
+
+        void init();
+        return () => {
+            cancelled = true;
+        };
+    }, [baziFeatureEnabled, reloadToken, sessionLoading, user]);
 
     // 计算月度运势
     const fortune = useMemo((): MonthlyFortune | null => {
@@ -164,11 +166,17 @@ function MonthlyPageContent() {
     };
 
     const handleSelectChart = async (chart: ChartItem) => {
-        const fullChart = await loadSavedBaziChart(chart.id);
-        if (fullChart) {
+        try {
+            const fullChart = await loadSavedBaziChart(chart.id);
+            if (!fullChart) {
+                throw new Error('未找到所选命盘');
+            }
             setBaziChart(fullChart);
-        } else {
-            console.error('加载选中命盘失败:', chart.id);
+            setChartLoadError(null);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '加载命盘失败';
+            setChartLoadError(message);
+            showToast('error', message);
         }
         setShowChartSelector(false);
     };
@@ -246,8 +254,37 @@ function MonthlyPageContent() {
             </div>
 
             <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-6 relative z-20">
+                {chartLoadError ? (
+                    <div className="rounded-2xl border border-[#f5c2c7] bg-[#fff5f5] px-4 py-4 shadow-sm">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="space-y-1">
+                                <h2 className="text-sm font-semibold text-[#b42318]">命盘加载失败</h2>
+                                <p className="text-sm text-[#7a271a]">
+                                    {chartLoadError}。当前不会伪装成个性化月运结果，你可以重试或重新选择命盘。
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setReloadToken((value) => value + 1)}
+                                    className="rounded-md border border-[#f0d5dd] bg-white px-3 py-2 text-sm font-medium text-[#7a271a] transition-colors hover:bg-[#fff1f3]"
+                                >
+                                    重试
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowChartSelector(true)}
+                                    className="rounded-md bg-[#2383e2] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1d70c7]"
+                                >
+                                    重新选择命盘
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+
                 {/* 非个性化时的提示卡片 */}
-                {!isPersonalized && baziFeatureEnabled && (
+                {!isPersonalized && baziFeatureEnabled && !chartLoadError && (
                     <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-amber-500/10 rounded-lg">
@@ -523,12 +560,12 @@ function MonthlyPageContent() {
             </div>
 
             {/* 命盘选择器弹窗 */}
-            {baziFeatureEnabled && userId && (
+            {baziFeatureEnabled && user && (
                 <ChartPickerModal
                     isOpen={showChartSelector}
                     onClose={() => setShowChartSelector(false)}
                     onSelect={handleSelectChart}
-                    userId={userId}
+                    userId={user.id}
                     title="选择八字命盘"
                     filterType="bazi"
                 />
