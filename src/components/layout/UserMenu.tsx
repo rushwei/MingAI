@@ -79,18 +79,20 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
   const menuRef = useRef<HTMLDivElement>(null);
   const isDesktopSidebar = useIsDesktopSidebar();
   const { isFeatureEnabled } = useFeatureToggles();
-  const { profile, loading: profileLoading, resolved: profileResolved } = useCurrentUserProfile({ enabled: isDesktopSidebar });
-  const upgradeEnabled = isFeatureEnabled('upgrade') || isFeatureEnabled('credits');
+  const { profile, loading: profileLoading, resolved: profileResolved, error: profileError } = useCurrentUserProfile({ enabled: isDesktopSidebar });
+  const upgradeEnabled = isFeatureEnabled('upgrade');
   const personalizationEnabled = isFeatureEnabled('ai-personalization');
   const chartsEnabled = isFeatureEnabled('charts');
   const helpEnabled = isFeatureEnabled('help');
 
-  const membership = profileResolved ? buildMembershipInfo(profile ?? null) : null;
+  const membership = profileResolved && !profileError ? buildMembershipInfo(profile ?? null) : null;
   const isAdmin = !!profile?.is_admin;
   const avatarUrl = profile?.avatar_url ?? null;
   const displayName = profile?.nickname || user.email?.split('@')[0] || '用户';
   const membershipLabel = profileLoading || !profileResolved
     ? '...'
+    : profileError
+      ? '加载失败'
     : `${membershipLabels[membership?.type || 'free']} Plan`;
 
   useEffect(() => {

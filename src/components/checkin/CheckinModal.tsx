@@ -4,95 +4,47 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  CalendarCheck,
-  CheckCircle2,
-  Lock,
-  X,
-} from 'lucide-react';
+import { CalendarCheck, X } from 'lucide-react';
 import { CheckinCalendarPanel } from '@/components/checkin/CheckinCalendarPanel';
 import {
   fetchCheckinStatus,
-  performCheckinAction,
   type CheckinStatus,
 } from '@/components/checkin/checkin-client';
-import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { useToast } from '@/components/ui/Toast';
 
 interface CheckinModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCheckinSuccess?: () => void;
   stackLevel?: 'page' | 'settings';
 }
 
 export function CheckinModal({
   isOpen,
   onClose,
-  onCheckinSuccess,
   stackLevel = 'page',
 }: CheckinModalProps) {
-  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<CheckinStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
+    setStatusError(null);
     try {
       const nextStatus = await fetchCheckinStatus();
-      setStatus(nextStatus);
+      if (nextStatus.ok) {
+        setStatus(nextStatus.status);
+        setStatusError(null);
+        return;
+      }
+
+      console.error('获取签到状态失败:', nextStatus.error);
+      setStatusError(nextStatus.error.message || '获取签到状态失败');
     } catch (error) {
       console.error('获取签到状态失败:', error);
-      setStatus(null);
+      setStatusError('获取签到状态失败，请稍后重试');
     } finally {
       setLoading(false);
     }
   }, []);
-
-  const handleCheckin = useCallback(async () => {
-    if (checking || !status?.canCheckin) return;
-
-    setChecking(true);
-    try {
-      const result = await performCheckinAction();
-      if (result.ok) {
-        setStatus((prev) => prev ? {
-          ...prev,
-          canCheckin: false,
-          todayCheckedIn: true,
-          blockedReason: 'already_checked_in',
-          currentCredits: typeof result.credits === 'number' ? result.credits : prev.currentCredits,
-          creditLimit: typeof result.creditLimit === 'number' ? result.creditLimit : prev.creditLimit,
-        } : prev);
-        showToast('success', `签到成功！+${result.rewardCredits} 积分`);
-        onCheckinSuccess?.();
-        return;
-      }
-
-      showToast('error', result.message || '签到失败');
-      if (result.blockedReason === 'already_checked_in') {
-        setStatus((prev) => prev ? {
-          ...prev,
-          canCheckin: false,
-          todayCheckedIn: true,
-          blockedReason: 'already_checked_in',
-        } : prev);
-      } else if (result.blockedReason === 'credit_cap_reached') {
-        setStatus((prev) => prev ? {
-          ...prev,
-          canCheckin: false,
-          blockedReason: 'credit_cap_reached',
-          currentCredits: typeof result.credits === 'number' ? result.credits : prev.currentCredits,
-          creditLimit: typeof result.creditLimit === 'number' ? result.creditLimit : prev.creditLimit,
-        } : prev);
-      }
-    } catch (error) {
-      console.error('签到失败:', error);
-      showToast('error', '签到失败，请稍后重试');
-    } finally {
-      setChecking(false);
-    }
-  }, [checking, onCheckinSuccess, showToast, status]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -113,8 +65,12 @@ export function CheckinModal({
   if (!isOpen) return null;
 
   const rewardRangeText = status ? `${status.rewardRange[0]}-${status.rewardRange[1]} 积分` : '--';
-  const capReached = status?.blockedReason === 'credit_cap_reached';
   const modalLayerClass = stackLevel === 'settings' ? 'z-[100]' : 'z-[60]';
+  const statusText = status?.todayCheckedIn
+    ? '今天已签到'
+    : status?.blockedReason === 'credit_cap_reached'
+      ? '当前已封顶'
+      : `今日奖励 ${rewardRangeText}`;
 
   return (
     <div className={`fixed inset-0 flex items-center justify-center p-4 ${modalLayerClass}`}>
@@ -147,46 +103,27 @@ export function CheckinModal({
             </>
           ) : (
             <>
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-[#ebe8e2] bg-[#fbfaf7] px-4 py-3">
-                <div className="text-sm text-[#37352f]/65">
-                  {status?.todayCheckedIn
-                    ? '今天已经签到'
-                    : capReached
-                      ? '当前已达上限'
-                      : `今日可得 ${rewardRangeText}`}
+              {statusError ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-4 py-3 text-sm text-[#946c21]">
+                  <span className="min-w-0 flex-1">{statusError}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoading(true);
+                      void loadStatus();
+                    }}
+                    className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+                  >
+                    重试
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCheckin}
-                  disabled={!status?.canCheckin || checking}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    status?.todayCheckedIn
-                      ? 'bg-[#e8f4ee] text-[#1f9d6d] cursor-default'
-                      : capReached
-                        ? 'bg-[#f2ebe0] text-[#a16207] cursor-not-allowed'
-                        : 'bg-[#efedea] text-[#37352f] hover:bg-[#e7e4de] active:bg-[#dfdbd4]'
-                  } ${checking ? 'cursor-wait opacity-90' : ''}`}
-                >
-                  {checking ? (
-                    <SoundWaveLoader variant="inline" />
-                  ) : status?.todayCheckedIn ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      已签到
-                    </>
-                  ) : capReached ? (
-                    <>
-                      <Lock className="h-4 w-4" />
-                      已封顶
-                    </>
-                  ) : (
-                    <>
-                      <CalendarCheck className="h-4 w-4" />
-                      立即签到
-                    </>
-                  )}
-                </button>
-              </div>
+              ) : null}
+
+              {status ? (
+                <div className="rounded-lg border border-[#ebe8e2] bg-[#fbfaf7] px-4 py-3 text-sm text-[#37352f]/65">
+                  {statusText}
+                </div>
+              ) : null}
 
               <CheckinCalendarPanel active={isOpen} />
             </>

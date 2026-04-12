@@ -4,7 +4,6 @@ export const SETTINGS_CENTER_TABS = [
   'profile',
   'general',
   'upgrade',
-  'credits',
   'personalization',
   'help',
   'charts',
@@ -21,7 +20,6 @@ export type SettingsCenterTabGroup = 'account' | 'extensions' | 'management';
 
 export type SettingsCenterFlags = {
   upgradeEnabled: boolean;
-  creditsEnabled: boolean;
   chartsEnabled: boolean;
   knowledgeBaseEnabled: boolean;
   mcpServiceEnabled: boolean;
@@ -52,7 +50,6 @@ const SETTINGS_CENTER_TAB_META: Record<SettingsCenterTab, Omit<SettingsCenterTab
   profile: { id: 'profile', label: '个人资料', group: 'account' },
   general: { id: 'general', label: '设置', group: 'account' },
   upgrade: { id: 'upgrade', label: '会员与积分', group: 'account' },
-  credits: { id: 'credits', label: '积分流水', group: 'account' },
   help: { id: 'help', label: '帮助', group: 'account' },
   personalization: { id: 'personalization', label: '个性化', group: 'extensions' },
   charts: { id: 'charts', label: '命盘', group: 'extensions' },
@@ -65,13 +62,9 @@ const SETTINGS_CENTER_TAB_META: Record<SettingsCenterTab, Omit<SettingsCenterTab
 };
 
 function isSettingsCenterTabDisabled(tab: SettingsCenterTab, flags: SettingsCenterFlags) {
-  const mergedMembershipEnabled = flags.upgradeEnabled || flags.creditsEnabled;
-
   switch (tab) {
     case 'upgrade':
-      return !mergedMembershipEnabled;
-    case 'credits':
-      return !mergedMembershipEnabled;
+      return !flags.upgradeEnabled;
     case 'personalization':
       return !flags.personalizationEnabled;
     case 'charts':
@@ -93,7 +86,6 @@ export function getSettingsCenterTabLabel(tab: SettingsCenterTab): string {
 
 export function getSettingsCenterTabs(flags: SettingsCenterFlags): SettingsCenterTabState[] {
   return SETTINGS_CENTER_TABS
-    .filter((tab) => tab !== 'credits')
     .filter((tab) => flags.isAdmin || SETTINGS_CENTER_TAB_META[tab].group !== 'management')
     .map((tab) => ({
       ...SETTINGS_CENTER_TAB_META[tab],
@@ -114,11 +106,6 @@ export function getSettingsCenterDisabledState(
       return {
         title: '暂未开放',
         description: '当前会员与积分不可用。',
-      };
-    case 'credits':
-      return {
-        title: '暂未开放',
-        description: '当前积分流水不可用。',
       };
     case 'knowledge-base':
       return {
@@ -152,6 +139,11 @@ export function getSettingsCenterDisabledState(
 
 export const SETTINGS_CENTER_EVENT = 'mingai:settings-center:change';
 const SETTINGS_CENTER_STATE_KEY = '__mingaiSettingsCenter';
+const LEGACY_SETTINGS_CENTER_TAB_ALIASES: Record<string, SettingsCenterTab> = {
+  checkin: 'upgrade',
+  credits: 'upgrade',
+  membership: 'upgrade',
+};
 export type SettingsCenterCloseMode = 'back' | 'replace';
 
 export function isSettingsCenterTab(value: unknown): value is SettingsCenterTab {
@@ -197,11 +189,11 @@ export function parseSettingsCenterHash(hash: string | null | undefined): Settin
     return null;
   }
 
-  if (tab === 'credits') {
-    return 'upgrade';
+  if (isSettingsCenterTab(tab)) {
+    return tab;
   }
 
-  return isSettingsCenterTab(tab) ? tab : 'general';
+  return tab ? (LEGACY_SETTINGS_CENTER_TAB_ALIASES[tab] ?? 'general') : 'general';
 }
 
 export function parseSettingsCenterHashSubpath(hash: string | null | undefined): string | null {
@@ -215,37 +207,6 @@ export function parseSettingsCenterHashSubpath(hash: string | null | undefined):
   return subpath;
 }
 
-export function getSettingsCenterLegacyPath(tab: SettingsCenterTab): string {
-  switch (tab) {
-    case 'profile':
-      return '/user/profile';
-    case 'general':
-      return '/user/settings';
-    case 'upgrade':
-      return '/user/upgrade';
-    case 'credits':
-      return '/user/credits';
-    case 'personalization':
-      return '/user/settings/ai';
-    case 'help':
-      return '/help';
-    case 'charts':
-      return '/user/charts';
-    case 'knowledge-base':
-      return '/user/knowledge-base';
-    case 'mcp-service':
-      return '/user/mcp';
-    case 'admin-announcements':
-      return '/admin/announcements';
-    case 'admin-features':
-      return '/admin/features';
-    case 'admin-ai-services':
-      return '/admin/ai-services';
-    case 'admin-mcp':
-      return '/admin/mcp';
-  }
-}
-
 function emitSettingsCenterChange() {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(SETTINGS_CENTER_EVENT));
@@ -256,12 +217,6 @@ export function getSettingsCenterCloseMode(
 ): SettingsCenterCloseMode {
   const currentState = state as Record<string, unknown> | null;
   return currentState?.[SETTINGS_CENTER_STATE_KEY] === true ? 'back' : 'replace';
-}
-
-function buildCurrentUrlWithHash(hash: string) {
-  const url = new URL(window.location.href);
-  url.hash = hash.replace(/^#/, '');
-  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function buildCurrentUrlWithoutHash() {
@@ -285,7 +240,9 @@ export function openSettingsCenter(
     subpath: normalizeSettingsCenterSubpath(options?.subpath),
   };
   const method = options?.replace ? 'replaceState' : 'pushState';
-  window.history[method](nextState, '', buildCurrentUrlWithHash(buildSettingsCenterHash(tab, options)));
+  window.history[method](nextState, '', getSettingsCenterRouteTarget(tab, {
+    subpath: options?.subpath,
+  }));
   emitSettingsCenterChange();
 }
 
@@ -318,4 +275,13 @@ export function getSettingsCenterRouteTarget(
 ): string {
   const search = options?.search?.trim() || '';
   return `/bazi${search}${buildSettingsCenterHash(tab, options)}`;
+}
+
+export function getSettingsCenterTabFromRouteTarget(href: string): SettingsCenterTab | null {
+  const hashIndex = href.indexOf('#');
+  if (hashIndex < 0) {
+    return null;
+  }
+
+  return parseSettingsCenterHash(href.slice(hashIndex));
 }

@@ -9,8 +9,16 @@
  * - 不再维护连续签到、经验值和等级
  */
 
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { getUserCreditInfo, getMembershipCreditLimit } from '@/lib/user/credits';
+
+type CheckinClient = Pick<SupabaseClient, 'from' | 'rpc'>;
+type CheckinUserSeed = Pick<User, 'id' | 'user_metadata'>;
+
+function resolveCheckinClient(options?: { client?: CheckinClient }) {
+    return options?.client ?? getSystemAdminClient();
+}
 
 export interface CheckinRecord {
     id: string;
@@ -30,9 +38,12 @@ export interface CheckinStatus {
     blockedReason: 'already_checked_in' | 'credit_cap_reached' | null;
 }
 
-export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
+export async function getCheckinStatus(
+    userId: string,
+    options?: { client?: CheckinClient; user?: CheckinUserSeed },
+): Promise<CheckinStatus> {
     const today = new Date().toISOString().split('T')[0];
-    const supabase = getSystemAdminClient();
+    const supabase = resolveCheckinClient(options);
 
     const [todayResult, lastResult, creditInfo] = await Promise.all([
         supabase
@@ -48,11 +59,21 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
             .order('checkin_date', { ascending: false })
             .limit(1)
             .maybeSingle(),
-        getUserCreditInfo(userId),
+        getUserCreditInfo(userId, { client: supabase, user: options?.user }),
     ]);
 
-    const membership = creditInfo?.membership ?? 'free';
-    const currentCredits = creditInfo?.credits ?? 0;
+    if (todayResult.error) {
+        console.error('[checkin] 获取今日签到状态失败:', todayResult.error);
+        throw new Error('获取签到状态失败');
+    }
+
+    if (lastResult.error) {
+        console.error('[checkin] 获取最近签到记录失败:', lastResult.error);
+        throw new Error('获取签到状态失败');
+    }
+
+    const membership = creditInfo.membership;
+    const currentCredits = creditInfo.credits;
     const creditLimit = getMembershipCreditLimit(membership);
     const todayCheckedIn = !!todayResult.data;
     const capReached = currentCredits >= creditLimit;
@@ -76,15 +97,19 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
     };
 }
 
-export async function performCheckin(userId: string): Promise<{
+export async function performCheckin(
+    userId: string,
+    options?: { client?: CheckinClient },
+): Promise<{
     success: boolean;
     rewardCredits: number;
     credits?: number;
     creditLimit?: number;
     blockedReason?: 'already_checked_in' | 'credit_cap_reached';
+    errorType?: 'blocked' | 'system';
     error?: string;
 }> {
-    const supabase = getSystemAdminClient();
+    const supabase = resolveCheckinClient(options);
     const { data, error } = await supabase.rpc('perform_daily_checkin_as_service', {
         p_user_id: userId,
     });
@@ -94,6 +119,7 @@ export async function performCheckin(userId: string): Promise<{
         return {
             success: false,
             rewardCredits: 0,
+            errorType: 'system',
             error: '签到失败，请稍后重试',
         };
     }
@@ -110,6 +136,7 @@ export async function performCheckin(userId: string): Promise<{
             success: false,
             rewardCredits: 0,
             blockedReason: 'already_checked_in',
+            errorType: 'blocked',
             error: '今日已签到',
         };
     }
@@ -121,6 +148,7 @@ export async function performCheckin(userId: string): Promise<{
             blockedReason: 'credit_cap_reached',
             credits: result.credits,
             creditLimit: result.credit_limit,
+            errorType: 'blocked',
             error: '当前积分已达或超过上限，消耗后再来签到',
         };
     }
@@ -129,6 +157,7 @@ export async function performCheckin(userId: string): Promise<{
         return {
             success: false,
             rewardCredits: 0,
+            errorType: 'system',
             error: '签到失败，请稍后重试',
         };
     }
@@ -144,13 +173,14 @@ export async function performCheckin(userId: string): Promise<{
 export async function getCheckinCalendar(
     userId: string,
     year: number,
-    month: number
+    month: number,
+    options?: { client?: CheckinClient },
 ): Promise<string[]> {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    const supabase = getSystemAdminClient();
+    const supabase = resolveCheckinClient(options);
     const { data, error } = await supabase
         .from('daily_checkins')
         .select('checkin_date')
@@ -161,14 +191,17 @@ export async function getCheckinCalendar(
 
     if (error) {
         console.error('[checkin] 获取签到日历失败:', error);
-        return [];
+        throw new Error('获取签到日历失败');
     }
 
     const calendarRows = (data || []) as Array<{ checkin_date: string }>;
     return calendarRows.map((row) => row.checkin_date);
 }
 
-export async function getCheckinStats(userId: string): Promise<{
+export async function getCheckinStats(
+    userId: string,
+    options?: { client?: CheckinClient },
+): Promise<{
     totalDays: number;
     thisMonthDays: number;
     totalCreditsEarned: number;
@@ -176,7 +209,7 @@ export async function getCheckinStats(userId: string): Promise<{
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    const supabase = getSystemAdminClient();
+    const supabase = resolveCheckinClient(options);
     const { data, error } = await supabase
         .from('daily_checkins')
         .select('checkin_date, reward_credits')
@@ -184,7 +217,8 @@ export async function getCheckinStats(userId: string): Promise<{
         .order('checkin_date', { ascending: false });
 
     if (error || !data) {
-        return { totalDays: 0, thisMonthDays: 0, totalCreditsEarned: 0 };
+        console.error('[checkin] 获取签到统计失败:', error);
+        throw new Error('获取签到统计失败');
     }
 
     const rows = (data || []) as Array<{ checkin_date: string; reward_credits: number }>;

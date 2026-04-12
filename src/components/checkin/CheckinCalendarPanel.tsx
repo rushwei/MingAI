@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { requestBrowserJson } from '@/lib/browser-api';
 
 interface CheckinCalendarPanelProps {
   active?: boolean;
@@ -10,40 +10,46 @@ interface CheckinCalendarPanelProps {
 
 export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProps) {
   const [loading, setLoading] = useState(true);
-  const [calendar, setCalendar] = useState<string[]>([]);
+  const [calendarByMonth, setCalendarByMonth] = useState<Record<string, string[]>>({});
+  const [calendarError, setCalendarError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
+  const monthKey = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
+  const calendar = calendarByMonth[monthKey] ?? null;
 
   const fetchCalendar = useCallback(async () => {
     if (!active) return;
 
     setLoading(true);
+    setCalendarError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        setCalendar([]);
+      const result = await requestBrowserJson<{ calendar?: string[] }>(
+        `/api/checkin?action=calendar&year=${currentMonth.year}&month=${currentMonth.month}`,
+        { method: 'GET' },
+      );
+      if (result.error) {
+        setCalendarError(result.error.message || '获取签到日历失败');
         return;
       }
-
-      const response = await fetch(
-        `/api/checkin?action=calendar&year=${currentMonth.year}&month=${currentMonth.month}`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } },
-      );
-      const data = await response.json();
-      if (data.success) {
-        setCalendar(data.data.calendar || []);
-      } else {
-        setCalendar([]);
+      if (!Array.isArray(result.data?.calendar)) {
+        setCalendarError('获取签到日历失败');
+        return;
       }
+      const nextCalendar = result.data.calendar;
+      setCalendarByMonth((prev) => ({
+        ...prev,
+        [monthKey]: nextCalendar,
+      }));
+      setCalendarError(null);
     } catch (error) {
       console.error('获取签到日历失败:', error);
-      setCalendar([]);
+      setCalendarError('获取签到日历失败，请稍后重试');
     } finally {
       setLoading(false);
     }
-  }, [active, currentMonth]);
+  }, [active, currentMonth, monthKey]);
 
   useEffect(() => {
     if (!active) return;
@@ -73,7 +79,7 @@ export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProp
     const firstDay = new Date(year, month - 1, 1).getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
     const today = new Date().toISOString().split('T')[0];
-    const days: JSX.Element[] = [];
+    const days: ReactElement[] = [];
 
     for (let index = 0; index < firstDay; index += 1) {
       days.push(<div key={`empty-${index}`} className="h-9" />);
@@ -81,7 +87,7 @@ export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProp
 
     for (let day = 1; day <= daysInMonth; day += 1) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const isCheckedIn = calendar.includes(dateStr);
+      const isCheckedIn = calendar?.includes(dateStr) ?? false;
       const isToday = dateStr === today;
 
       days.push(
@@ -105,7 +111,7 @@ export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProp
 
   const checkedInThisMonth = useMemo(() => {
     const prefix = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
-    return calendar.filter((date) => date.startsWith(prefix)).length;
+    return (calendar ?? []).filter((date) => date.startsWith(prefix)).length;
   }, [calendar, currentMonth]);
 
   return (
@@ -137,7 +143,23 @@ export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProp
         </div>
       </div>
 
-      {loading ? (
+      {calendarError ? (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-3 py-2 text-xs text-[#946c21]">
+          <span className="min-w-0 flex-1">{calendarError}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void fetchCalendar();
+            }}
+            className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+          >
+            重试
+          </button>
+        </div>
+      ) : null}
+
+      {loading && !calendar ? (
         <div className="space-y-2">
           <div className="grid grid-cols-7 gap-2">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -152,7 +174,7 @@ export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProp
             ))}
           </div>
         </div>
-      ) : (
+      ) : calendar ? (
         <>
           <div className="mb-2 grid grid-cols-7 gap-2">
             {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
@@ -166,7 +188,7 @@ export function CheckinCalendarPanel({ active = true }: CheckinCalendarPanelProp
             {calendarDays}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

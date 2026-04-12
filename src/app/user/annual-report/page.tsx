@@ -13,7 +13,6 @@ import {
     Star,
     TrendingUp
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
 import {
     ANNUAL_REPORT_FEATURE_NAMES,
     type AnnualReportData,
@@ -35,16 +34,8 @@ export default function AnnualReportPage() {
             else setLoading(true);
             setError(null);
 
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-                setError('请先登录');
-                return;
-            }
-
             const url = `/api/annual-report?year=${selectedYear}&action=report${refresh ? '&refresh=true' : ''}`;
-            const res = await fetch(url, {
-                headers: { Authorization: `Bearer ${session.access_token}` },
-            });
+            const res = await fetch(url);
             const data = await res.json();
 
             if (data.success && data.data.report) {

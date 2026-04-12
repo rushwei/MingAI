@@ -34,30 +34,38 @@ import {
 } from '@/lib/settings-center';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
 
-const LazyGeneralSettingsContent = lazy(async () => ({
-  default: (await import('@/app/user/settings/page')).GeneralSettingsContent,
-}));
-const LazyUpgradeContent = lazy(async () => ({
-  default: (await import('@/app/user/upgrade/page')).UpgradeContent,
-}));
-const LazyAISettingsContent = lazy(async () => ({
-  default: (await import('@/app/user/ai-settings/page')).AISettingsContent,
-}));
-const LazyChartsContent = lazy(async () => ({
-  default: (await import('@/app/user/charts/page')).ChartsContent,
-}));
-const LazyKnowledgeBaseManageContent = lazy(async () => ({
-  default: (await import('@/app/user/knowledge-base/page')).KnowledgeBaseManageContent,
-}));
-const LazyMcpPageContent = lazy(async () => ({
-  default: (await import('@/app/user/mcp/page')).McpPageContent,
-}));
-const LazyProfileContent = lazy(async () => ({
-  default: (await import('@/app/user/profile/page')).ProfileContent,
-}));
-const LazyHelpContent = lazy(async () => ({
-  default: (await import('@/app/help/page')).HelpContent,
-}));
+const LazyGeneralSettingsContent = lazy(async () => {
+  const pageModule = await import('@/app/user/settings/page');
+  return { default: pageModule.default.Content };
+});
+const LazyUpgradeContent = lazy(async () => {
+  const pageModule = await import('@/app/user/upgrade/page');
+  return { default: pageModule.default.Content };
+});
+const LazyAISettingsContent = lazy(async () => {
+  const pageModule = await import('@/app/user/ai-settings/page');
+  return { default: pageModule.default.Content };
+});
+const LazyChartsContent = lazy(async () => {
+  const pageModule = await import('@/app/user/charts/page');
+  return { default: pageModule.default.Content };
+});
+const LazyKnowledgeBaseManageContent = lazy(async () => {
+  const pageModule = await import('@/app/user/knowledge-base/page');
+  return { default: pageModule.default.Content };
+});
+const LazyMcpPageContent = lazy(async () => {
+  const pageModule = await import('@/app/user/mcp/page');
+  return { default: pageModule.default.Content };
+});
+const LazyProfileContent = lazy(async () => {
+  const pageModule = await import('@/app/user/profile/page');
+  return { default: pageModule.default.Content };
+});
+const LazyHelpContent = lazy(async () => {
+  const pageModule = await import('@/app/help/page');
+  return { default: pageModule.default.Content };
+});
 const LazyAdminAnnouncementsContent = lazy(async () => ({
   default: (await import('@/components/settings/AccountAdminPanels')).AdminAnnouncementsContent,
 }));
@@ -83,7 +91,6 @@ const TAB_ICONS: Record<SettingsCenterTab, ComponentType<{ className?: string }>
   profile: User,
   general: Settings,
   upgrade: CircleStar,
-  credits: CircleStar,
   personalization: MessageCircleHeart,
   help: CircleQuestionMark,
   charts: Scroll,
@@ -201,8 +208,6 @@ function renderSettingsCenterPanel(
       return renderLazyPanel(<LazyGeneralSettingsContent embedded />);
     case 'upgrade':
       return renderLazyPanel(<LazyUpgradeContent embedded />);
-    case 'credits':
-      return renderLazyPanel(<LazyUpgradeContent embedded />);
     case 'personalization':
       return renderLazyPanel(<LazyAISettingsContent embedded />);
     case 'help':
@@ -275,8 +280,7 @@ export function SettingsCenterHost() {
 
   const flags = useMemo<SettingsCenterFlags>(
     () => ({
-      upgradeEnabled: isFeatureEnabled('upgrade') || isFeatureEnabled('credits'),
-      creditsEnabled: isFeatureEnabled('credits'),
+      upgradeEnabled: isFeatureEnabled('upgrade'),
       chartsEnabled: isFeatureEnabled('charts'),
       knowledgeBaseEnabled: isFeatureEnabled('knowledge-base'),
       mcpServiceEnabled: isFeatureEnabled('mcp-service'),
@@ -302,6 +306,7 @@ export function SettingsCenterHost() {
       tabs: tabs.filter((tab) => tab.group === group),
     }))
     .filter((entry) => entry.tabs.length > 0);
+  const activeTabLabel = tabs.find((tab) => tab.id === activeTab)?.label ?? '设置';
 
   const modal = (
     <div className="fixed inset-0 z-[90]">
@@ -370,7 +375,7 @@ export function SettingsCenterHost() {
 
           <div className="flex min-h-0 flex-1 flex-col bg-[#f7f6f3] dark:bg-background">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 md:hidden">
-              <h2 className="text-sm font-semibold">设置</h2>
+              <h2 className="text-sm font-semibold">{activeTabLabel}</h2>
               <button
                 type="button"
                 onClick={() => closeSettingsCenter()}
@@ -379,6 +384,32 @@ export function SettingsCenterHost() {
               >
                 <X className="h-4 w-4" />
               </button>
+            </div>
+
+            <div className="border-b border-border px-4 py-3 md:hidden">
+              <div className="overflow-x-auto">
+                <div className="flex min-w-max gap-2">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = tab.id === activeTab;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                          isActive
+                            ? 'border-[#37352f]/10 bg-[#e3e1db] text-[#37352f] dark:border-white/10 dark:bg-background-tertiary dark:text-foreground'
+                            : 'border-border bg-background text-foreground-secondary'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-4 md:py-4">

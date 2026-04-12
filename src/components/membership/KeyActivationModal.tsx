@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { X, Key, CheckCircle, AlertCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/auth';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { dispatchApiWriteEvents } from '@/lib/browser-api';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
@@ -31,6 +31,7 @@ export function KeyActivationModal({
     onClose,
     onSuccess,
 }: KeyActivationModalProps) {
+    const { user } = useSessionSafe();
     const [step, setStep] = useState<ActivationStep>('input');
     const [keyCode, setKeyCode] = useState('');
     const [error, setError] = useState('');
@@ -55,8 +56,7 @@ export function KeyActivationModal({
         setStep('processing');
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
+            if (!user) {
                 setError('请先登录');
                 setStep('input');
                 return;
@@ -66,7 +66,6 @@ export function KeyActivationModal({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
                 },
                 body: JSON.stringify({
                     action: 'activate',
@@ -83,8 +82,14 @@ export function KeyActivationModal({
                     membershipType: data.membershipType,
                     creditsAmount: data.creditsAmount,
                 });
-                const info = session?.user ? await getMembershipInfo(session.user.id) : null;
-                onSuccess?.(info);
+                let membershipInfo: MembershipInfo | null = null;
+                const membershipResult = await getMembershipInfo(user.id);
+                if (membershipResult.ok) {
+                    membershipInfo = membershipResult.info;
+                } else {
+                    console.error('Activation succeeded but membership refresh failed:', membershipResult.error);
+                }
+                onSuccess?.(membershipInfo);
                 setStep('success');
                 setTimeout(() => {
                     handleClose();

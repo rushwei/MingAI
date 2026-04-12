@@ -37,7 +37,7 @@ const FAQ_LIST: FAQItem[] = [
   },
 ];
 
-export function HelpContent({ embedded = false }: { embedded?: boolean }) {
+function HelpContent({ embedded = false }: { embedded?: boolean }) {
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   return (
@@ -94,6 +94,10 @@ export function HelpContent({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-export default function HelpPage() {
+function HelpPage() {
   return <SettingsRouteLauncher tab="help" />;
 }
+
+const HelpPageEntry = Object.assign(HelpPage, { Content: HelpContent });
+
+export default HelpPageEntry;

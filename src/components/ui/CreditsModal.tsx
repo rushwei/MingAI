@@ -1,13 +1,13 @@
 /**
  * 积分不足提示弹窗
  *
- * 当用户积分不足时显示，引导用户前往会员中心获取积分
+ * 当用户积分不足时显示，引导用户前往会员与积分页面获取积分
  */
 'use client';
 
 import { useCallback } from 'react';
 import { X, Coins, Crown } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { openSettingsCenter } from '@/lib/settings-center';
 
 interface CreditsModalProps {
     isOpen: boolean;
@@ -16,12 +16,10 @@ interface CreditsModalProps {
 }
 
 export function CreditsModal({ isOpen, onClose, message }: CreditsModalProps) {
-    const router = useRouter();
-
     const handleGoToUpgrade = useCallback(() => {
         onClose();
-        router.push('/user/upgrade');
-    }, [onClose, router]);
+        openSettingsCenter('upgrade');
+    }, [onClose]);
 
     if (!isOpen) return null;
 
@@ -56,7 +54,7 @@ export function CreditsModal({ isOpen, onClose, message }: CreditsModalProps) {
                         积分不足
                     </h3>
                     <p className="text-sm text-foreground-secondary">
-                        {message || '您的积分已用完，请前往会员中心通过签到、激活码或会员权益继续获取积分'}
+                        {message || '您的积分已用完，请前往会员与积分页面通过签到、激活码或会员权益继续获取积分'}
                     </p>
                 </div>
 
@@ -67,7 +65,7 @@ export function CreditsModal({ isOpen, onClose, message }: CreditsModalProps) {
                         className="w-full py-3 bg-accent hover:bg-accent/90 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
                     >
                         <Crown className="w-5 h-5" />
-                        前往会员中心
+                        前往会员与积分
                     </button>
                     <button
                         onClick={onClose}

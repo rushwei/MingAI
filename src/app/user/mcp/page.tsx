@@ -16,7 +16,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
@@ -55,7 +54,7 @@ function formatTime(iso: string | null): string {
   return new Date(iso).toLocaleString('zh-CN');
 }
 
-export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
+function McpPageContent({ embedded = false }: { embedded?: boolean }) {
   const { showToast } = useToast();
   const { user, loading: sessionLoading } = useSessionSafe();
   const [keyData, setKeyData] = useState<McpKeyData | null>(null);
@@ -77,17 +76,10 @@ export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
   const cherryConfig = buildCherryConfig(tutorialKey);
   const ideConfig = buildCursorConfig(tutorialKey);
 
-  const getAuthHeaders = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error('请先登录');
-    return { Authorization: `Bearer ${session.access_token}` };
-  }, []);
-
   const fetchKey = useCallback(async () => {
     try {
       setError(null);
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/user/mcp-key', { headers });
+      const res = await fetch('/api/user/mcp-key');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '获取失败');
       setKeyData(data.key || null);
@@ -96,7 +88,7 @@ export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -111,10 +103,9 @@ export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
     setOperating(true);
     setError(null);
     try {
-      const headers = await getAuthHeaders();
       const res = await fetch('/api/user/mcp-key', {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '创建失败');
@@ -131,10 +122,9 @@ export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     // 不关闭弹窗，让 loading 状态在弹窗内显示
     try {
-      const headers = await getAuthHeaders();
       const res = await fetch('/api/user/mcp-key', {
         method: 'PUT',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '重置失败');
@@ -407,6 +397,10 @@ export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-export default function McpPage() {
+function McpPage() {
   return <SettingsRouteLauncher tab="mcp-service" />;
 }
+
+const McpPageEntry = Object.assign(McpPage, { Content: McpPageContent });
+
+export default McpPageEntry;

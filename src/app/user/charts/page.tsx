@@ -19,8 +19,8 @@ import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequir
 import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { writeLocalCache } from '@/lib/cache/local-storage';
 import { getNavItemById } from '@/lib/navigation/registry';
-import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user-charts';
 import { closeSettingsCenter, getSettingsCenterCloseMode, parseSettingsCenterHash } from '@/lib/settings-center';
+import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user/charts-client';
 
 type ChartType = 'bazi' | 'ziwei';
 
@@ -208,7 +208,7 @@ function ChartSection({
   );
 }
 
-export function ChartsContent({ embedded = false }: { embedded?: boolean }) {
+function ChartsContent({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const { user, loading: sessionLoading } = useSessionSafe();
   const { showToast } = useToast();
@@ -402,6 +402,10 @@ export function ChartsContent({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-export default function ChartsPage() {
+function ChartsPage() {
   return <SettingsRouteLauncher tab="charts" />;
 }
+
+const ChartsPageEntry = Object.assign(ChartsPage, { Content: ChartsContent });
+
+export default ChartsPageEntry;

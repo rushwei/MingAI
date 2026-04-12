@@ -26,6 +26,7 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
 import { useAnnouncementCenterSafe } from '@/components/providers/AnnouncementPopupHost';
 import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
+import { getSettingsCenterRouteTarget } from '@/lib/settings-center';
 
 // 路由到标题的映射
 const ROUTE_LABELS: Record<string, string> = {
@@ -57,21 +58,26 @@ const ROUTE_LABELS: Record<string, string> = {
     '/monthly': '每月运势',
     '/records': '命理记录',
     '/community': '命理社区',
-    '/checkin': '每日签到',
+    '/checkin': '会员与积分',
     // 用户子页面
-    '/user/settings/ai': 'AI 个性化',
-    '/user/settings': '偏好设置',
+    '/user/ai-settings': '个性化',
+    '/user/settings': '设置',
     '/user/notifications': '通知中心',
-    '/user/charts': '我的命盘',
+    '/user/charts': '命盘',
     '/user/upgrade': '会员与积分',
-    '/user/credits': '会员与积分',
     '/user/profile': '个人资料',
     '/user/annual-report': '年度报告',
     '/user/knowledge-base': '知识库',
-    '/user/help': '帮助中心',
+    '/user/mcp': 'MCP OAuth',
     '/user': '个人资料',
+    '/admin/announcements': '公告管理',
+    '/admin/features': '功能与激活码',
+    '/admin/ai-services': 'AI 服务',
+    '/admin/mcp': 'MCP 管理',
     '/chat': 'AI 对话',
-    '/help': '帮助中心',
+    '/help': '帮助',
+    '/privacy': '隐私政策',
+    '/terms': '服务条款',
     // 六爻子页面
     '/liuyao/select': '选卦起卦',
     '/liuyao/divine': '铜钱起卦',
@@ -79,9 +85,15 @@ const ROUTE_LABELS: Record<string, string> = {
     '/hepan/create': '新建合盘',
 };
 
+const SUB_PAGE_FALLBACKS: Record<string, string> = {
+    '/privacy': getSettingsCenterRouteTarget('help'),
+    '/terms': getSettingsCenterRouteTarget('help'),
+};
+
 // 需要显示返回按钮的子页面路径模式
 const SUB_PAGE_PATTERNS = [
     '/user/',      // 用户子页面
+    '/admin/',
     '/bazi/result',
     '/ziwei/result',
     '/tarot/result',
@@ -100,6 +112,8 @@ const SUB_PAGE_PATTERNS = [
     '/mbti/result',
     '/mbti/history',
     '/help',
+    '/privacy',
+    '/terms',
 ];
 
 export function Header() {
@@ -133,6 +147,23 @@ export function Header() {
     // 判断是否是子页面（需要显示返回键的页面）
     const isSubPage = pathname ? SUB_PAGE_PATTERNS.some(pattern => pathname.startsWith(pattern)) : false;
 
+    const handleBack = () => {
+        if (!pathname) {
+            router.back();
+            return;
+        }
+
+        const fallbackEntry = Object.entries(SUB_PAGE_FALLBACKS)
+            .sort(([left], [right]) => right.length - left.length)
+            .find(([prefix]) => pathname.startsWith(prefix));
+        if (fallbackEntry && typeof window !== 'undefined' && window.history.length <= 1) {
+            router.replace(fallbackEntry[1]);
+            return;
+        }
+
+        router.back();
+    };
+
     // 点击外部关闭菜单
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -161,7 +192,7 @@ export function Header() {
                 {/* 移动端：返回键(子页面) + 居中标题 + 三点菜单 */}
                 {isSubPage ? (
                     <button
-                        onClick={() => router.back()}
+                        onClick={handleBack}
                         className="p-2 -ml-2 rounded-full hover:bg-background-secondary transition-colors lg:hidden"
                         type="button"
                         aria-label="返回上一页"

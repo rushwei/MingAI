@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { supabase } from '@/lib/auth';
+import { requestBrowserJson } from '@/lib/browser-api';
 
 type CreditTransaction = {
   id: string;
@@ -22,20 +24,23 @@ const SOURCE_LABELS: Record<string, string> = {
 
 interface CreditTransactionsPanelProps {
   pageSize?: number;
+  refreshKey?: number;
 }
 
-export function CreditTransactionsPanel({ pageSize = 5 }: CreditTransactionsPanelProps) {
-  const { user, session, loading: sessionLoading } = useSessionSafe();
+export function CreditTransactionsPanel({ pageSize = 5, refreshKey = 0 }: CreditTransactionsPanelProps) {
+  const { user, loading: sessionLoading } = useSessionSafe();
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [todaySpent, setTodaySpent] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [hasMore, setHasMore] = useState(false);
 
   const fetchTransactions = useCallback(async (nextVisibleCount: number) => {
-    if (!user || !session?.access_token) {
+    if (!user) {
       setTransactions([]);
       setTodaySpent(0);
+      setError(null);
       setHasMore(false);
       setLoading(false);
       return;
@@ -43,34 +48,59 @@ export function CreditTransactionsPanel({ pageSize = 5 }: CreditTransactionsPane
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/credits/transactions?limit=${nextVisibleCount + 1}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || '获取积分流水失败');
+      const loadTransactions = async () => {
+        return await requestBrowserJson<{
+          items?: CreditTransaction[];
+          summary?: {
+            todaySpent?: number;
+          };
+        }>(`/api/credits/transactions?limit=${nextVisibleCount + 1}`, {
+          method: 'GET',
+        });
+      };
+
+      let result = await loadTransactions();
+      if (result.error) {
+        if (result.status === 401) {
+          const { data: { session } } = await supabase.auth.revalidateSession();
+          if (session) {
+            result = await loadTransactions();
+          }
+        }
+
+        if (result.error && result.status === 401) {
+          setTransactions([]);
+          setTodaySpent(0);
+          setError(null);
+          setHasMore(false);
+          return;
+        }
+
+        if (result.error) {
+          throw new Error(result.error.message || '获取积分流水失败');
+        }
       }
 
-      const rows = Array.isArray(result.data) ? result.data as CreditTransaction[] : [];
+      const rows = Array.isArray(result.data?.items) ? result.data.items : [];
+      setError(null);
       setTransactions(rows.slice(0, nextVisibleCount));
-      setTodaySpent(typeof result.summary?.todaySpent === 'number' ? result.summary.todaySpent : 0);
+      setTodaySpent(typeof result.data?.summary?.todaySpent === 'number' ? result.data.summary.todaySpent : 0);
       setHasMore(rows.length > nextVisibleCount);
     } catch (error) {
       console.error('获取积分流水异常:', error);
       setTransactions([]);
       setTodaySpent(0);
+      setError(error instanceof Error ? error.message : '获取积分流水失败');
       setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token, user]);
+  }, [user]);
 
   useEffect(() => {
     if (sessionLoading) return;
     void fetchTransactions(visibleCount);
-  }, [fetchTransactions, sessionLoading, visibleCount]);
+  }, [fetchTransactions, refreshKey, sessionLoading, visibleCount]);
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleString('zh-CN', {
     month: '2-digit',
@@ -107,6 +137,10 @@ export function CreditTransactionsPanel({ pageSize = 5 }: CreditTransactionsPane
               className={`h-16 bg-[#37352f]/5 animate-pulse ${index > 0 ? 'border-t border-[#ebe8e2]' : ''}`}
             />
           ))}
+        </div>
+      ) : error ? (
+        <div className="px-4 py-8 text-sm text-[#b42318]">
+          {error}
         </div>
       ) : transactions.length > 0 ? (
         <>

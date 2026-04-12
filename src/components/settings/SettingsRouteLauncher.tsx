@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import {
-  buildSettingsCenterHash,
   getSettingsCenterRouteTarget,
+  getSettingsCenterTabLabel,
   parseSettingsCenterHash,
   type SettingsCenterTab,
 } from '@/lib/settings-center';
@@ -24,6 +24,7 @@ export function SettingsRouteLauncher({
   subpath,
 }: SettingsRouteLauncherProps) {
   const router = useRouter();
+  const tabLabel = getSettingsCenterTabLabel(tab);
 
   useEffect(() => {
     if (preserveExistingHash && parseSettingsCenterHash(window.location.hash)) {
@@ -39,7 +40,7 @@ export function SettingsRouteLauncher({
     <div className="flex min-h-[60vh] items-center justify-center bg-background">
       <div className="flex items-center gap-3 text-sm text-foreground-secondary">
         <SoundWaveLoader variant="inline" />
-        <span>正在打开 {buildSettingsCenterHash(tab, { subpath })}</span>
+        <span>正在打开 {tabLabel}</span>
       </div>
     </div>
   );

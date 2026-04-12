@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { MessageCircleHeart, Save, SlidersHorizontal, User, X } from 'lucide-react';
+import { KeyRound, MessageCircleHeart, Save, SlidersHorizontal, User, X } from 'lucide-react';
 import {
   ADVANCED_DIMENSIONS,
   CORE_DIMENSIONS,
@@ -21,6 +21,7 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useToast } from '@/components/ui/Toast';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
 import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
+import { CustomProviderPanel } from '@/components/chat/CustomProviderPanel';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
 import { CHART_TEXT_DETAIL_OPTIONS, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
@@ -132,7 +133,7 @@ function ToggleButton({
   );
 }
 
-export function AISettingsContent({ embedded = false }: { embedded?: boolean }) {
+function AISettingsContent({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: sessionLoading } = useSessionSafe();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -456,6 +457,15 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
 
       <section className="space-y-4">
         <SectionTitle
+          icon={<KeyRound className="h-4 w-4" />}
+          title="自定义模型"
+          description="只在当前浏览器标签页内生效，用于临时接入你自己的 OpenAI 兼容服务。"
+        />
+        <CustomProviderPanel embedded />
+      </section>
+
+      <section className="space-y-4">
+        <SectionTitle
           icon={<SlidersHorizontal className="h-4 w-4" />}
           title="运势可视化偏好"
           description="控制 AI 输出时默认关注的维度、图表风格和大运展示数量。"
@@ -554,6 +564,10 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
   );
 }
 
-export default function AISettingsPage() {
+function AISettingsPage() {
   return <SettingsRouteLauncher tab="personalization" />;
 }
+
+const AISettingsPageEntry = Object.assign(AISettingsPage, { Content: AISettingsContent });
+
+export default AISettingsPageEntry;

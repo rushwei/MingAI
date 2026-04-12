@@ -18,13 +18,16 @@ import {
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { DEFAULT_MOBILE_MAIN_ITEMS, DEFAULT_MOBILE_DRAWER_ORDER } from '@/lib/user/settings';
 import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
+import {
+    SETTINGS_CENTER_EVENT,
+    getSettingsCenterTabFromRouteTarget,
+    openSettingsCenter,
+    parseSettingsCenterHash,
+} from '@/lib/settings-center';
 
 const ALL_NAV_ITEMS = getMobileItemsRecord();
 
 function isMergedMembershipNavEnabled(id: string, isFeatureEnabled: (featureId: string) => boolean) {
-    if (id === 'user/upgrade') {
-        return isFeatureEnabled('upgrade') || isFeatureEnabled('credits');
-    }
     return isFeatureEnabled(toFeatureId(id));
 }
 
@@ -38,8 +41,10 @@ const GRID_COLS_CLASS: Record<number, string> = {
 export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [currentHash, setCurrentHash] = useState('');
     const { isFeatureEnabled, isLoading: featureLoading, loaded: featureLoaded, error: featureError, refresh: refreshFeatures } = useFeatureToggles();
     const isNavLoading = featureLoading;
+    const activeSettingsTab = useMemo(() => parseSettingsCenterHash(currentHash), [currentHash]);
 
     // 底部导航栏项目（硬编码默认顺序）
     const mainNavItems = useMemo(() => {
@@ -74,6 +79,22 @@ export function MobileNav() {
             document.body.style.overflow = '';
         };
     }, [isDrawerOpen]);
+
+    useEffect(() => {
+        const syncHash = () => {
+            setCurrentHash(window.location.hash);
+        };
+
+        syncHash();
+        window.addEventListener('hashchange', syncHash);
+        window.addEventListener('popstate', syncHash);
+        window.addEventListener(SETTINGS_CENTER_EVENT, syncHash as EventListener);
+        return () => {
+            window.removeEventListener('hashchange', syncHash);
+            window.removeEventListener('popstate', syncHash);
+            window.removeEventListener(SETTINGS_CENTER_EVENT, syncHash as EventListener);
+        };
+    }, []);
 
     if (isNavLoading) {
         return (
@@ -178,8 +199,11 @@ export function MobileNav() {
                 <div className="flex-1 overflow-y-auto p-4">
                     <div className="grid grid-cols-4 gap-3">
                         {drawerNavItems.map((item) => {
+                            const settingsTab = getSettingsCenterTabFromRouteTarget(item.href);
                             // 精确匹配：只有完全匹配或者是该路径的直接子页面才高亮
-                            const isActive = pathname === item.href ||
+                            const isActive = settingsTab
+                                ? activeSettingsTab === settingsTab
+                                : pathname === item.href ||
                                 (pathname?.startsWith(item.href + '/') && !drawerNavItems.some(other =>
                                     other.href !== item.href &&
                                     other.href.startsWith(item.href + '/') &&
@@ -197,7 +221,15 @@ export function MobileNav() {
                                             ? 'bg-accent/10 text-accent'
                                             : 'bg-background-secondary hover:bg-accent/5 text-foreground-secondary'
                                         }`}
-                                    onClick={closeDrawer}
+                                    onClick={(event) => {
+                                        if (settingsTab) {
+                                            event.preventDefault();
+                                            closeDrawer();
+                                            openSettingsCenter(settingsTab);
+                                            return;
+                                        }
+                                        closeDrawer();
+                                    }}
                                 >
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2
                                         ${isActive ? 'bg-accent/20' : 'bg-background'}`}>
@@ -226,13 +258,24 @@ export function MobileNav() {
                     GRID_COLS_CLASS[mainNavItems.length] ?? 'grid-cols-5'
                 }`}>
                     {mainNavItems.map((item) => {
-                        const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                        const settingsTab = getSettingsCenterTabFromRouteTarget(item.href);
+                        const isActive = settingsTab
+                            ? activeSettingsTab === settingsTab
+                            : pathname === item.href || pathname?.startsWith(item.href + '/');
                         const Icon = item.icon;
 
                         return (
                             <li key={item.href}>
                                 <Link
                                     href={item.href}
+                                    onClick={(event) => {
+                                        if (!settingsTab) {
+                                            return;
+                                        }
+
+                                        event.preventDefault();
+                                        openSettingsCenter(settingsTab);
+                                    }}
                                     className={`
                                         flex flex-col items-center justify-center
                                         w-full h-14

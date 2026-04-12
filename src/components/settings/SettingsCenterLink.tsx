@@ -2,7 +2,7 @@
 
 import type { MouseEvent, MouseEventHandler, ReactNode } from 'react';
 import Link from 'next/link';
-import { getSettingsCenterLegacyPath, openSettingsCenter, type SettingsCenterTab } from '@/lib/settings-center';
+import { getSettingsCenterRouteTarget, openSettingsCenter, type SettingsCenterTab } from '@/lib/settings-center';
 
 interface SettingsCenterLinkProps {
   tab: SettingsCenterTab;
@@ -25,7 +25,7 @@ export function SettingsCenterLink({
 }: SettingsCenterLinkProps) {
   return (
     <Link
-      href={getSettingsCenterLegacyPath(tab)}
+      href={getSettingsCenterRouteTarget(tab)}
       className={className}
       title={title}
       onClick={(event) => {

@@ -7,6 +7,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft, FileText, Users, AlertCircle, CreditCard, Gavel } from 'lucide-react';
+import { getSettingsCenterRouteTarget } from '@/lib/settings-center';
 
 export default function TermsPage() {
     return (
@@ -15,7 +16,7 @@ export default function TermsPage() {
                 {/* 头部 */}
                 <div className="hidden md:flex items-center gap-4 mb-10">
                     <Link
-                        href="/help"
+                        href={getSettingsCenterRouteTarget('help')}
                         className="p-2.5 rounded-xl bg-background-secondary/50 border border-border/50 hover:bg-background-secondary hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
@@ -29,7 +30,7 @@ export default function TermsPage() {
                 {/* 移动端头部 */}
                 <div className="md:hidden mb-8">
                     <Link
-                        href="/help"
+                        href={getSettingsCenterRouteTarget('help')}
                         className="inline-flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground mb-4"
                     >
                         <ArrowLeft className="w-4 h-4" />

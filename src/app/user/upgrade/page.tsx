@@ -30,6 +30,7 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { useToast } from '@/components/ui/Toast';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { getSettingsCenterRouteTarget } from '@/lib/settings-center';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
 type ClaimStatus =
@@ -81,51 +82,76 @@ function ActionButton({
   );
 }
 
-export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
+function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: sessionLoading } = useSessionSafe();
   const searchParams = useSearchParams();
   const { isFeatureEnabled, loaded: featureLoaded } = useFeatureToggles();
   const [membership, setMembership] = useState<MembershipInfo | null>(null);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
   const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null);
+  const [checkinError, setCheckinError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [checkinSubmitting, setCheckinSubmitting] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
   const { showToast } = useToast();
 
   const checkinEnabled = featureLoaded && isFeatureEnabled('checkin');
-  const creditsEnabled = featureLoaded && isFeatureEnabled('credits');
   const containerClass = embedded
     ? 'space-y-8'
     : 'mx-auto max-w-4xl space-y-8 px-4 py-6';
 
   const refreshMembership = useCallback(async (userId: string) => {
-    const info = await getMembershipInfo(userId);
-    setMembership(info);
-    return info;
+    const result = await getMembershipInfo(userId);
+    if (result.ok) {
+      setMembership(result.info);
+      setMembershipError(null);
+      return result;
+    }
+
+    setMembershipError(result.error.message || '获取会员状态失败');
+    return result;
   }, []);
 
   const refreshCheckinStatus = useCallback(async () => {
     if (!user || !checkinEnabled) {
       setCheckinStatus(null);
+      setCheckinError(null);
       return null;
     }
 
     setCheckinLoading(true);
     try {
       const nextStatus = await fetchCheckinStatus();
-      setCheckinStatus(nextStatus);
-      return nextStatus;
+      if (nextStatus.ok) {
+        setCheckinStatus(nextStatus.status);
+        setCheckinError(null);
+        return nextStatus.status;
+      }
+
+      console.error('获取签到状态失败:', nextStatus.error);
+      setCheckinStatus(null);
+      setCheckinError(nextStatus.error.message || '获取签到状态失败');
+      return null;
     } catch (error) {
       console.error('获取签到状态失败:', error);
       setCheckinStatus(null);
+      setCheckinError('获取签到状态失败，请稍后重试');
       return null;
     } finally {
       setCheckinLoading(false);
     }
   }, [checkinEnabled, user]);
+
+  const refreshMembershipAndCheckin = useCallback(async (userId: string) => {
+    await Promise.all([
+      refreshMembership(userId),
+      checkinEnabled ? refreshCheckinStatus() : Promise.resolve(null),
+    ]);
+  }, [checkinEnabled, refreshCheckinStatus, refreshMembership]);
 
   useEffect(() => {
     const init = async () => {
@@ -134,6 +160,7 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
         await refreshMembership(user.id);
       } else {
         setMembership(null);
+        setMembershipError(null);
       }
       setLoading(false);
     };
@@ -144,6 +171,7 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
     if (sessionLoading) return;
     if (!user || !checkinEnabled) {
       setCheckinStatus(null);
+      setCheckinError(null);
       return;
     }
     void refreshCheckinStatus();
@@ -197,14 +225,15 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
   }, [searchParams, showToast]);
 
   const handleKeySuccess = (info: MembershipInfo | null) => {
-    setShowKeyModal(false);
     if (info) {
       setMembership(info);
-      return;
+      setMembershipError(null);
     }
+
     if (user) {
-      void refreshMembership(user.id);
+      void refreshMembershipAndCheckin(user.id);
     }
+    setTransactionsRefreshKey((value) => value + 1);
   };
 
   const handleCheckinClick = () => {
@@ -221,6 +250,7 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
       try {
         const result = await performCheckinAction();
         if (result.ok) {
+          setCheckinError(null);
           setCheckinStatus((prev) => prev ? {
             ...prev,
             canCheckin: false,
@@ -231,6 +261,7 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
           } : prev);
           showToast('success', `签到成功！+${result.rewardCredits} 积分`);
           void refreshMembership(user.id);
+          setTransactionsRefreshKey((value) => value + 1);
           return;
         }
 
@@ -253,7 +284,9 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
         }
       } catch (error) {
         console.error('签到失败:', error);
-        showToast('error', '签到失败，请稍后重试');
+        const errorMessage = error instanceof Error ? error.message : '签到失败，请稍后重试';
+        setCheckinError(errorMessage);
+        showToast('error', errorMessage);
       } finally {
         setCheckinSubmitting(false);
       }
@@ -264,7 +297,7 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
   const linuxdoClaimUrl = useMemo(() => {
     const params = new URLSearchParams({
       intent: 'membership-claim',
-      returnTo: '/user/upgrade',
+      returnTo: getSettingsCenterRouteTarget('upgrade'),
     });
     return `/api/auth/linuxdo?${params.toString()}`;
   }, []);
@@ -272,6 +305,8 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
     ? '登录后签到'
     : checkinSubmitting
       ? '签到中'
+      : checkinError && !checkinStatus
+        ? '状态加载失败'
       : checkinStatus?.todayCheckedIn
         ? '已签到'
         : checkinStatus?.blockedReason === 'credit_cap_reached'
@@ -281,12 +316,14 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
     ? <CalendarCheck className="h-4 w-4" />
     : checkinSubmitting
       ? <CalendarCheck className="h-4 w-4" />
-      : checkinStatus?.todayCheckedIn
-        ? <CheckCircle2 className="h-4 w-4" />
+      : checkinError && !checkinStatus
+        ? <RefreshCw className="h-4 w-4" />
+        : checkinStatus?.todayCheckedIn
+          ? <CheckCircle2 className="h-4 w-4" />
         : checkinStatus?.blockedReason === 'credit_cap_reached'
           ? <Lock className="h-4 w-4" />
           : <CalendarCheck className="h-4 w-4" />;
-  const checkinDisabled = !!user && (checkinSubmitting || checkinLoading || !checkinStatus?.canCheckin);
+  const checkinDisabled = !!user && (checkinSubmitting || checkinLoading || !!checkinError || !checkinStatus?.canCheckin);
 
   if (loading) {
     return (
@@ -304,10 +341,25 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <div className={containerClass}>
-      <CreditProgressBar
-        credits={membership?.aiChatCount ?? 0}
-        membershipType={currentPlan}
-      />
+      {user && membershipError && !membership ? (
+        <div className="rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-4 py-3 text-sm text-[#946c21]">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0 flex-1">{membershipError}</span>
+            <button
+              type="button"
+              onClick={() => void refreshMembership(user.id)}
+              className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+            >
+              重试
+            </button>
+          </div>
+        </div>
+      ) : (
+        <CreditProgressBar
+          credits={membership?.aiChatCount ?? 0}
+          membershipType={currentPlan}
+        />
+      )}
 
       <div className="rounded-lg border border-[#ebe8e2] bg-[#f7f6f3] px-4 py-4">
         <div className="flex flex-wrap gap-2">
@@ -347,9 +399,21 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
             </div>
           ) : null}
         </div>
+        {checkinEnabled && user && checkinError ? (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-3 py-2 text-xs text-[#946c21]">
+            <span className="min-w-0 flex-1">{checkinError}</span>
+            <button
+              type="button"
+              onClick={() => void refreshCheckinStatus()}
+              className="shrink-0 rounded-md px-2 py-1 font-medium text-[#7c5f1c] transition-colors hover:bg-[#f4ead3]"
+            >
+              重试
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {creditsEnabled ? <CreditTransactionsPanel pageSize={5} /> : null}
+      <CreditTransactionsPanel pageSize={5} refreshKey={transactionsRefreshKey} />
 
       <AuthModal
         isOpen={showAuthModal}
@@ -365,18 +429,16 @@ export function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
       <CheckinModal
         isOpen={showCheckinModal}
         onClose={() => setShowCheckinModal(false)}
-        onCheckinSuccess={() => {
-          if (user) {
-            void refreshMembership(user.id);
-          }
-          void refreshCheckinStatus();
-        }}
         stackLevel={embedded ? 'settings' : 'page'}
       />
     </div>
   );
 }
 
-export default function UpgradePage() {
+function UpgradePage() {
   return <SettingsRouteLauncher tab="upgrade" preserveExistingSearch />;
 }
+
+const UpgradePageEntry = Object.assign(UpgradePage, { Content: UpgradeContent });
+
+export default UpgradePageEntry;

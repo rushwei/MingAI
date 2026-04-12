@@ -1,7 +1,6 @@
 'use client';
 
-import { supabase } from '@/lib/auth';
-import { requestBrowserJson } from '@/lib/browser-api';
+import { requestBrowserJson, type BrowserApiError } from '@/lib/browser-api';
 
 export interface CheckinStatus {
   canCheckin: boolean;
@@ -22,39 +21,38 @@ export interface CheckinActionResult {
   message?: string;
 }
 
-async function getAccessToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
-}
+export type CheckinStatusResult =
+  | { ok: true; status: CheckinStatus }
+  | { ok: false; error: BrowserApiError };
 
-export async function fetchCheckinStatus(): Promise<CheckinStatus | null> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) {
-    return null;
-  }
+const DEFAULT_CHECKIN_STATUS_ERROR = '获取签到状态失败';
 
+export async function fetchCheckinStatus(): Promise<CheckinStatusResult> {
   const result = await requestBrowserJson<{ status?: CheckinStatus }>('/api/checkin?action=status', {
     method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  if (result.error || !result.data?.status) {
-    return null;
-  }
-
-  return result.data.status;
-}
-
-export async function performCheckinAction(): Promise<CheckinActionResult> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) {
+  if (result.error) {
     return {
       ok: false,
-      rewardCredits: 0,
-      message: '请先登录',
+      error: result.error,
     };
   }
 
+  if (!result.data?.status) {
+    return {
+      ok: false,
+      error: { message: DEFAULT_CHECKIN_STATUS_ERROR },
+    };
+  }
+
+  return {
+    ok: true,
+    status: result.data.status,
+  };
+}
+
+export async function performCheckinAction(): Promise<CheckinActionResult> {
   const result = await requestBrowserJson<{
     result?: {
       rewardCredits: number;
@@ -64,20 +62,27 @@ export async function performCheckinAction(): Promise<CheckinActionResult> {
     };
   }>('/api/checkin', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const checkinResult = result.data?.result;
 
-  if (result.error || !checkinResult) {
-    return {
-      ok: false,
-      rewardCredits: 0,
-      credits: checkinResult?.credits,
-      creditLimit: checkinResult?.creditLimit,
-      blockedReason: checkinResult?.blockedReason,
-      message: result.error?.message || '签到失败',
-    };
+  if (result.error) {
+    if (checkinResult?.blockedReason) {
+      return {
+        ok: false,
+        rewardCredits: checkinResult.rewardCredits ?? 0,
+        credits: checkinResult.credits,
+        creditLimit: checkinResult.creditLimit,
+        blockedReason: checkinResult.blockedReason,
+        message: result.error.message || '签到失败',
+      };
+    }
+
+    throw new Error(result.error.message || '签到失败');
+  }
+
+  if (!checkinResult) {
+    throw new Error('签到失败');
   }
 
   return {

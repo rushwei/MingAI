@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Bell,
@@ -26,14 +26,13 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
 import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
+import { loadReminderSubscriptions, type ReminderType, updateReminderSubscriptionClient } from '@/lib/reminders-client';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 interface Settings {
   notifications: boolean;
   language: 'zh' | 'en';
 }
-
-type ReminderType = 'solar_term' | 'fortune' | 'key_date';
 
 type ReminderSettings = Record<ReminderType, boolean>;
 
@@ -143,9 +142,9 @@ function PreferenceSwitch({
   );
 }
 
-export function GeneralSettingsContent({ embedded = false }: { embedded?: boolean }) {
+function GeneralSettingsContent({ embedded = false }: { embedded?: boolean }) {
   const { theme, themeMode, setThemeMode } = useTheme();
-  const { user, session, loading: sessionLoading } = useSessionSafe();
+  const { user, loading: sessionLoading } = useSessionSafe();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings>({
     notifications: true,
@@ -153,65 +152,78 @@ export function GeneralSettingsContent({ embedded = false }: { embedded?: boolea
   });
   const [reminders, setReminders] = useState<ReminderSettings>(DEFAULT_REMINDER_SETTINGS);
   const [remindersLoading, setRemindersLoading] = useState(true);
+  const [reminderLoadError, setReminderLoadError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
+  const load = useCallback(async () => {
       if (sessionLoading) return;
       if (!user) {
         setLoading(false);
         setRemindersLoading(false);
+        setReminderLoadError(null);
+        setLoadError(null);
         return;
       }
 
-      const [settingsResult, remindersResult] = await Promise.all([
-        getCurrentUserSettings(),
-        session?.access_token
-          ? fetch('/api/reminders', {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            }).then(async (response) => {
-              const payload = await response.json().catch(() => ({} as Record<string, unknown>));
-              if (!response.ok) {
-                throw new Error(typeof payload.error === 'string' ? payload.error : '加载提醒状态失败');
-              }
-              return payload as {
-                success?: boolean;
-                data?: {
-                  subscriptions?: Array<{ reminderType: ReminderType; enabled: boolean }>;
-                };
-              };
-            })
-          : Promise.resolve(null),
-      ]);
+      setLoading(true);
+      setRemindersLoading(true);
 
-      if (settingsResult.error) {
-        setLoadError(settingsResult.error.message || '加载偏好设置失败');
+      try {
+        const [settingsResult, remindersResult] = await Promise.allSettled([
+          getCurrentUserSettings(),
+          loadReminderSubscriptions(),
+        ]);
+
+        if (settingsResult.status === 'rejected') {
+          setLoadError('加载偏好设置失败');
+          return;
+        }
+
+        if (settingsResult.value.error) {
+          setLoadError(settingsResult.value.error.message || '加载偏好设置失败');
+          return;
+        }
+
+        setLoadError(null);
+        setSettings({
+          notifications: settingsResult.value.settings?.notificationsEnabled ?? true,
+          language: settingsResult.value.settings?.language ?? 'zh',
+        });
+
+        if (remindersResult.status === 'fulfilled') {
+          if (remindersResult.value.ok) {
+            setReminderLoadError(null);
+            setReminders(
+              remindersResult.value.subscriptions.reduce<ReminderSettings>((acc, item) => {
+                acc[item.reminderType] = item.enabled;
+                return acc;
+              }, { ...DEFAULT_REMINDER_SETTINGS }),
+            );
+          } else {
+            setReminderLoadError(remindersResult.value.error.message || '加载提醒状态失败');
+            setReminders({ ...DEFAULT_REMINDER_SETTINGS });
+          }
+        } else {
+          console.error('加载提醒状态失败:', remindersResult.reason);
+          setReminderLoadError(
+            remindersResult.reason instanceof Error
+              ? remindersResult.reason.message
+              : '加载提醒状态失败',
+          );
+          setReminders({ ...DEFAULT_REMINDER_SETTINGS });
+        }
+      } catch (error) {
+        console.error('加载用户设置失败:', error);
+        setLoadError('加载偏好设置失败');
+      } finally {
         setLoading(false);
         setRemindersLoading(false);
-        return;
       }
+  }, [sessionLoading, user]);
 
-      setLoadError(null);
-      setSettings({
-        notifications: settingsResult.settings?.notificationsEnabled ?? true,
-        language: settingsResult.settings?.language ?? 'zh',
-      });
-
-      if (remindersResult?.data?.subscriptions) {
-        setReminders(
-          remindersResult.data.subscriptions.reduce<ReminderSettings>((acc, item) => {
-            acc[item.reminderType] = item.enabled;
-            return acc;
-          }, { ...DEFAULT_REMINDER_SETTINGS }),
-        );
-      }
-
-      setLoading(false);
-      setRemindersLoading(false);
-    };
-
+  useEffect(() => {
     void load();
-  }, [session?.access_token, sessionLoading, user]);
+  }, [load]);
 
   const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     if (!user || loadError) return;
@@ -233,29 +245,23 @@ export function GeneralSettingsContent({ embedded = false }: { embedded?: boolea
   };
 
   const updateReminderSetting = async (type: ReminderType) => {
-    if (!session?.access_token || loadError) return;
+    if (!user || loadError) return;
 
     const previousEnabled = reminders[type];
     const nextEnabled = !previousEnabled;
     setReminders((prev) => ({ ...prev, [type]: nextEnabled }));
 
     try {
-      const response = await fetch('/api/reminders', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reminderType: type,
-          enabled: nextEnabled,
-          notifySite: true,
-        }),
+      const result = await updateReminderSubscriptionClient({
+        reminderType: type,
+        enabled: nextEnabled,
+        notifySite: true,
       });
 
-      if (!response.ok) {
-        throw new Error('更新提醒状态失败');
+      if (!result.ok) {
+        throw new Error(result.error.message || '更新提醒状态失败');
       }
+      setReminderLoadError(null);
     } catch (error) {
       console.error('更新提醒状态失败:', error);
       setReminders((prev) => ({ ...prev, [type]: previousEnabled }));
@@ -336,6 +342,18 @@ export function GeneralSettingsContent({ embedded = false }: { embedded?: boolea
 
       <section className="space-y-3">
         <SectionTitle>通知与提醒</SectionTitle>
+        {reminderLoadError ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <span className="min-w-0 flex-1">{reminderLoadError}</span>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="shrink-0 rounded-md px-2 py-1 font-medium transition-colors hover:bg-amber-100"
+            >
+              重试
+            </button>
+          </div>
+        ) : null}
         <div className="space-y-2">
           <Row
             icon={<Bell className="h-4 w-4" />}
@@ -367,7 +385,7 @@ export function GeneralSettingsContent({ embedded = false }: { embedded?: boolea
                   <PreferenceSwitch
                     checked={reminders[item.type]}
                     onToggle={() => updateReminderSetting(item.type)}
-                    disabled={Boolean(loadError) || remindersLoading}
+                    disabled={Boolean(loadError) || Boolean(reminderLoadError) || remindersLoading}
                   />
                 )}
               />
@@ -397,6 +415,10 @@ export function GeneralSettingsContent({ embedded = false }: { embedded?: boolea
   );
 }
 
-export default function SettingsPage() {
+function SettingsPage() {
   return <SettingsRouteLauncher tab="general" />;
 }
+
+const SettingsPageEntry = Object.assign(SettingsPage, { Content: GeneralSettingsContent });
+
+export default SettingsPageEntry;

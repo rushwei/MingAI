@@ -17,10 +17,8 @@ import {
   Aperture,
   Tags,
   Settings,
-  CalendarCheck,
   CircleStar,
   Bell,
-  CreditCard,
   MessageCircleHeart,
   BookOpenText,
   Scroll,
@@ -30,6 +28,7 @@ import {
 } from 'lucide-react';
 import { YinYangIcon, CheckerboardIcon, CompassRoseIcon, StarOfDavidIcon } from '@phosphor-icons/react';
 import { createElement, type ComponentType } from 'react';
+import { getSettingsCenterRouteTarget } from '@/lib/settings-center';
 
 /** Icon type that accepts both Lucide and Phosphor icon components. */
 export type NavIcon = ComponentType<{ className?: string; size?: number | string }>;
@@ -105,21 +104,19 @@ export const NAV_REGISTRY: readonly NavItemDef[] = [
   { id: 'monthly', href: '/monthly', label: '月运', icon: CalendarRange, category: 'divination' },
 
   // ── Tools ───────────────────────────────────────────────────────────────
-  { id: 'checkin', href: '/checkin', label: '签到', icon: CalendarCheck, category: 'tool' },
   { id: 'chat', href: '/chat', label: '新聊天', icon: BotMessageSquare, category: 'tool' },
   { id: 'records', href: '/records', label: '命理记录', icon: Tags, category: 'tool' },
   { id: 'community', href: '/community', label: '社区', icon: Aperture, category: 'tool' },
 
   // ── User ────────────────────────────────────────────────────────────────
-  { id: 'user', href: '/user', label: '我的', icon: User, category: 'user' },
-  { id: 'user/settings', href: '/user/settings', label: '设置', icon: Settings, category: 'user' },
-  { id: 'user/upgrade', href: '/user/upgrade', label: '会员与积分', icon: CircleStar, featureId: 'upgrade', category: 'user' },
-  { id: 'user/charts', href: '/user/charts', label: '命盘', icon: Scroll, featureId: 'charts', category: 'user' },
-  { id: 'user/notifications', href: '/user/notifications', label: '通知', icon: Bell, featureId: 'notifications', category: 'user' },
-  { id: 'user/credits', href: '/user/credits', label: '积分流水', icon: CreditCard, featureId: 'credits', category: 'user' },
-  { id: 'user/settings/ai', href: '/user/settings/ai', label: '个性化', icon: MessageCircleHeart, featureId: 'ai-personalization', category: 'user' },
-  { id: 'user/knowledge-base', href: '/user/knowledge-base', label: '知识库', icon: BookOpenText, featureId: 'knowledge-base', category: 'user' },
-  { id: 'user/help', href: '/user/help', label: '帮助中心', icon: CircleQuestionMark, featureId: 'help', category: 'user' },
+  { id: 'settings-profile', href: getSettingsCenterRouteTarget('profile'), label: '我的', icon: User, category: 'user' },
+  { id: 'settings-general', href: getSettingsCenterRouteTarget('general'), label: '设置', icon: Settings, category: 'user' },
+  { id: 'settings-upgrade', href: getSettingsCenterRouteTarget('upgrade'), label: '会员与积分', icon: CircleStar, featureId: 'upgrade', category: 'user' },
+  { id: 'settings-charts', href: getSettingsCenterRouteTarget('charts'), label: '命盘', icon: Scroll, featureId: 'charts', category: 'user' },
+  { id: 'notifications', href: '/user/notifications', label: '通知', icon: Bell, featureId: 'notifications', category: 'user' },
+  { id: 'settings-personalization', href: getSettingsCenterRouteTarget('personalization'), label: '个性化', icon: MessageCircleHeart, featureId: 'ai-personalization', category: 'user' },
+  { id: 'settings-knowledge-base', href: getSettingsCenterRouteTarget('knowledge-base'), label: '知识库', icon: BookOpenText, featureId: 'knowledge-base', category: 'user' },
+  { id: 'settings-help', href: getSettingsCenterRouteTarget('help'), label: '帮助中心', icon: CircleQuestionMark, featureId: 'help', category: 'user' },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -132,14 +129,6 @@ const _byId = new Map<string, NavItemDef>(NAV_REGISTRY.map(n => [n.id, n]));
 export function toFeatureId(navId: string): string {
   return _byId.get(navId)?.featureId ?? navId;
 }
-
-/**
- * NAV_TO_FEATURE_ID — legacy record kept for backward compat.
- * Prefer `toFeatureId()` in new code.
- */
-export const NAV_TO_FEATURE_ID: Record<string, string> = Object.fromEntries(
-  NAV_REGISTRY.filter(n => n.featureId).map(n => [n.id, n.featureId!]),
-);
 
 // ---------------------------------------------------------------------------
 // Consumer-specific projections
@@ -214,11 +203,11 @@ const adminLabelOverride: Record<string, string> = {
   upgrade: '会员与积分',
   help: '帮助',
   charts: '我的命盘',
-  credits: '积分流水',
 };
 
 /** Features that only appear in the admin toggle panel. */
 const ADMIN_ONLY_FEATURES: { id: string; label: string }[] = [
+  { id: 'checkin', label: '签到' },
   { id: 'mcp-service', label: 'MCP 服务' },
 ];
 

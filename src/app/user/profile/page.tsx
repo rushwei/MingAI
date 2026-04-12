@@ -39,10 +39,10 @@ function Avatar({ src, alt }: { src: string | null; alt: string }) {
   );
 }
 
-export function ProfileContent({ embedded = false }: { embedded?: boolean }) {
+function ProfileContent({ embedded = false }: { embedded?: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ensuredUserIdRef = useRef<string | null>(null);
-  const { user, session, loading: sessionLoading } = useSessionSafe();
+  const { user, loading: sessionLoading } = useSessionSafe();
   const { profile, loading: profileLoading, resolved: profileResolved, error: profileError, refresh: refreshProfile } = useCurrentUserProfile({ enabled: !!user });
   const [nickname, setNickname] = useState('');
   const [originalNickname, setOriginalNickname] = useState('');
@@ -85,8 +85,8 @@ export function ProfileContent({ embedded = false }: { embedded?: boolean }) {
       return;
     }
     ensuredUserIdRef.current = user.id;
-    void ensureUserRecord(user, session?.access_token).then(() => refreshProfile());
-  }, [profile, profileError, profileLoading, profileResolved, refreshProfile, session?.access_token, sessionLoading, user]);
+    void ensureUserRecord(user).then(() => refreshProfile());
+  }, [profile, profileError, profileLoading, profileResolved, refreshProfile, sessionLoading, user]);
 
   const handleSave = async () => {
     if (!user || !nickname.trim()) return;
@@ -250,6 +250,10 @@ export function ProfileContent({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-export default function ProfilePage() {
+function ProfilePage() {
   return <SettingsRouteLauncher tab="profile" />;
 }
+
+const ProfilePageEntry = Object.assign(ProfilePage, { Content: ProfileContent });
+
+export default ProfilePageEntry;

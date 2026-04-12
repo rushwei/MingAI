@@ -15,9 +15,9 @@ import {
     Square,
     CheckSquare,
 } from 'lucide-react';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
-import { supabase } from '@/lib/auth';
 import {
     deleteNotification,
     deleteNotifications,
@@ -74,10 +74,11 @@ export default function NotificationsPage() {
 
 function NotificationsContent() {
     const router = useRouter();
+    const { user, loading: sessionLoading } = useSessionSafe();
     const { showToast } = useToast();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [userId, setUserId] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -97,20 +98,30 @@ function NotificationsContent() {
 
     useEffect(() => {
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.user) {
-                router.push('/');
+            if (sessionLoading) {
                 return;
             }
+            try {
+                if (!user) {
+                    router.push('/');
+                    return;
+                }
 
-            setUserId(session.user.id);
-            const data = await getNotifications(session.user.id, 50);
-            setNotifications(data);
-            setIsLoading(false);
+                setLoadError(null);
+                const data = await getNotifications(user.id, 50);
+                setNotifications(data);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : '获取通知失败';
+                setNotifications([]);
+                setLoadError(message);
+                showToast('error', message);
+            } finally {
+                setIsLoading(false);
+            }
         };
 
         void init();
-    }, [router]);
+    }, [router, sessionLoading, showToast, user]);
 
     const unreadCount = useMemo(() => notifications.filter((item) => !item.is_read).length, [notifications]);
     const visibleNotifications = useMemo(
@@ -208,9 +219,9 @@ function NotificationsContent() {
     };
 
     const handleMarkAllRead = async () => {
-        if (!userId) return;
+        if (!user) return;
         setIsProcessing(true);
-        const success = await markAllAsRead(userId);
+        const success = await markAllAsRead();
         if (success) {
             setNotifications((current) => current.map((item) => ({ ...item, is_read: true })));
             showToast('success', '已将全部通知标记为已读');
@@ -365,7 +376,11 @@ function NotificationsContent() {
                         </div>
                     )}
 
-                    {notifications.length === 0 ? (
+                    {loadError ? (
+                        <div className="text-center py-20 border border-dashed border-border rounded-md">
+                            <p className="text-sm text-[#b42318]">{loadError}</p>
+                        </div>
+                    ) : notifications.length === 0 ? (
                         <div className="text-center py-20 border border-dashed border-border rounded-md">
                             <Bell className="w-8 h-8 text-foreground/10 mx-auto mb-3" />
                             <p className="text-sm text-foreground/40">暂无任何通知</p>
