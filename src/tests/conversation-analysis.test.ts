@@ -206,6 +206,31 @@ test('loadConversationAnalysisSnapshot reads lightweight snapshot payload', asyn
     });
 });
 
+test('loadConversationAnalysisSnapshot should throw on non-404 failures', async (t) => {
+    const originalFetch = global.fetch;
+    const analysisModulePath = require.resolve('../lib/chat/conversation-analysis');
+
+    global.fetch = (async () => new Response(JSON.stringify({
+        error: '认证失败',
+    }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+    })) as typeof global.fetch;
+
+    t.after(() => {
+        global.fetch = originalFetch;
+        delete require.cache[analysisModulePath];
+    });
+
+    delete require.cache[analysisModulePath];
+    const { loadConversationAnalysisSnapshot } = require('../lib/chat/conversation-analysis') as typeof import('../lib/chat/conversation-analysis');
+
+    await assert.rejects(
+        () => loadConversationAnalysisSnapshot('conv-1'),
+        /认证失败/u,
+    );
+});
+
 test('loadLatestConversationAnalysisSnapshot should include chartId filter when provided', async (t) => {
     const originalFetch = global.fetch;
     const analysisModulePath = require.resolve('../lib/chat/conversation-analysis');

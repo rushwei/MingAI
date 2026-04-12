@@ -16,15 +16,24 @@ type ChartRecord = {
   created_at?: string;
 };
 
+function mockUserContext<T extends object>(user: unknown, db: T) {
+  return {
+    user,
+    accessToken: null,
+    db,
+    supabase: db,
+  };
+}
+
 test('user charts GET aggregates bazi and ziwei charts through a single user API', async (t) => {
   const apiUtils = require('../lib/api-utils') as {
     requireUserContext: typeof import('../lib/api-utils').requireUserContext;
   };
   const originalRequireUserContext = apiUtils.requireUserContext;
 
-  apiUtils.requireUserContext = (async () => ({
-    user: { id: 'user-1' },
-    supabase: {
+  apiUtils.requireUserContext = (async () => mockUserContext(
+    { id: 'user-1' },
+    {
       from(table: string) {
         if (table === 'bazi_charts') {
           return {
@@ -100,7 +109,7 @@ test('user charts GET aggregates bazi and ziwei charts through a single user API
         throw new Error(`Unexpected table: ${table}`);
       },
     },
-  })) as unknown as typeof apiUtils.requireUserContext;
+  )) as unknown as typeof apiUtils.requireUserContext;
 
   t.after(() => {
     apiUtils.requireUserContext = originalRequireUserContext;
@@ -125,10 +134,31 @@ test('user charts PATCH updates default chart through user_settings', async (t) 
   const originalRequireUserContext = apiUtils.requireUserContext;
   const updates: Array<Record<string, unknown>> = [];
 
-  apiUtils.requireUserContext = (async () => ({
-    user: { id: 'user-1' },
-    supabase: {
+  apiUtils.requireUserContext = (async () => mockUserContext(
+    { id: 'user-1' },
+    {
       from(table: string) {
+        if (table === 'bazi_charts') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    eq() {
+                      return {
+                        maybeSingle: async () => ({
+                          data: { id: 'bazi-2' },
+                          error: null,
+                        }),
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+
         if (table !== 'user_settings') {
           throw new Error(`Unexpected table: ${table}`);
         }
@@ -153,7 +183,7 @@ test('user charts PATCH updates default chart through user_settings', async (t) 
         };
       },
     },
-  })) as unknown as typeof apiUtils.requireUserContext;
+  )) as unknown as typeof apiUtils.requireUserContext;
 
   t.after(() => {
     apiUtils.requireUserContext = originalRequireUserContext;
@@ -182,11 +212,36 @@ test('user charts DELETE removes the requested chart with user scoping', async (
   };
   const originalRequireUserContext = apiUtils.requireUserContext;
   const deleted: Array<{ table: string; id: string; userId: string }> = [];
+  const updates: Array<Record<string, unknown>> = [];
 
-  apiUtils.requireUserContext = (async () => ({
-    user: { id: 'user-1' },
-    supabase: {
+  apiUtils.requireUserContext = (async () => mockUserContext(
+    { id: 'user-1' },
+    {
       from(table: string) {
+        if (table === 'user_settings') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    maybeSingle: async () => ({
+                      data: {
+                        default_bazi_chart_id: null,
+                        default_ziwei_chart_id: 'ziwei-9',
+                      },
+                      error: null,
+                    }),
+                  };
+                },
+              };
+            },
+            upsert(payload: Record<string, unknown>) {
+              updates.push(payload);
+              return Promise.resolve({ error: null });
+            },
+          };
+        }
+
         return {
           delete() {
             return {
@@ -200,7 +255,9 @@ test('user charts DELETE removes the requested chart with user scoping', async (
                       throw new Error(`Unexpected second filter: ${nextColumn}`);
                     }
                     deleted.push({ table, id: value, userId: nextValue });
-                    return Promise.resolve({ error: null });
+                    return {
+                      select: async () => ({ data: [{ id: value }], error: null }),
+                    };
                   },
                 };
               },
@@ -209,7 +266,7 @@ test('user charts DELETE removes the requested chart with user scoping', async (
         };
       },
     },
-  })) as unknown as typeof apiUtils.requireUserContext;
+  )) as unknown as typeof apiUtils.requireUserContext;
 
   t.after(() => {
     apiUtils.requireUserContext = originalRequireUserContext;
@@ -226,4 +283,7 @@ test('user charts DELETE removes the requested chart with user scoping', async (
   assert.equal(response.status, 200);
   assert.deepEqual(deleted, [{ table: 'ziwei_charts', id: 'ziwei-9', userId: 'user-1' }]);
   assert.equal(payload.success, true);
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].default_ziwei_chart_id, null);
+  assert.equal(payload.defaultChartIds.ziwei, null);
 });

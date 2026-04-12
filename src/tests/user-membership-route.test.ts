@@ -4,6 +4,15 @@ import assert from 'node:assert/strict';
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
 
+function mockUserContext<T extends object>(user: unknown, db: T) {
+  return {
+    user,
+    accessToken: null,
+    db,
+    supabase: db,
+  };
+}
+
 test('user membership route should return lightweight normalized membership payload', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const routePath = require.resolve('../app/api/user/membership/route');
@@ -12,9 +21,9 @@ test('user membership route should return lightweight normalized membership payl
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalJsonError = apiUtilsModule.jsonError;
 
-  apiUtilsModule.requireUserContext = async () => ({
-    user: { id: 'user-1' },
-    supabase: {
+  apiUtilsModule.requireUserContext = async () => mockUserContext(
+    { id: 'user-1' },
+    {
       from(table: string) {
         assert.equal(table, 'users');
         return {
@@ -40,7 +49,7 @@ test('user membership route should return lightweight normalized membership payl
         };
       },
     },
-  });
+  );
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   apiUtilsModule.jsonError = (message: string, status = 400) => Response.json({ error: message }, { status });
 
@@ -63,7 +72,7 @@ test('user membership route should return lightweight normalized membership payl
   assert.equal(payload.membership.isActive, true);
 });
 
-test('user membership route should return null membership when user row is missing', async (t) => {
+test('user membership route should return 500 when user row is missing', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const routePath = require.resolve('../app/api/user/membership/route');
 
@@ -71,9 +80,9 @@ test('user membership route should return null membership when user row is missi
   const originalJsonOk = apiUtilsModule.jsonOk;
   const originalJsonError = apiUtilsModule.jsonError;
 
-  apiUtilsModule.requireUserContext = async () => ({
-    user: { id: 'user-1' },
-    supabase: {
+  apiUtilsModule.requireUserContext = async () => mockUserContext(
+    { id: 'user-1' },
+    {
       from() {
         return {
           select() {
@@ -91,7 +100,7 @@ test('user membership route should return null membership when user row is missi
         };
       },
     },
-  });
+  );
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
   apiUtilsModule.jsonError = (message: string, status = 400) => Response.json({ error: message }, { status });
 
@@ -107,7 +116,6 @@ test('user membership route should return null membership when user row is missi
   const response = await routeModule.GET(new Request('http://localhost/api/user/membership') as never);
   const payload = await response.json();
 
-  assert.equal(response.status, 200);
-  assert.equal(payload.userId, 'user-1');
-  assert.equal(payload.membership, null);
+  assert.equal(response.status, 500);
+  assert.equal(payload.error, '获取会员信息失败');
 });

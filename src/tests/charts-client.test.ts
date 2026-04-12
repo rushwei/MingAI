@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
+
 test('toSavedBaziChart should rebuild core output from stored bazi base fields', async () => {
   const { toSavedBaziChart } = await import('../lib/user/charts-client');
 
@@ -23,6 +26,56 @@ test('toSavedBaziChart should rebuild core output from stored bazi base fields',
   assert.ok(chart.output.dayMaster);
   assert.ok(chart.output.fourPillars.day.branch);
   assert.equal(chart.name, '测试命盘');
+});
+
+test('loadUserChartBundle should throw when chart bundle request fails', async (t) => {
+  const originalFetch = global.fetch;
+  const modulePath = require.resolve('../lib/user/charts-client');
+
+  global.fetch = (async () => new Response(JSON.stringify({
+    error: '获取命盘列表失败',
+  }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+  })) as typeof global.fetch;
+
+  t.after(() => {
+    global.fetch = originalFetch;
+    delete require.cache[modulePath];
+  });
+
+  delete require.cache[modulePath];
+  const { loadUserChartBundle } = require('../lib/user/charts-client') as typeof import('../lib/user/charts-client');
+
+  await assert.rejects(
+    () => loadUserChartBundle(),
+    /获取命盘列表失败/u,
+  );
+});
+
+test('loadSavedChart should throw when saved chart request fails', async (t) => {
+  const originalFetch = global.fetch;
+  const modulePath = require.resolve('../lib/user/charts-client');
+
+  global.fetch = (async () => new Response(JSON.stringify({
+    error: '加载命盘失败',
+  }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+  })) as typeof global.fetch;
+
+  t.after(() => {
+    global.fetch = originalFetch;
+    delete require.cache[modulePath];
+  });
+
+  delete require.cache[modulePath];
+  const { loadSavedChart } = require('../lib/user/charts-client') as typeof import('../lib/user/charts-client');
+
+  await assert.rejects(
+    () => loadSavedChart('bazi', 'chart-1'),
+    /加载命盘失败/u,
+  );
 });
 
 test('toSavedBaziChart should reject rows that are missing birth date essentials', async () => {

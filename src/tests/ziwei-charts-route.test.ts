@@ -64,38 +64,43 @@ test('ziwei chart create rejects missing birth_time', async (t) => {
 test('ziwei chart update rejects invalid birth_time', async (t) => {
     const apiUtils = require('../lib/api-utils') as {
         requireUserContext: typeof import('../lib/api-utils').requireUserContext;
-        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
     };
     const originalRequireUserContext = apiUtils.requireUserContext;
-    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
     let updateCalled = false;
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
-    })) as unknown as typeof apiUtils.requireUserContext;
-    apiUtils.getSystemAdminClient = (() => ({
-        from() {
-            return {
-                update() {
-                    updateCalled = true;
-                    return {
-                        eq() {
-                            return {
-                                eq: async () => ({
-                                    data: { id: 'ziwei-1' },
-                                    error: null,
-                                }),
-                            };
-                        },
-                    };
-                },
-            };
+        supabase: {
+            from() {
+                return {
+                    update() {
+                        updateCalled = true;
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            select() {
+                                                return {
+                                                    maybeSingle: async () => ({
+                                                        data: { id: 'ziwei-1' },
+                                                        error: null,
+                                                    }),
+                                                };
+                                            },
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            },
         },
-    })) as unknown as typeof apiUtils.getSystemAdminClient;
+    })) as unknown as typeof apiUtils.requireUserContext;
 
     t.after(() => {
         apiUtils.requireUserContext = originalRequireUserContext;
-        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
     });
 
     const { POST } = await import('../app/api/ziwei/charts/update/route');

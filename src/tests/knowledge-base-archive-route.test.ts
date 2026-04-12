@@ -18,7 +18,8 @@ test('knowledge-base archive route should page merged archive rows and virtual c
 
   apiUtilsModule.requireUserContext = async () => ({
     user: { id: 'user-1' },
-    supabase: {},
+    db: apiUtilsModule.getSystemAdminClient(),
+    supabase: apiUtilsModule.getSystemAdminClient(),
   });
   featureUtilsModule.ensureFeatureRouteEnabled = async () => null;
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
@@ -203,7 +204,8 @@ test('knowledge-base archive route should continue fetching batches for deep off
 
   apiUtilsModule.requireUserContext = async () => ({
     user: { id: 'user-1' },
-    supabase: {},
+    db: apiUtilsModule.getSystemAdminClient(),
+    supabase: apiUtilsModule.getSystemAdminClient(),
   });
   featureUtilsModule.ensureFeatureRouteEnabled = async () => null;
   apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
@@ -377,6 +379,86 @@ test('knowledge-base archive route should continue fetching batches for deep off
   assert.ok(virtualCalls.length >= 1);
 });
 
+test('knowledge-base archive delete route should return kb/source metadata for client-side sync events', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/knowledge-base/archive/[id]/route');
+
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const originalJsonOk = apiUtilsModule.jsonOk;
+  const originalJsonError = apiUtilsModule.jsonError;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    db: apiUtilsModule.getSystemAdminClient(),
+    supabase: apiUtilsModule.getSystemAdminClient(),
+  });
+  apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
+  apiUtilsModule.jsonError = (message: string, status = 400) => Response.json({ error: message }, { status });
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from(table: string) {
+      if (table !== 'archived_sources') {
+        throw new Error(`Unexpected table: ${table}`);
+      }
+      return {
+        select() {
+          return {
+            eq() {
+              return {
+                eq() {
+                  return {
+                    maybeSingle: async () => ({
+                      data: {
+                        id: 'archive-1',
+                        kb_id: 'kb-1',
+                        source_type: 'conversation',
+                        source_id: 'conv-1',
+                      },
+                      error: null,
+                    }),
+                  };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+    rpc(fn: string, args: Record<string, unknown>) {
+      assert.equal(fn, 'kb_unarchive_source_as_service');
+      assert.deepEqual(args, {
+        p_user_id: 'user-1',
+        p_kb_id: 'kb-1',
+        p_source_type: 'conversation',
+        p_source_id: 'conv-1',
+      });
+      return Promise.resolve({ data: true, error: null });
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    apiUtilsModule.jsonOk = originalJsonOk;
+    apiUtilsModule.jsonError = originalJsonError;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/knowledge-base/archive/[id]/route') as typeof import('../app/api/knowledge-base/archive/[id]/route');
+  const response = await routeModule.DELETE(
+    new NextRequest('http://localhost/api/knowledge-base/archive/archive-1'),
+    { params: Promise.resolve({ id: 'archive-1' }) },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.success, true);
+  assert.equal(payload.kbId, 'kb-1');
+  assert.equal(payload.sourceType, 'conversation');
+  assert.equal(payload.sourceId, 'conv-1');
+});
+
 test('knowledge-base archive DELETE should unarchive through transactional rpc', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const originalRequireUserContext = apiUtilsModule.requireUserContext;
@@ -386,7 +468,8 @@ test('knowledge-base archive DELETE should unarchive through transactional rpc',
 
   apiUtilsModule.requireUserContext = async () => ({
     user: { id: 'user-1' },
-    supabase: {},
+    db: apiUtilsModule.getSystemAdminClient(),
+    supabase: apiUtilsModule.getSystemAdminClient(),
   });
   apiUtilsModule.getSystemAdminClient = () => ({
     rpc: (fn: string, args: Record<string, unknown>) => {

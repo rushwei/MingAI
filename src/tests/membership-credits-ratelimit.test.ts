@@ -62,7 +62,7 @@ test('buildMembershipInfo returns defaults for null source', () => {
     const info = buildMembershipInfo(null);
     assert.equal(info.type, 'free');
     assert.equal(info.isActive, true);
-    assert.equal(info.aiChatCount, 1);
+    assert.equal(info.aiChatCount, 0);
 });
 
 test('normalizeMembershipInfo converts serialized expiresAt back to Date', () => {
@@ -83,39 +83,44 @@ test('normalizeMembershipInfo converts serialized expiresAt back to Date', () =>
     assert.equal(info.aiChatCount, 12);
 });
 
-test('getUserAuthInfo returns null when DB query fails', async () => {
-    const supabaseServerModule = require('../lib/supabase-server') as any;
+test('getUserAuthInfo should throw explicit user-state errors when DB query fails', async () => {
+    const apiUtilsModule = require('../lib/api-utils') as any;
     const creditsModule = require('../lib/user/credits') as typeof import('../lib/user/credits');
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const creditsPath = require.resolve('../lib/user/credits');
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
 
-    supabaseServerModule.getSystemAdminClient = () => ({
+    apiUtilsModule.getSystemAdminClient = () => ({
         from: () => ({
             select: () => ({
                 eq: () => ({
-                    single: async () => ({ data: null, error: { message: 'connection refused' } }),
+                    maybeSingle: async () => ({ data: null, error: { message: 'connection refused' } }),
                 }),
             }),
         }),
     });
 
     try {
-        const result = await creditsModule.getUserAuthInfo('user-1');
-        assert.equal(result, null);
+        delete require.cache[creditsPath];
+        await assert.rejects(
+            () => creditsModule.getUserAuthInfo('user-1'),
+            /加载账户状态失败/u,
+        );
     } finally {
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
+        delete require.cache[creditsPath];
     }
 });
 
 test('getUserAuthInfo returns hasCredits=false when credits are 0', async () => {
-    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const apiUtilsModule = require('../lib/api-utils') as any;
     const creditsPath = require.resolve('../lib/user/credits');
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
 
-    supabaseServerModule.getSystemAdminClient = () => ({
+    apiUtilsModule.getSystemAdminClient = () => ({
         from: () => ({
             select: () => ({
                 eq: () => ({
-                    single: async () => ({
+                    maybeSingle: async () => ({
                         data: {
                             ai_chat_count: 0,
                             membership: 'free',
@@ -137,17 +142,17 @@ test('getUserAuthInfo returns hasCredits=false when credits are 0', async () => 
         assert.equal(result.credits, 0);
         assert.equal(result.effectiveMembership, 'free');
     } finally {
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
         delete require.cache[creditsPath];
     }
 });
 
 test('useCredit returns null when RPC fails', async () => {
-    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const apiUtilsModule = require('../lib/api-utils') as any;
     const creditsPath = require.resolve('../lib/user/credits');
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
 
-    supabaseServerModule.getSystemAdminClient = () => ({
+    apiUtilsModule.getSystemAdminClient = () => ({
         rpc: async () => ({ data: null, error: { message: 'rpc error' } }),
     });
 
@@ -157,7 +162,86 @@ test('useCredit returns null when RPC fails', async () => {
         const result = await useCredit('user-1');
         assert.equal(result, null);
     } finally {
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
+        delete require.cache[creditsPath];
+    }
+});
+
+test('attemptCreditUse maps post-deduction races back to insufficient credits', async () => {
+    const apiUtilsModule = require('../lib/api-utils') as any;
+    const creditsPath = require.resolve('../lib/user/credits');
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
+
+    apiUtilsModule.getSystemAdminClient = () => ({
+        rpc: async (fn: string) => {
+            if (fn === 'decrement_ai_chat_count') {
+                return { data: null, error: null };
+            }
+            throw new Error(`unexpected rpc ${fn}`);
+        },
+        from: () => ({
+            select: () => ({
+                eq: () => ({
+                    maybeSingle: async () => ({
+                        data: {
+                            ai_chat_count: 0,
+                            membership: 'free',
+                            membership_expires_at: null,
+                        },
+                        error: null,
+                    }),
+                }),
+            }),
+        }),
+    });
+
+    try {
+        delete require.cache[creditsPath];
+        const { attemptCreditUse } = require('../lib/user/credits') as typeof import('../lib/user/credits');
+        const result = await attemptCreditUse('user-1');
+        assert.deepEqual(result, {
+            ok: false,
+            reason: 'insufficient_credits',
+        });
+    } finally {
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
+        delete require.cache[creditsPath];
+    }
+});
+
+test('attemptCreditUse should keep rpc failures as deduction_failed even when balance is already 0', async () => {
+    const apiUtilsModule = require('../lib/api-utils') as any;
+    const creditsPath = require.resolve('../lib/user/credits');
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
+
+    apiUtilsModule.getSystemAdminClient = () => ({
+        rpc: async () => ({ data: null, error: { message: 'rpc unavailable' } }),
+        from: () => ({
+            select: () => ({
+                eq: () => ({
+                    maybeSingle: async () => ({
+                        data: {
+                            ai_chat_count: 0,
+                            membership: 'free',
+                            membership_expires_at: null,
+                        },
+                        error: null,
+                    }),
+                }),
+            }),
+        }),
+    });
+
+    try {
+        delete require.cache[creditsPath];
+        const { attemptCreditUse } = require('../lib/user/credits') as typeof import('../lib/user/credits');
+        const result = await attemptCreditUse('user-1');
+        assert.deepEqual(result, {
+            ok: false,
+            reason: 'deduction_failed',
+        });
+    } finally {
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
         delete require.cache[creditsPath];
     }
 });

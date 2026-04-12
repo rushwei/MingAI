@@ -229,6 +229,89 @@ test('records PUT togglePin should return 404 when transactional rpc reports not
   assert.equal(payload.error, '记录不存在');
 });
 
+test('records DELETE should return 404 when no user-owned row is deleted', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/records/[id]/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      from: () => ({
+        delete: () => ({
+          eq: () => ({
+            eq: () => ({
+              select: async () => ({ data: [], error: null }),
+            }),
+          }),
+        }),
+      }),
+    },
+  });
+  delete require.cache[routePath];
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    delete require.cache[routePath];
+  });
+
+  const { DELETE } = await import('../app/api/records/[id]/route');
+  const response = await DELETE(new NextRequest('http://localhost/api/records/missing', {
+    method: 'DELETE',
+  }), {
+    params: Promise.resolve({ id: 'missing' }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(payload.error, '记录不存在');
+});
+
+test('knowledge-base DELETE should return 404 when no user-owned row is deleted', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const featureGateModule = require('../lib/feature-gate-utils') as any;
+  const routePath = require.resolve('../app/api/knowledge-base/[id]/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const originalEnsureFeatureRouteEnabled = featureGateModule.ensureFeatureRouteEnabled;
+
+  featureGateModule.ensureFeatureRouteEnabled = async () => null;
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {},
+  });
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: () => ({
+      delete: () => ({
+        eq: () => ({
+          eq: () => ({
+            select: async () => ({ data: [], error: null }),
+          }),
+        }),
+      }),
+    }),
+  });
+  delete require.cache[routePath];
+
+  t.after(() => {
+    featureGateModule.ensureFeatureRouteEnabled = originalEnsureFeatureRouteEnabled;
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    delete require.cache[routePath];
+  });
+
+  const { DELETE } = await import('../app/api/knowledge-base/[id]/route');
+  const response = await DELETE(new NextRequest('http://localhost/api/knowledge-base/missing', {
+    method: 'DELETE',
+  }), {
+    params: Promise.resolve({ id: 'missing' }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(payload.error, '知识库不存在');
+});
+
 test('community reports POST should submit and notify via transactional rpc', async (t) => {
   const apiUtils = require('../lib/api-utils') as {
     requireUserContext: typeof import('../lib/api-utils').requireUserContext;
@@ -457,10 +540,14 @@ test('checkin route should return structured status when the user already checke
   const apiUtilsModule = require('../lib/api-utils') as any;
   const checkinModule = require('../lib/user/checkin') as any;
   const routePath = require.resolve('../app/api/checkin/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
   const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
   const originalPerformCheckin = checkinModule.performCheckin;
 
-  apiUtilsModule.requireBearerUser = async () => ({ user: { id: 'user-1' } });
+  apiUtilsModule.requireUserContext = async () => ({ user: { id: 'user-1' } });
+  apiUtilsModule.requireBearerUser = async () => {
+    throw new Error('checkin route should not use requireBearerUser');
+  };
   checkinModule.performCheckin = async () => ({
     success: false,
     rewardCredits: 0,
@@ -470,6 +557,7 @@ test('checkin route should return structured status when the user already checke
   delete require.cache[routePath];
 
   t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
     apiUtilsModule.requireBearerUser = originalRequireBearerUser;
     checkinModule.performCheckin = originalPerformCheckin;
     delete require.cache[routePath];
@@ -493,10 +581,14 @@ test('checkin route should return structured cap details when credits are full',
   const apiUtilsModule = require('../lib/api-utils') as any;
   const checkinModule = require('../lib/user/checkin') as any;
   const routePath = require.resolve('../app/api/checkin/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
   const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
   const originalPerformCheckin = checkinModule.performCheckin;
 
-  apiUtilsModule.requireBearerUser = async () => ({ user: { id: 'user-1' } });
+  apiUtilsModule.requireUserContext = async () => ({ user: { id: 'user-1' } });
+  apiUtilsModule.requireBearerUser = async () => {
+    throw new Error('checkin route should not use requireBearerUser');
+  };
   checkinModule.performCheckin = async () => ({
     success: false,
     rewardCredits: 0,
@@ -508,6 +600,7 @@ test('checkin route should return structured cap details when credits are full',
   delete require.cache[routePath];
 
   t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
     apiUtilsModule.requireBearerUser = originalRequireBearerUser;
     checkinModule.performCheckin = originalPerformCheckin;
     delete require.cache[routePath];
@@ -526,6 +619,125 @@ test('checkin route should return structured cap details when credits are full',
   assert.equal(payload.data.result.blockedReason, 'credit_cap_reached');
   assert.equal(payload.data.result.credits, 20);
   assert.equal(payload.data.result.creditLimit, 20);
+});
+
+test('checkin route should return 500 when performCheckin reports a system failure', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const checkinModule = require('../lib/user/checkin') as any;
+  const routePath = require.resolve('../app/api/checkin/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalPerformCheckin = checkinModule.performCheckin;
+
+  apiUtilsModule.requireUserContext = async () => ({ user: { id: 'user-1' } });
+  checkinModule.performCheckin = async () => ({
+    success: false,
+    rewardCredits: 0,
+    errorType: 'system',
+    error: '签到失败，请稍后重试',
+  });
+  delete require.cache[routePath];
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    checkinModule.performCheckin = originalPerformCheckin;
+    delete require.cache[routePath];
+  });
+
+  const { POST } = await import('../app/api/checkin/route');
+  const response = await POST(new NextRequest('http://localhost/api/checkin', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer token',
+    },
+  }));
+  const payload = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.equal(payload.error, '签到失败，请稍后重试');
+});
+
+test('credits transactions GET should use user context and preserve today spend summary', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/credits/transactions/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'credit_transactions');
+        return {
+          select(columns: string) {
+            if (columns === 'amount') {
+              return {
+                eq() {
+                  return this;
+                },
+                lt(column: string) {
+                  if (column === 'created_at') {
+                    return Promise.resolve({
+                      data: [{ amount: -2 }, { amount: -3 }],
+                      error: null,
+                    });
+                  }
+                  return this;
+                },
+                gte() {
+                  return this;
+                },
+              };
+            }
+
+            return {
+              eq() {
+                return this;
+              },
+              order() {
+                return this;
+              },
+              limit: async () => ({
+                data: [
+                  {
+                    id: 'txn-1',
+                    amount: -2,
+                    type: 'spend',
+                    source: 'ai_usage',
+                    description: 'AI 消费',
+                    balance_after: 8,
+                    reference_type: null,
+                    reference_id: null,
+                    metadata: null,
+                    created_at: '2026-04-11T00:00:00.000Z',
+                  },
+                ],
+                error: null,
+              }),
+            };
+          },
+        };
+      },
+    },
+  });
+  apiUtilsModule.requireBearerUser = async () => {
+    throw new Error('credits transactions route should not use requireBearerUser');
+  };
+  delete require.cache[routePath];
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.requireBearerUser = originalRequireBearerUser;
+    delete require.cache[routePath];
+  });
+
+  const { GET } = await import('../app/api/credits/transactions/route');
+  const response = await GET(new NextRequest('http://localhost/api/credits/transactions?limit=5'));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(Array.isArray(payload.items), true);
+  assert.equal(payload.items.length, 1);
+  assert.equal(payload.summary.todaySpent, 5);
 });
 
 test('getCheckinStatus should keep the full reward range while the user is still below the cap', async (t) => {
@@ -600,6 +812,57 @@ test('checkin over-cap migration should drop achievements and keep the full rewa
   assert.match(sql, /v_new_credits := v_current_credits \+ v_reward_credits;/u);
 });
 
+test('admin-session rpc alignment migration should grant authenticated access to internal service rpcs', () => {
+  const sql = fs.readFileSync(
+    'supabase/migrations/20260411_103500_align_admin_session_service_rpcs.sql',
+    'utf8',
+  );
+
+  assert.match(sql, /record_credit_transaction/u);
+  assert.match(sql, /decrement_ai_chat_count/u);
+  assert.match(sql, /increment_ai_chat_count/u);
+  assert.match(sql, /activate_key_as_service/u);
+  assert.match(sql, /perform_daily_checkin_as_service/u);
+  assert.match(sql, /claim_linuxdo_membership_as_service/u);
+  assert.match(sql, /batch_update_vectors_as_service/u);
+  assert.match(sql, /IF NOT public\.is_admin_user\(\) THEN/u);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.perform_daily_checkin_as_service\(uuid\) TO authenticated, service_role;/u);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.claim_linuxdo_membership_as_service\(uuid, text, integer, text\) TO authenticated, service_role;/u);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.activate_key_as_service\(uuid, text\) TO authenticated, service_role;/u);
+});
+
+test('batch vector service migration should restore the function for admin-session clients', () => {
+  const sql = fs.readFileSync(
+    'supabase/migrations/20260411_104200_restore_batch_update_vectors_as_service.sql',
+    'utf8',
+  );
+
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.batch_update_vectors_as_service/u);
+  assert.match(sql, /IF NOT public\.is_admin_user\(\) THEN/u);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.batch_update_vectors_as_service\(jsonb, uuid, integer, boolean\) TO authenticated, service_role;/u);
+});
+
+test('admin-session acl tightening migration should revoke anon access from server-only rpc functions', () => {
+  const sql = fs.readFileSync(
+    'supabase/migrations/20260411_111500_restrict_admin_session_rpc_acl.sql',
+    'utf8',
+  );
+
+  assert.match(sql, /admin_list_mcp_keys/u);
+  assert.match(sql, /admin_revoke_mcp_key/u);
+  assert.match(sql, /admin_unban_mcp_key/u);
+  assert.match(sql, /mcp_reset_key/u);
+  assert.match(sql, /mcp_exchange_authorization_code/u);
+  assert.match(sql, /mcp_rotate_refresh_token/u);
+  assert.match(sql, /mcp_verify_api_key/u);
+  assert.match(sql, /mcp_touch_key_last_used/u);
+  assert.match(sql, /consume_rate_limit_slot_as_admin/u);
+  assert.match(sql, /process_scheduled_reminder_delivery_as_service/u);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.mcp_verify_api_key\(text\) FROM public, anon, authenticated;/u);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.mcp_verify_api_key\(text\) TO authenticated, service_role;/u);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.process_scheduled_reminder_delivery_as_service\(uuid, timestamptz, text, text, text\) FROM public, anon, authenticated;/u);
+});
+
 test('checkRateLimit should use transactional rpc result', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const rateLimitPath = require.resolve('../lib/rate-limit');
@@ -629,7 +892,7 @@ test('checkRateLimit should use transactional rpc result', async (t) => {
     delete require.cache[rateLimitPath];
   });
 
-  const result = await checkRateLimit('127.0.0.1', '/api/chat/title', {
+  const result = await checkRateLimit('127.0.0.1', '/api/chat/direct/prepare', {
     maxRequests: 10,
     windowMs: 60_000,
   });
@@ -637,7 +900,7 @@ test('checkRateLimit should use transactional rpc result', async (t) => {
   assert.equal(rpcCall?.fn, 'consume_rate_limit_slot_as_admin');
   assert.deepEqual(rpcCall?.args, {
     p_identifier: '127.0.0.1',
-    p_endpoint: '/api/chat/title',
+    p_endpoint: '/api/chat/direct/prepare',
     p_max_requests: 10,
     p_window_ms: 60_000,
   });
@@ -668,7 +931,7 @@ test('checkRateLimit should fail open when transactional rpc errors', async (t) 
     delete require.cache[rateLimitPath];
   });
 
-  const result = await checkRateLimit('127.0.0.1', '/api/chat/title', {
+  const result = await checkRateLimit('127.0.0.1', '/api/chat/direct/prepare', {
     maxRequests: 10,
     windowMs: 60_000,
   });
@@ -677,45 +940,154 @@ test('checkRateLimit should fail open when transactional rpc errors', async (t) 
   assert.equal(result.remaining, 10);
 });
 
-test('mbti history DELETE should delete through transactional rpc', async (t) => {
+test('mbti save should persist through shared save helper and return reading id', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
-  const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
-  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const supabaseServerModule = require('../lib/supabase-server') as any;
+  const routePath = require.resolve('../app/api/mbti/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = supabaseServerModule.getSystemAdminClient;
 
-  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
+  let insertedPayload: Record<string, unknown> | null = null;
 
-  apiUtilsModule.requireBearerUser = async () => ({ user: { id: 'user-1' } });
-  apiUtilsModule.getSystemAdminClient = () => ({
-    rpc: (fn: string, args: Record<string, unknown>) => {
-      rpcCall = { fn, args };
-      return Promise.resolve({ data: true, error: null });
-    },
-    from: () => {
-      throw new Error('table fallback should not be used');
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {},
+  });
+  supabaseServerModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      assert.equal(table, 'mbti_readings');
+      return {
+        insert: (payload: Record<string, unknown>) => {
+          insertedPayload = payload;
+          return {
+            select: () => ({
+              single: async () => ({
+                data: { id: 'reading-1' },
+                error: null,
+              }),
+            }),
+          };
+        },
+      };
     },
   });
+  delete require.cache[routePath];
 
   t.after(() => {
-    apiUtilsModule.requireBearerUser = originalRequireBearerUser;
-    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    supabaseServerModule.getSystemAdminClient = originalGetSystemAdminClient;
+    delete require.cache[routePath];
   });
 
-  const { DELETE } = await import('../app/api/mbti/history/route');
-  const response = await DELETE(new NextRequest('http://localhost/api/mbti/history', {
-    method: 'DELETE',
-    headers: {
-      Authorization: 'Bearer token',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ id: 'mbti-1' }),
+  const { POST } = await import('../app/api/mbti/route');
+  const response = await POST(new NextRequest('http://localhost/api/mbti', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'save',
+      type: 'INTJ',
+      scores: { E: 1, I: 2, S: 3, N: 4, T: 5, F: 6, J: 7, P: 8 },
+      percentages: {
+        EI: { E: 40, I: 60 },
+        SN: { S: 45, N: 55 },
+        TF: { T: 52, F: 48 },
+        JP: { J: 51, P: 49 },
+      },
+    }),
   }));
   const payload = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(rpcCall?.fn, 'delete_mbti_history_item_and_conversation_as_service');
-  assert.deepEqual(rpcCall?.args, {
-    p_history_id: 'mbti-1',
-    p_user_id: 'user-1',
+  assert.equal(payload.data.readingId, 'reading-1');
+  assert.deepEqual(insertedPayload, {
+    user_id: 'user-1',
+    mbti_type: 'INTJ',
+    scores: { E: 1, I: 2, S: 3, N: 4, T: 5, F: 6, J: 7, P: 8 },
+    percentages: {
+      EI: { E: 40, I: 60 },
+      SN: { S: 45, N: 55 },
+      TF: { T: 52, F: 48 },
+      JP: { J: 51, P: 49 },
+    },
   });
-  assert.equal(payload.success, true);
+});
+
+test('daliuren save should persist through shared save helper and return divination id', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const supabaseServerModule = require('../lib/supabase-server') as any;
+  const routePath = require.resolve('../app/api/daliuren/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = supabaseServerModule.getSystemAdminClient;
+  const { calculateDaliuren } = await import('@mingai/core');
+
+  let insertedPayload: Record<string, unknown> | null = null;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {},
+  });
+  supabaseServerModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      assert.equal(table, 'daliuren_divinations');
+      return {
+        insert: (payload: Record<string, unknown>) => {
+          insertedPayload = payload;
+          return {
+            select: () => ({
+              single: async () => ({
+                data: { id: 'divination-1' },
+                error: null,
+              }),
+            }),
+          };
+        },
+      };
+    },
+  });
+  delete require.cache[routePath];
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    supabaseServerModule.getSystemAdminClient = originalGetSystemAdminClient;
+    delete require.cache[routePath];
+  });
+
+  const resultData = calculateDaliuren({
+    date: '2025-01-15',
+    hour: 10,
+    minute: 30,
+    timezone: 'Asia/Shanghai',
+    question: '测试问题',
+  });
+
+  const { POST } = await import('../app/api/daliuren/route');
+  const response = await POST(new NextRequest('http://localhost/api/daliuren', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'save',
+      date: '2025-01-15',
+      hour: 10,
+      minute: 30,
+      timezone: 'Asia/Shanghai',
+      question: '测试问题',
+      resultData,
+    }),
+  }));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.data.divinationId, 'divination-1');
+  assert.equal(insertedPayload?.user_id, 'user-1');
+  assert.equal(insertedPayload?.question, '测试问题');
+  assert.equal(insertedPayload?.solar_date, '2025-01-15');
+  assert.deepEqual(insertedPayload?.settings, {
+    hour: 10,
+    minute: 30,
+    timezone: 'Asia/Shanghai',
+  });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(insertedPayload?.result_data)),
+    JSON.parse(JSON.stringify(resultData)),
+  );
 });

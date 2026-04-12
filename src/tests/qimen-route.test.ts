@@ -6,27 +6,79 @@ import { createMockUIMessageResult } from './helpers/ui-message-result';
 
 ensureRouteTestEnv();
 
+function mockQimenUserContext(
+    t: import('node:test').TestContext,
+    client: Record<string, unknown> = {},
+) {
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const routePath = require.resolve('../app/api/qimen/route');
+    const pipelinePath = require.resolve('../lib/api/divination-pipeline');
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+    apiUtilsModule.requireUserContext = async () => ({
+        user: { id: 'user-1' },
+        db: client,
+        supabase: client,
+        accessToken: 'test-token',
+    }) as Awaited<ReturnType<typeof import('../lib/api-utils').requireUserContext>>;
+
+    delete require.cache[routePath];
+    delete require.cache[pipelinePath];
+
+    t.after(() => {
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
+        delete require.cache[routePath];
+        delete require.cache[pipelinePath];
+    });
+}
+
 test('qimen route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const supabaseModule = require('../lib/auth') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
 
     let createArgs: Record<string, unknown> | null = null;
 
+    mockQimenUserContext(t, {
+        from() {
+            throw new Error('qimen history test should not query tables directly');
+        },
+        rpc() {
+            throw new Error('qimen history test should not call rpc directly');
+        },
+    });
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
         createArgs = params;
         return 'conv-1';
     };
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
         error: null,
@@ -34,9 +86,11 @@ test('qimen route persists analysis after streaming completes', async (t) => {
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         supabaseModule.supabase.auth.getUser = originalGetUser;
     });
 
@@ -77,22 +131,48 @@ test('qimen route persists analysis after streaming completes', async (t) => {
 
 test('qimen route surfaces SSE error when stream persistence fails after content generation', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const supabaseModule = require('../lib/auth') as any;
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalConsoleError = console.error;
 
+    mockQimenUserContext(t, {
+        from() {
+            throw new Error('qimen history test should not query tables directly');
+        },
+        rpc() {
+            throw new Error('qimen history test should not call rpc directly');
+        },
+    });
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
     aiAnalysisModule.createAIAnalysisConversation = async () => {
         throw new Error('persist failed');
     };
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
         error: null,
@@ -101,9 +181,11 @@ test('qimen route surfaces SSE error when stream persistence fails after content
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         console.error = originalConsoleError;
     });
@@ -142,18 +224,8 @@ test('qimen route surfaces SSE error when stream persistence fails after content
 });
 
 test('qimen save persists base inputs instead of chart_data', async (t) => {
-    const supabaseModule = require('../lib/auth') as any;
-    const supabaseServerModule = require('../lib/supabase-server') as any;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
     let insertedPayload: Record<string, unknown> | null = null;
-
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: (table: string) => {
             assert.equal(table, 'qimen_charts');
             return {
@@ -170,12 +242,9 @@ test('qimen save persists base inputs instead of chart_data', async (t) => {
                 },
             };
         },
-    });
+    };
 
-    t.after(() => {
-        supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
-    });
+    mockQimenUserContext(t, authClient);
 
     const { POST } = await import('../app/api/qimen/route');
     const request = new NextRequest('http://localhost/api/qimen', {

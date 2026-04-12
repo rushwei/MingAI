@@ -72,6 +72,82 @@ mustNotExist('src/lib/data-sources/init.ts', 'data source side-effect init shoul
 mustNotExist('src/lib/divination/qimen-shared.ts', 'legacy qimen shared adapter should stay removed');
 mustNotExist('src/lib/divination/liuyao-traditional.ts', 'legacy liuyao traditional adapter should stay removed');
 mustNotExist('src/app/api/notifications/launch/route.ts', 'legacy notifications launch route should stay removed after announcement split');
+mustNotExist('src/app/api/mbti/history/route.ts', 'legacy mbti history route should stay removed after history-summaries migration');
+mustNotExist('src/app/api/chat/title/route.ts', 'legacy chat title route should stay removed after draft-title convergence');
+mustNotExist('src/lib/title-utils.ts', 'legacy title helper should stay removed after draft-title convergence');
+mustNotExist('src/lib/user-charts.ts', 'duplicate chart browser helper should stay removed after charts-client convergence');
+mustNotExist('src/app/admin/payment/page.tsx', 'legacy admin payment entry should stay removed after settings-center convergence');
+mustNotExist('src/app/user/orders/page.tsx', 'legacy user orders entry should stay removed after membership-center convergence');
+mustNotExist('src/app/user/settings/ai/page.tsx', 'legacy ai-settings alias page should stay removed after route convergence');
+
+for (const file of [
+  'src/app/api/activation-keys/route.ts',
+  'src/app/api/mbti/route.ts',
+  'src/app/api/hepan/route.ts',
+  'src/app/api/qimen/route.ts',
+  'src/app/api/liuyao/route.ts',
+  'src/app/api/tarot/route.ts',
+  'src/app/api/daliuren/route.ts',
+  'src/app/api/palm/route.ts',
+  'src/app/api/face/route.ts',
+]) {
+  mustNotMatch(
+    file,
+    /requireBearerUser\(/u,
+    'browser-driven routes should not require bearer-only auth',
+  );
+}
+
+for (const file of [
+  'src/app/api/mbti/route.ts',
+  'src/app/api/hepan/route.ts',
+  'src/app/api/qimen/route.ts',
+  'src/app/api/liuyao/route.ts',
+  'src/app/api/tarot/route.ts',
+  'src/app/api/daliuren/route.ts',
+  'src/app/api/palm/route.ts',
+  'src/app/api/face/route.ts',
+]) {
+  mustMatch(
+    file,
+    /authMethod:\s*'userContext'/u,
+    'browser-driven divination routes should opt into cookie-compatible userContext auth',
+  );
+}
+
+mustNotMatch(
+  'src/app/api/mbti/route.ts',
+  /action === 'history'|action:\s*'[^']*history[^']*'/u,
+  'mbti route should not keep the legacy history action',
+);
+
+for (const file of [
+  'src/app/user/settings/page.tsx',
+  'src/app/user/annual-report/page.tsx',
+  'src/app/bazi/result/page.tsx',
+  'src/app/ziwei/result/page.tsx',
+  'src/app/user/knowledge-base/page.tsx',
+  'src/app/records/page.tsx',
+  'src/app/user/mcp/page.tsx',
+  'src/app/user/profile/page.tsx',
+  'src/components/knowledge-base/AddToKnowledgeBaseModal.tsx',
+  'src/components/chat/composer/useComposerState.ts',
+  'src/components/daily/DailyAIChat.tsx',
+  'src/lib/chat/use-chat-messaging.ts',
+  'src/lib/auth.ts',
+  'src/components/admin/FeatureTogglePanel.tsx',
+  'src/components/admin/KeyManagementPanel.tsx',
+  'src/components/admin/AIModelPanel.tsx',
+  'src/components/admin/McpKeyManagementPanel.tsx',
+  'src/components/admin/AnnouncementManagementPanel.tsx',
+  'src/components/admin/AIGatewayPanel.tsx',
+]) {
+  mustNotMatch(
+    file,
+    /Bearer\s*\$\{/u,
+    'browser code should rely on same-origin cookies instead of interpolated bearer headers',
+  );
+}
 
 mustMatch(
   'src/app/api/auth/route.ts',
@@ -91,7 +167,7 @@ mustNotMatch(
 
 mustMatch(
   'src/lib/api-utils.ts',
-  /const authResult = await requireUserContext\(request\);/u,
+  /const authResult = dependencies\.userContext \?\? await requireUserContext\(request\);/u,
   'requireAdminUser should be based on requireUserContext',
 );
 mustNotMatch(
@@ -384,6 +460,11 @@ mustNotMatch(
   'src/lib/user/membership.ts',
   /supabase\s*\.\s*from\s*\(/m,
   'browser membership helpers should not write tables directly',
+);
+mustNotMatch(
+  'src/lib/navigation/registry.ts',
+  /NAV_TO_FEATURE_ID/u,
+  'navigation registry should not re-export the removed NAV_TO_FEATURE_ID shim',
 );
 mustMatch(
   'src/lib/user/settings.ts',

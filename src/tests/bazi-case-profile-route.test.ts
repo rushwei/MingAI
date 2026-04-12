@@ -15,7 +15,8 @@ test('bazi case profile GET returns current profile with events for owned chart'
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
-        supabase: {},
+        db: apiUtils.getSystemAdminClient(),
+        supabase: apiUtils.getSystemAdminClient(),
     })) as unknown as typeof apiUtils.requireUserContext;
 
     apiUtils.getSystemAdminClient = (() => ({
@@ -157,7 +158,8 @@ test('bazi case profile PUT rejects invalid enumerated values like strengthLevel
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
-        supabase: {},
+        db: apiUtils.getSystemAdminClient(),
+        supabase: apiUtils.getSystemAdminClient(),
     })) as unknown as typeof apiUtils.requireUserContext;
 
     apiUtils.getSystemAdminClient = (() => ({
@@ -239,7 +241,8 @@ test('bazi case profile PUT accepts custom family and temperament tags', async (
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
-        supabase: {},
+        db: apiUtils.getSystemAdminClient(),
+        supabase: apiUtils.getSystemAdminClient(),
     })) as unknown as typeof apiUtils.requireUserContext;
 
     apiUtils.getSystemAdminClient = (() => ({

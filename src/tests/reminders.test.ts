@@ -96,6 +96,104 @@ test('pruneExpiredNotifications should delete in a single query and return delet
     assert.equal(deleted, 2);
 });
 
+test('getReminderSubscriptions should throw instead of masquerading as an empty list on read failure', async (t) => {
+    const apiUtilsModule = require('../lib/api-utils') as any;
+    const remindersPath = require.resolve('../lib/reminders');
+    const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+    apiUtilsModule.getSystemAdminClient = () => ({
+        from(table: string) {
+            assert.equal(table, 'reminder_subscriptions');
+            return {
+                select() {
+                    return {
+                        eq: async () => ({
+                            data: null,
+                            error: { message: 'db timeout' },
+                        }),
+                    };
+                },
+            };
+        },
+    });
+
+    t.after(() => {
+        apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+        delete require.cache[remindersPath];
+    });
+
+    delete require.cache[remindersPath];
+    const { ReminderReadError, getReminderSubscriptions } = require('../lib/reminders') as typeof import('../lib/reminders');
+
+    await assert.rejects(
+        () => getReminderSubscriptions('user-1'),
+        (error: unknown) => error instanceof ReminderReadError && error.message === '获取提醒订阅失败',
+    );
+});
+
+test('isSubscribed should throw instead of returning false when user-settings reads fail', async (t) => {
+    const apiUtilsModule = require('../lib/api-utils') as any;
+    const remindersPath = require.resolve('../lib/reminders');
+    const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+    apiUtilsModule.getSystemAdminClient = () => ({
+        from(table: string) {
+            if (table === 'reminder_subscriptions') {
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: { enabled: true, notify_site: true },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === 'user_settings') {
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    maybeSingle: async () => ({
+                                        data: null,
+                                        error: { message: 'settings read failed' },
+                                    }),
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            throw new Error(`unexpected table: ${table}`);
+        },
+    });
+
+    t.after(() => {
+        apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+        delete require.cache[remindersPath];
+    });
+
+    delete require.cache[remindersPath];
+    const { ReminderReadError, isSubscribed } = require('../lib/reminders') as typeof import('../lib/reminders');
+
+    await assert.rejects(
+        () => isSubscribed('user-1', 'fortune'),
+        (error: unknown) => error instanceof ReminderReadError && error.message === '获取通知偏好失败',
+    );
+});
+
 function createReminderServiceMock(options: {
     reminder: Record<string, unknown>;
     statuses: Array<'sent' | 'skipped' | 'not_claimed'>;

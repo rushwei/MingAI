@@ -99,7 +99,9 @@ function setupRouteMocks(
     const originalCallAIStream = aiModule.callAIStream;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalGetUserAuthInfo = creditsModule.getUserAuthInfo;
+    const originalAttemptCreditUse = creditsModule.attemptCreditUse;
     const originalUseCredit = creditsModule.useCredit;
+    const originalRefundCreditsOrLog = creditsModule.refundCreditsOrLog;
     const originalAddCredits = creditsModule.addCredits;
     const originalGetModelConfigAsync = aiConfigServerModule.getModelConfigAsync;
     const originalGetDefaultModelConfigAsync = aiConfigServerModule.getDefaultModelConfigAsync;
@@ -164,9 +166,20 @@ function setupRouteMocks(
         state.useCreditCalls += 1;
         return 0;
     };
+    creditsModule.attemptCreditUse = async () => {
+        state.useCreditCalls += 1;
+        return {
+            ok: true,
+            remaining: 0,
+        };
+    };
     creditsModule.addCredits = async () => {
         state.addCreditCalls += 1;
         return 1;
+    };
+    creditsModule.refundCreditsOrLog = async () => {
+        state.addCreditCalls += 1;
+        return true;
     };
 
     const mockModelConfig = {
@@ -264,7 +277,9 @@ function setupRouteMocks(
         aiModule.callAIStream = originalCallAIStream;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         creditsModule.getUserAuthInfo = originalGetUserAuthInfo;
+        creditsModule.attemptCreditUse = originalAttemptCreditUse;
         creditsModule.useCredit = originalUseCredit;
+        creditsModule.refundCreditsOrLog = originalRefundCreditsOrLog;
         creditsModule.addCredits = originalAddCredits;
         aiConfigServerModule.getModelConfigAsync = originalGetModelConfigAsync;
         aiConfigServerModule.getDefaultModelConfigAsync = originalGetDefaultModelConfigAsync;
@@ -415,9 +430,12 @@ test('chat route rejects streamed requests when upfront credit deduction fails',
     ]);
     const state = setupRouteMocks(t, streamBody);
     const creditsModule = require('../lib/user/credits') as any;
-    creditsModule.useCredit = async () => {
+    creditsModule.attemptCreditUse = async () => {
         state.useCreditCalls += 1;
-        return null;
+        return {
+            ok: false,
+            reason: 'deduction_failed',
+        };
     };
 
     const { POST } = await import('../app/api/chat/route');

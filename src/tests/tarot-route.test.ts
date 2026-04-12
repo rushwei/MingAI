@@ -6,26 +6,70 @@ import { createMockUIMessageResult } from './helpers/ui-message-result';
 
 ensureRouteTestEnv();
 
+function createTarotAuthContext(
+    client: Record<string, unknown> = {},
+    userId: string | null = 'user-1',
+) {
+    return {
+        user: userId ? { id: userId } : null,
+        db: client,
+        supabase: client,
+        accessToken: userId ? 'test-token' : null,
+        authError: null,
+    };
+}
+
+function mockTarotUserContext(
+    t: import('node:test').TestContext,
+    client: Record<string, unknown> = {},
+    userId = 'user-1',
+) {
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const routePath = require.resolve('../app/api/tarot/route');
+    const pipelinePath = require.resolve('../lib/api/divination-pipeline');
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+    apiUtilsModule.requireUserContext = async () =>
+        createTarotAuthContext(client, userId) as Awaited<ReturnType<typeof import('../lib/api-utils').requireUserContext>>;
+
+    delete require.cache[routePath];
+    delete require.cache[pipelinePath];
+
+    t.after(() => {
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
+        delete require.cache[routePath];
+        delete require.cache[pipelinePath];
+    });
+}
+
 test('tarot route uses schema column names when inserting history', async (t) => {
     const credits = require('../lib/user/credits') as any;
     const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/auth') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const consoleCapture = captureConsoleErrors();
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
     const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalFetch = global.fetch;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
 
     let createArgs: Record<string, unknown> | null = null;
 
+    mockTarotUserContext(t, {
+        from() {
+            throw new Error('tarot interpret test should not query tables directly');
+        },
+        rpc() {
+            throw new Error('tarot interpret test should not call rpc directly');
+        },
+    });
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
     aiAccessModule.resolveModelAccessAsync = async () => ({
         modelId: 'test-model',
         modelConfig: { id: 'test-model' },
@@ -39,10 +83,7 @@ test('tarot route uses schema column names when inserting history', async (t) =>
         createArgs = params;
         return 'conv-1';
     };
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     global.fetch = async () => Response.json({
         choices: [{ index: 0, message: { content: 'analysis' } }],
     });
@@ -50,11 +91,11 @@ test('tarot route uses schema column names when inserting history', async (t) =>
     t.after(() => {
         consoleCapture.restore();
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
         aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIWithReasoning = originalCallAIWithReasoning;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
-        supabaseModule.supabase.auth.getUser = originalGetUser;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         global.fetch = originalFetch;
     });
 
@@ -104,35 +145,56 @@ test('tarot route uses schema column names when inserting history', async (t) =>
 
 test('tarot route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/auth') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
 
     let createArgs: Record<string, unknown> | null = null;
 
+    mockTarotUserContext(t, {
+        from() {
+            throw new Error('tarot stream test should not query tables directly');
+        },
+        rpc() {
+            throw new Error('tarot stream test should not call rpc directly');
+        },
+    });
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
         createArgs = params;
         return 'conv-1';
     };
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
-        supabaseModule.supabase.auth.getUser = originalGetUser;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
     });
 
     const { POST } = await import('../app/api/tarot/route');
@@ -174,34 +236,55 @@ test('tarot route persists analysis after streaming completes', async (t) => {
 
 test('tarot route surfaces SSE error when stream persistence fails after content generation', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/auth') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalConsoleError = console.error;
 
+    mockTarotUserContext(t, {
+        from() {
+            throw new Error('tarot stream test should not query tables directly');
+        },
+        rpc() {
+            throw new Error('tarot stream test should not call rpc directly');
+        },
+    });
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
     aiAnalysisModule.createAIAnalysisConversation = async () => {
         throw new Error('persist failed');
     };
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     console.error = () => {};
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
-        supabaseModule.supabase.auth.getUser = originalGetUser;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         console.error = originalConsoleError;
     });
 
@@ -253,23 +336,13 @@ test('tarot route returns 400 for invalid timezone on GET daily requests', async
 
 test('tarot route returns numerology on draw-only and persists birth metadata on save', async (t) => {
     const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const routePath = require.resolve('../app/api/tarot/route');
+    const pipelinePath = require.resolve('../lib/api/divination-pipeline');
     const originalGetAuthContext = apiUtilsModule.getAuthContext;
-    const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
-    const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
 
     let inserted: Record<string, unknown> | null = null;
-
-    apiUtilsModule.getAuthContext = async () => ({
-        user: null,
-        session: null,
-    }) as unknown as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>;
-
-    apiUtilsModule.requireBearerUser = async () => ({
-        user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
-        session: null,
-    }) as Awaited<ReturnType<typeof import('../lib/api-utils').requireBearerUser>>;
-
-    apiUtilsModule.getSystemAdminClient = () => ({
+    const saveClient = {
         from(table: string) {
             assert.equal(table, 'tarot_readings');
             return {
@@ -288,12 +361,22 @@ test('tarot route returns numerology on draw-only and persists birth metadata on
                 },
             };
         },
-    }) as unknown as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
+    };
+
+    apiUtilsModule.getAuthContext = async () =>
+        createTarotAuthContext({}, null) as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>;
+
+    apiUtilsModule.requireUserContext = async () =>
+        createTarotAuthContext(saveClient, 'user-1') as Awaited<ReturnType<typeof import('../lib/api-utils').requireUserContext>>;
+
+    delete require.cache[routePath];
+    delete require.cache[pipelinePath];
 
     t.after(() => {
         apiUtilsModule.getAuthContext = originalGetAuthContext;
-        apiUtilsModule.requireBearerUser = originalRequireBearerUser;
-        apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
+        delete require.cache[routePath];
+        delete require.cache[pipelinePath];
     });
 
     const { POST } = await import('../app/api/tarot/route');
@@ -344,18 +427,13 @@ test('tarot route returns numerology on draw-only and persists birth metadata on
 
 test('tarot save should fail fast when metadata column is missing', async (t) => {
     const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
-    const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
-    const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+    const routePath = require.resolve('../app/api/tarot/route');
+    const pipelinePath = require.resolve('../lib/api/divination-pipeline');
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
 
     const inserted: Record<string, unknown>[] = [];
     let insertAttempts = 0;
-
-    apiUtilsModule.requireBearerUser = async () => ({
-        user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
-        session: null,
-    }) as Awaited<ReturnType<typeof import('../lib/api-utils').requireBearerUser>>;
-
-    apiUtilsModule.getSystemAdminClient = () => ({
+    const saveClient = {
         from(table: string) {
             assert.equal(table, 'tarot_readings');
             return {
@@ -380,11 +458,18 @@ test('tarot save should fail fast when metadata column is missing', async (t) =>
                 },
             };
         },
-    }) as unknown as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
+    };
+
+    apiUtilsModule.requireUserContext = async () =>
+        createTarotAuthContext(saveClient, 'user-1') as Awaited<ReturnType<typeof import('../lib/api-utils').requireUserContext>>;
+
+    delete require.cache[routePath];
+    delete require.cache[pipelinePath];
 
     t.after(() => {
-        apiUtilsModule.requireBearerUser = originalRequireBearerUser;
-        apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
+        delete require.cache[routePath];
+        delete require.cache[pipelinePath];
     });
 
     const { POST } = await import('../app/api/tarot/route');
@@ -421,4 +506,61 @@ test('tarot save should fail fast when metadata column is missing', async (t) =>
     assert.equal(payload.error, '保存记录失败');
     assert.equal(insertAttempts, 1);
     assert.ok('metadata' in inserted[0]);
+});
+
+test('tarot spread persists reading for cookie-authenticated users without bearer header', async (t) => {
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const routePath = require.resolve('../app/api/tarot/route');
+    const originalGetAuthContext = apiUtilsModule.getAuthContext;
+
+    let inserted: Record<string, unknown> | null = null;
+    const persistClient = {
+        from(table: string) {
+            assert.equal(table, 'tarot_readings');
+            return {
+                insert(payload: Record<string, unknown>) {
+                    inserted = payload;
+                    return {
+                        select() {
+                            return {
+                                single: async () => ({
+                                    data: { id: 'reading-cookie' },
+                                    error: null,
+                                }),
+                            };
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    apiUtilsModule.getAuthContext = async () =>
+        createTarotAuthContext(persistClient, 'user-cookie') as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>;
+
+    delete require.cache[routePath];
+
+    t.after(() => {
+        apiUtilsModule.getAuthContext = originalGetAuthContext;
+        delete require.cache[routePath];
+    });
+
+    const { POST } = await import('../app/api/tarot/route');
+    const response = await POST(new NextRequest('http://localhost/api/tarot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'spread',
+            spreadId: 'single',
+            question: '今天如何',
+        }),
+    }));
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.data?.readingId, 'reading-cookie');
+    assert.equal((inserted as Record<string, unknown>)?.user_id, 'user-cookie');
 });

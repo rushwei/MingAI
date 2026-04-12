@@ -7,15 +7,15 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 
 test('activation-keys activate rejects non-string keyCode with 400', async (t) => {
     const apiUtils = require('../lib/api-utils') as any;
-    const originalRequireBearerUser = apiUtils.requireBearerUser;
+    const originalRequireUserContext = apiUtils.requireUserContext;
 
-    apiUtils.requireBearerUser = async () => ({
+    apiUtils.requireUserContext = async () => ({
         user: { id: 'user-1' },
         profile: null,
     });
 
     t.after(() => {
-        apiUtils.requireBearerUser = originalRequireBearerUser;
+        apiUtils.requireUserContext = originalRequireUserContext;
     });
 
     const { POST } = await import('../app/api/activation-keys/route');

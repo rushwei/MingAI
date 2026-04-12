@@ -64,74 +64,70 @@ test('bazi chart create rejects missing birth_time', async (t) => {
 test('bazi chart update recomputes derived fields from merged existing chart data', async (t) => {
     const apiUtils = require('../lib/api-utils') as {
         requireUserContext: typeof import('../lib/api-utils').requireUserContext;
-        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
     };
     const originalRequireUserContext = apiUtils.requireUserContext;
-    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
     let updatedPayload: Record<string, unknown> | null = null;
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
-    })) as unknown as typeof apiUtils.requireUserContext;
-
-    apiUtils.getSystemAdminClient = (() => ({
-        from(table: string) {
-            assert.equal(table, 'bazi_charts');
-            return {
-                select() {
-                    return {
-                        eq() {
-                            return {
-                                eq() {
-                                    return {
-                                        maybeSingle: async () => ({
-                                            data: {
-                                                id: '550e8400-e29b-41d4-a716-446655440000',
-                                                user_id: 'user-1',
-                                                gender: 'male',
-                                                birth_date: '1990-01-01',
-                                                birth_time: '08:00',
-                                                birth_place: '北京',
-                                                longitude: null,
-                                                calendar_type: 'solar',
-                                                is_leap_month: false,
+        supabase: {
+            from(table: string) {
+                assert.equal(table, 'bazi_charts');
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: {
+                                                    id: '550e8400-e29b-41d4-a716-446655440000',
+                                                    user_id: 'user-1',
+                                                    gender: 'male',
+                                                    birth_date: '1990-01-01',
+                                                    birth_time: '08:00',
+                                                    birth_place: '北京',
+                                                    longitude: null,
+                                                    calendar_type: 'solar',
+                                                    is_leap_month: false,
+                                                },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                    update(payload: Record<string, unknown>) {
+                        updatedPayload = payload;
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            select() {
+                                                return {
+                                                    maybeSingle: async () => ({
+                                                        data: { id: '550e8400-e29b-41d4-a716-446655440000' },
+                                                        error: null,
+                                                    }),
+                                                };
                                             },
-                                            error: null,
-                                        }),
-                                    };
-                                },
-                            };
-                        },
-                    };
-                },
-                update(payload: Record<string, unknown>) {
-                    updatedPayload = payload;
-                    return {
-                        eq() {
-                            return {
-                                eq() {
-                                    return {
-                                        select() {
-                                            return {
-                                                maybeSingle: async () => ({
-                                                    data: { id: '550e8400-e29b-41d4-a716-446655440000' },
-                                                    error: null,
-                                                }),
-                                            };
-                                        },
-                                    };
-                                },
-                            };
-                        },
-                    };
-                },
-            };
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            },
         },
-    })) as unknown as typeof apiUtils.getSystemAdminClient;
+    })) as unknown as typeof apiUtils.requireUserContext;
 
     t.after(() => {
         apiUtils.requireUserContext = originalRequireUserContext;
-        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
     });
 
     const { POST } = await import('../app/api/bazi/charts/update/route');
@@ -161,74 +157,70 @@ test('bazi chart update recomputes derived fields from merged existing chart dat
 test('bazi chart update rejects merged records without valid birth_time', async (t) => {
     const apiUtils = require('../lib/api-utils') as {
         requireUserContext: typeof import('../lib/api-utils').requireUserContext;
-        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
     };
     const originalRequireUserContext = apiUtils.requireUserContext;
-    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
     let updateCalled = false;
 
     apiUtils.requireUserContext = (async () => ({
         user: { id: 'user-1' },
-    })) as unknown as typeof apiUtils.requireUserContext;
-
-    apiUtils.getSystemAdminClient = (() => ({
-        from(table: string) {
-            assert.equal(table, 'bazi_charts');
-            return {
-                select() {
-                    return {
-                        eq() {
-                            return {
-                                eq() {
-                                    return {
-                                        maybeSingle: async () => ({
-                                            data: {
-                                                id: '550e8400-e29b-41d4-a716-446655440000',
-                                                user_id: 'user-1',
-                                                gender: 'male',
-                                                birth_date: '1990-01-01',
-                                                birth_time: null,
-                                                birth_place: '北京',
-                                                longitude: null,
-                                                calendar_type: 'solar',
-                                                is_leap_month: false,
+        supabase: {
+            from(table: string) {
+                assert.equal(table, 'bazi_charts');
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: {
+                                                    id: '550e8400-e29b-41d4-a716-446655440000',
+                                                    user_id: 'user-1',
+                                                    gender: 'male',
+                                                    birth_date: '1990-01-01',
+                                                    birth_time: null,
+                                                    birth_place: '北京',
+                                                    longitude: null,
+                                                    calendar_type: 'solar',
+                                                    is_leap_month: false,
+                                                },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                    update() {
+                        updateCalled = true;
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            select() {
+                                                return {
+                                                    maybeSingle: async () => ({
+                                                        data: { id: '550e8400-e29b-41d4-a716-446655440000' },
+                                                        error: null,
+                                                    }),
+                                                };
                                             },
-                                            error: null,
-                                        }),
-                                    };
-                                },
-                            };
-                        },
-                    };
-                },
-                update() {
-                    updateCalled = true;
-                    return {
-                        eq() {
-                            return {
-                                eq() {
-                                    return {
-                                        select() {
-                                            return {
-                                                maybeSingle: async () => ({
-                                                    data: { id: '550e8400-e29b-41d4-a716-446655440000' },
-                                                    error: null,
-                                                }),
-                                            };
-                                        },
-                                    };
-                                },
-                            };
-                        },
-                    };
-                },
-            };
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            },
         },
-    })) as unknown as typeof apiUtils.getSystemAdminClient;
+    })) as unknown as typeof apiUtils.requireUserContext;
 
     t.after(() => {
         apiUtils.requireUserContext = originalRequireUserContext;
-        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
     });
 
     const { POST } = await import('../app/api/bazi/charts/update/route');

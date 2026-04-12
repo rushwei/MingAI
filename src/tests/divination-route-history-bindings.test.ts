@@ -15,39 +15,69 @@ type RouteBindingSpec = {
 };
 
 async function runRouteHistoryBindingTest(t: TestContext, spec: RouteBindingSpec) {
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/auth') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
 
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const routePath = require.resolve(spec.routeModulePath);
 
     let createArgs: Record<string, unknown> | null = null;
+    const mockDb = {
+        from() {
+            throw new Error('db.from should not be called in history binding route tests');
+        },
+        rpc() {
+            throw new Error('db.rpc should not be called in history binding route tests');
+        },
+    };
 
+    apiUtilsModule.requireUserContext = async () => ({
+        user: { id: 'user-1' },
+        db: mockDb,
+        supabase: mockDb,
+        accessToken: 'test-token',
+    }) as Awaited<ReturnType<typeof import('../lib/api-utils').requireUserContext>>;
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
         createArgs = params;
         return 'conv-1';
     };
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     delete require.cache[routePath];
 
     t.after(() => {
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
-        supabaseModule.supabase.auth.getUser = originalGetUser;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         delete require.cache[routePath];
     });
 

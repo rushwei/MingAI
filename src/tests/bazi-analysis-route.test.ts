@@ -5,22 +5,46 @@ import { NextRequest } from 'next/server';
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 
+function mockBaziUserContext(
+    t: import('node:test').TestContext,
+    client: Record<string, unknown>,
+) {
+    const apiUtils = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const routePath = require.resolve('../app/api/bazi/analysis/route');
+    const pipelinePath = require.resolve('../lib/api/divination-pipeline');
+    const originalRequireUserContext = apiUtils.requireUserContext;
+    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
+
+    apiUtils.requireUserContext = (async () => ({
+        user: { id: 'user-1' },
+        db: client,
+        supabase: client,
+        accessToken: 'test-token',
+    })) as unknown as typeof apiUtils.requireUserContext;
+
+    apiUtils.getSystemAdminClient = (() => client) as unknown as typeof apiUtils.getSystemAdminClient;
+
+    delete require.cache[routePath];
+    delete require.cache[pipelinePath];
+
+    t.after(() => {
+        apiUtils.requireUserContext = originalRequireUserContext;
+        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
+        delete require.cache[routePath];
+        delete require.cache[pipelinePath];
+    });
+}
+
 test('bazi analysis route builds prompt from server chart context instead of client chartSummary', async (t) => {
-    const apiUtils = require('../lib/api-utils') as {
-        requireUserContext: typeof import('../lib/api-utils').requireUserContext;
-        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
-    };
     const creditsModule = require('../lib/user/credits') as any;
     const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const rateLimitModule = require('../lib/rate-limit') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
 
-    const originalRequireUserContext = apiUtils.requireUserContext;
-    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
     const originalGetUserAuthInfo = creditsModule.getUserAuthInfo;
-    const originalUseCredit = creditsModule.useCredit;
-    const originalAddCredits = creditsModule.addCredits;
+    const originalAttemptCreditUse = creditsModule.attemptCreditUse;
+    const originalRefundCreditsOrLog = creditsModule.refundCreditsOrLog;
     const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
     const originalCheckRateLimit = rateLimitModule.checkRateLimit;
@@ -30,13 +54,7 @@ test('bazi analysis route builds prompt from server chart context instead of cli
     let capturedUserPrompt = '';
     let capturedSystemPrompt = '';
     let capturedSourceData: Record<string, unknown> | null = null;
-
-    apiUtils.requireUserContext = (async () => ({
-        user: { id: 'user-1' },
-        supabase: {},
-    })) as unknown as typeof apiUtils.requireUserContext;
-
-    apiUtils.getSystemAdminClient = (() => ({
+    const authClient = {
         from(table: string) {
             if (table === 'bazi_charts') {
                 return {
@@ -173,14 +191,16 @@ test('bazi analysis route builds prompt from server chart context instead of cli
 
             throw new Error(`Unexpected table: ${table}`);
         },
-    })) as unknown as typeof apiUtils.getSystemAdminClient;
+    };
+
+    mockBaziUserContext(t, authClient);
 
     creditsModule.getUserAuthInfo = async () => ({
         effectiveMembership: 'free',
         hasCredits: true,
     });
-    creditsModule.useCredit = async () => 0;
-    creditsModule.addCredits = async () => 1;
+    creditsModule.attemptCreditUse = async () => ({ ok: true, remaining: 0 });
+    creditsModule.refundCreditsOrLog = async () => true;
     aiAccessModule.resolveModelAccessAsync = async () => ({
         modelId: 'deepseek-v3.2',
         reasoningEnabled: false,
@@ -201,11 +221,9 @@ test('bazi analysis route builds prompt from server chart context instead of cli
     };
 
     t.after(() => {
-        apiUtils.requireUserContext = originalRequireUserContext;
-        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
         creditsModule.getUserAuthInfo = originalGetUserAuthInfo;
-        creditsModule.useCredit = originalUseCredit;
-        creditsModule.addCredits = originalAddCredits;
+        creditsModule.attemptCreditUse = originalAttemptCreditUse;
+        creditsModule.refundCreditsOrLog = originalRefundCreditsOrLog;
         aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIWithReasoning = originalCallAIWithReasoning;
         rateLimitModule.checkRateLimit = originalCheckRateLimit;
@@ -247,21 +265,15 @@ test('bazi analysis route builds prompt from server chart context instead of cli
 });
 
 test('bazi analysis route surfaces SSE error when stream persistence returns null after content generation', async (t) => {
-    const apiUtils = require('../lib/api-utils') as {
-        requireUserContext: typeof import('../lib/api-utils').requireUserContext;
-        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
-    };
     const creditsModule = require('../lib/user/credits') as any;
     const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const rateLimitModule = require('../lib/rate-limit') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
 
-    const originalRequireUserContext = apiUtils.requireUserContext;
-    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
     const originalGetUserAuthInfo = creditsModule.getUserAuthInfo;
-    const originalUseCredit = creditsModule.useCredit;
-    const originalAddCredits = creditsModule.addCredits;
+    const originalAttemptCreditUse = creditsModule.attemptCreditUse;
+    const originalRefundCreditsOrLog = creditsModule.refundCreditsOrLog;
     const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCheckRateLimit = rateLimitModule.checkRateLimit;
@@ -270,13 +282,7 @@ test('bazi analysis route surfaces SSE error when stream persistence returns nul
     const originalConsoleError = console.error;
 
     let refundCalls = 0;
-
-    apiUtils.requireUserContext = (async () => ({
-        user: { id: 'user-1' },
-        supabase: {},
-    })) as unknown as typeof apiUtils.requireUserContext;
-
-    apiUtils.getSystemAdminClient = (() => ({
+    const authClient = {
         from(table: string) {
             if (table === 'bazi_charts') {
                 return {
@@ -366,16 +372,18 @@ test('bazi analysis route surfaces SSE error when stream persistence returns nul
 
             throw new Error(`Unexpected table: ${table}`);
         },
-    })) as unknown as typeof apiUtils.getSystemAdminClient;
+    };
+
+    mockBaziUserContext(t, authClient);
 
     creditsModule.getUserAuthInfo = async () => ({
         effectiveMembership: 'free',
         hasCredits: true,
     });
-    creditsModule.useCredit = async () => 0;
-    creditsModule.addCredits = async () => {
+    creditsModule.attemptCreditUse = async () => ({ ok: true, remaining: 0 });
+    creditsModule.refundCreditsOrLog = async () => {
         refundCalls += 1;
-        return 1;
+        return true;
     };
     aiAccessModule.resolveModelAccessAsync = async () => ({
         modelId: 'deepseek-v3.2',
@@ -425,11 +433,9 @@ test('bazi analysis route surfaces SSE error when stream persistence returns nul
     console.error = () => {};
 
     t.after(() => {
-        apiUtils.requireUserContext = originalRequireUserContext;
-        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
         creditsModule.getUserAuthInfo = originalGetUserAuthInfo;
-        creditsModule.useCredit = originalUseCredit;
-        creditsModule.addCredits = originalAddCredits;
+        creditsModule.attemptCreditUse = originalAttemptCreditUse;
+        creditsModule.refundCreditsOrLog = originalRefundCreditsOrLog;
         aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         rateLimitModule.checkRateLimit = originalCheckRateLimit;

@@ -59,7 +59,9 @@ function setupPipelineMocks(t: TestContext) {
   const originals = {
     requireBearerUser: apiUtils.requireBearerUser,
     getUserAuthInfo: credits.getUserAuthInfo,
+    attemptCreditUse: credits.attemptCreditUse,
     useCredit: credits.useCredit,
+    refundCreditsOrLog: credits.refundCreditsOrLog,
     addCredits: credits.addCredits,
     resolveModelAccessAsync: aiAccess.resolveModelAccessAsync,
     callAIWithReasoning: aiModule.callAIWithReasoning,
@@ -77,7 +79,12 @@ function setupPipelineMocks(t: TestContext) {
     effectiveMembership: 'pro',
     hasCredits: true,
   });
+  credits.attemptCreditUse = async () => ({
+    ok: true,
+    remaining: 1,
+  });
   credits.useCredit = async () => 1;
+  credits.refundCreditsOrLog = async () => true;
   credits.addCredits = async () => 1;
   aiAccess.resolveModelAccessAsync = async () => ({
     modelId: 'test-model',
@@ -123,7 +130,9 @@ function setupPipelineMocks(t: TestContext) {
   t.after(() => {
     apiUtils.requireBearerUser = originals.requireBearerUser;
     credits.getUserAuthInfo = originals.getUserAuthInfo;
+    credits.attemptCreditUse = originals.attemptCreditUse;
     credits.useCredit = originals.useCredit;
+    credits.refundCreditsOrLog = originals.refundCreditsOrLog;
     credits.addCredits = originals.addCredits;
     aiAccess.resolveModelAccessAsync = originals.resolveModelAccessAsync;
     aiModule.callAIWithReasoning = originals.callAIWithReasoning;
@@ -180,7 +189,10 @@ function createTestHandler(
 
 test('divination pipeline returns 500 when credit deduction fails', async (t) => {
   const { credits, loadPipeline } = setupPipelineMocks(t);
-  credits.useCredit = async () => null;
+  credits.attemptCreditUse = async () => ({
+    ok: false,
+    reason: 'deduction_failed',
+  });
 
   const { createInterpretHandler } = loadPipeline();
   const handler = createTestHandler(createInterpretHandler);
@@ -282,9 +294,9 @@ test('divination pipeline surfaces an SSE error when stream persistence returns 
   let refundCalls = 0;
   console.error = () => {};
   aiAnalysisModule.createAIAnalysisConversation = async () => null;
-  credits.addCredits = async () => {
+  credits.refundCreditsOrLog = async () => {
     refundCalls += 1;
-    return 1;
+    return true;
   };
 
   t.after(() => {
@@ -311,9 +323,9 @@ test('divination pipeline refunds and returns 500 when non-stream persistence re
 
   console.error = () => {};
   aiAnalysisModule.createAIAnalysisConversation = async () => null;
-  credits.addCredits = async () => {
+  credits.refundCreditsOrLog = async () => {
     refundCalls += 1;
-    return 1;
+    return true;
   };
 
   t.after(() => {
@@ -338,9 +350,9 @@ test('divination vision pipeline refunds and returns 500 when persistence return
 
   console.error = () => {};
   aiAnalysisModule.createAIAnalysisConversation = async () => null;
-  credits.addCredits = async () => {
+  credits.refundCreditsOrLog = async () => {
     refundCalls += 1;
-    return 1;
+    return true;
   };
 
   t.after(() => {

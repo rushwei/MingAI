@@ -70,11 +70,159 @@ test('getAuthContext should refresh cookie sessions when access token has expire
   });
 
   assert.equal(result.user?.id, 'user-1');
+  assert.equal(result.authError, null);
   assert.equal(refreshedAccessToken, 'fresh-access-token');
   assert.deepEqual(cookieWrites, [
     { name: ACCESS_COOKIE, value: 'fresh-access-token', maxAge: 3600 },
     { name: REFRESH_COOKIE, value: 'fresh-refresh-token', maxAge: 60 * 60 * 24 * 30 },
   ]);
+});
+
+test('requireBearerUser should reject stale bearer tokens even when a refresh cookie is present', async () => {
+  const { requireBearerUser } = await import('../lib/api-utils');
+  const { REFRESH_COOKIE } = await import('../lib/auth-session');
+
+  let refreshCalled = false;
+
+  const authResolverClient = {
+    auth: {
+      async getUser(accessToken: string) {
+        assert.equal(accessToken, 'expired-bearer-token');
+        return {
+          data: { user: null },
+          error: { message: 'JWT expired' },
+        };
+      },
+      async refreshSession(tokens: { refresh_token: string }) {
+        void tokens;
+        refreshCalled = true;
+        throw new Error('refreshSession should not be called for bearer-only auth');
+      },
+    },
+  } as ReturnType<typeof import('../lib/api-utils').createAnonClient>;
+
+  const request = new NextRequest('http://localhost/api/mbti', {
+    headers: {
+      authorization: 'Bearer expired-bearer-token',
+      cookie: `${REFRESH_COOKIE}=refresh-cookie-token`,
+    },
+  });
+
+  const result = await requireBearerUser(request, { authResolverClient });
+  assert.deepEqual(result, {
+    error: {
+      message: '认证失败',
+      status: 401,
+    },
+  });
+  assert.equal(refreshCalled, false);
+});
+
+test('requireBearerUser should preserve access-token backend failures even when refresh token is present', async () => {
+  const { requireBearerUser } = await import('../lib/api-utils');
+  const { REFRESH_COOKIE } = await import('../lib/auth-session');
+
+  const request = new NextRequest('http://localhost/api/mbti', {
+    headers: {
+      authorization: 'Bearer broken-bearer-token',
+      cookie: `${REFRESH_COOKIE}=stale-refresh-token`,
+    },
+  });
+
+  const result = await requireBearerUser(request, {
+    authResolverClient: {
+      auth: {
+        async getUser() {
+          return {
+            data: { user: null },
+            error: { message: 'Auth backend unavailable', status: 503 },
+          };
+        },
+        async refreshSession() {
+          return {
+            data: { session: null },
+            error: { message: 'Invalid Refresh Token', status: 400 },
+          };
+        },
+      },
+    } as ReturnType<typeof import('../lib/api-utils').createAnonClient>,
+  });
+
+  assert.deepEqual(result, {
+    error: {
+      message: 'Auth backend unavailable',
+      status: 503,
+    },
+  });
+});
+
+test('getAuthContext should surface auth backend failures instead of masquerading as anonymous', async () => {
+  const { getAuthContext } = await import('../lib/api-utils');
+  const { ACCESS_COOKIE } = await import('../lib/auth-session');
+
+  const request = new NextRequest('http://localhost/api/models', {
+    headers: {
+      cookie: `${ACCESS_COOKIE}=broken-access-token`,
+    },
+  });
+
+  const result = await getAuthContext(request, {
+    authResolverClient: {
+      auth: {
+        async getUser() {
+          return {
+            data: { user: null },
+            error: { message: 'Auth backend unavailable', status: 503 },
+          };
+        },
+        async refreshSession() {
+          throw new Error('refreshSession should not run without refresh token');
+        },
+      },
+    } as ReturnType<typeof import('../lib/api-utils').createAnonClient>,
+  });
+
+  assert.equal(result.user, null);
+  assert.equal(result.authError?.message, 'Auth backend unavailable');
+  assert.equal(result.authError?.status, 503);
+});
+
+test('requireAdminContext should surface admin-check backend failures instead of returning a fake 403', async () => {
+  const { requireAdminContext } = await import('../lib/api-utils');
+  const request = new NextRequest('http://localhost/api/admin/announcements');
+  const db = {
+    from(table: string) {
+      assert.equal(table, 'users');
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        maybeSingle: async () => ({
+          data: null,
+          error: { message: 'db timeout' },
+        }),
+      };
+    },
+  } as Awaited<ReturnType<typeof import('../lib/api-utils').createAuthedClient>>;
+
+  const result = await requireAdminContext(request, {
+    userContext: {
+      user: { id: 'admin-1' } as User,
+      accessToken: null,
+      db,
+      supabase: db,
+    },
+  });
+
+  assert.deepEqual(result, {
+    error: {
+      message: '管理员权限校验失败，请稍后重试',
+      status: 503,
+    },
+  });
 });
 
 test('browser auth client should not expose table query or rpc helpers', async () => {

@@ -5,8 +5,36 @@ import { ensureRouteTestEnv } from './helpers/route-mock';
 
 ensureRouteTestEnv();
 
+function mockLiuyaoUserContext(
+    t: import('node:test').TestContext,
+    client: Record<string, unknown> = {},
+    userId = 'user-1',
+) {
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const routePath = require.resolve('../app/api/liuyao/route');
+    const pipelinePath = require.resolve('../lib/api/divination-pipeline');
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+    apiUtilsModule.requireUserContext = async () => ({
+        user: { id: userId },
+        db: client,
+        supabase: client,
+        accessToken: 'test-token',
+    }) as Awaited<ReturnType<typeof import('../lib/api-utils').requireUserContext>>;
+
+    delete require.cache[routePath];
+    delete require.cache[pipelinePath];
+
+    t.after(() => {
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
+        delete require.cache[routePath];
+        delete require.cache[pipelinePath];
+    });
+}
+
 test('liuyao route uses divination created_at for analysis date', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const aiModule = require('../lib/ai/ai') as any;
@@ -14,6 +42,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
+    const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
@@ -21,20 +50,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
 
     const createdAt = new Date('2024-01-02T03:04:05.000Z');
     let capturedDate: Date | undefined;
-
-    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 5;
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    aiModule.callAIWithReasoning = async () => ({ content: 'analysis' });
-    liuyaoModule.calculateLiuyaoBundle = (input: { date: Date }) => {
-        capturedDate = input.date;
-        return originalCalculateLiuyaoBundle(input);
-    };
-
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: (table: string) => {
             if (table === 'users') {
                 return {
@@ -100,11 +116,28 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
             }
             return { data: 5, error: null };
         },
+    };
+
+    mockLiuyaoUserContext(t, authClient);
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
+    credits.useCredit = async () => 5;
+    aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
     });
+    aiModule.callAIWithReasoning = async () => ({ content: 'analysis' });
+    liuyaoModule.calculateLiuyaoBundle = (input: { date: Date }) => {
+        capturedDate = input.date;
+        return originalCalculateLiuyaoBundle(input);
+    };
+
+    supabaseServerModule.getSystemAdminClient = () => authClient;
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
+        aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         aiModule.callAIWithReasoning = originalCallAIWithReasoning;
@@ -153,25 +186,50 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
 
 test('liuyao route only marks 用神 when position and liuqin both match', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const liuyaoModule = require('../lib/divination/liuyao') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGenerateTitle = aiAnalysisModule.generateLiuyaoTitle;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalPerformFullAnalysis = liuyaoModule.performFullAnalysis;
 
     let capturedPrompt = '';
 
+    mockLiuyaoUserContext(t, {
+        from() {
+            throw new Error('liuyao prompt test should not query tables directly');
+        },
+        rpc() {
+            throw new Error('liuyao prompt test should not call rpc directly');
+        },
+    });
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
         error: null,
@@ -182,6 +240,7 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
     };
     aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
     aiAnalysisModule.generateLiuyaoTitle = () => 'title';
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     liuyaoModule.performFullAnalysis = (...args: unknown[]) => {
         const result = originalPerformFullAnalysis(...args);
         const firstYaoLiuQin = result.fullYaos?.[0]?.liuQin;
@@ -231,12 +290,14 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         aiModule.callAIWithReasoning = originalCallAIWithReasoning;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         aiAnalysisModule.generateLiuyaoTitle = originalGenerateTitle;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         liuyaoModule.performFullAnalysis = originalPerformFullAnalysis;
     });
 
@@ -281,69 +342,24 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
 
 test('liuyao route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let createArgs: Record<string, unknown> | null = null;
-
-    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
-    aiModule.callAIUIMessageResult = async () => ({
-        toUIMessageStream(options?: {
-            onFinish?: (event: {
-                responseMessage: { parts: Array<Record<string, unknown>> };
-                finishReason?: string;
-                isAborted: boolean;
-                isContinuation: boolean;
-                messages: Array<{ parts: Array<Record<string, unknown>> }>;
-            }) => PromiseLike<void> | void;
-        }) {
-            const stream = new ReadableStream<Record<string, unknown>>({
-                start(controller) {
-                    controller.enqueue({ type: 'reasoning-start', id: 'reasoning-1' });
-                    controller.enqueue({ type: 'reasoning-delta', id: 'reasoning-1', delta: 'reason' });
-                    controller.enqueue({ type: 'reasoning-end', id: 'reasoning-1' });
-                    controller.enqueue({ type: 'text-start', id: 'text-1' });
-                    controller.enqueue({ type: 'text-delta', id: 'text-1', delta: 'analysis' });
-                    controller.enqueue({ type: 'text-end', id: 'text-1' });
-                    controller.close();
-                },
-            });
-            queueMicrotask(() => {
-                void options?.onFinish?.({
-                    responseMessage: {
-                        parts: [
-                            { type: 'reasoning', text: 'reason', state: 'done' },
-                            { type: 'text', text: 'analysis', state: 'done' },
-                        ],
-                    },
-                    finishReason: 'stop',
-                    isAborted: false,
-                    isContinuation: false,
-                    messages: [],
-                });
-            });
-            return stream;
-        },
-    });
-    aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
-        createArgs = params;
-        return 'conv-1';
-    };
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: (table: string) => {
             if (table === 'users') {
                 return {
@@ -388,13 +404,80 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
                 insert: async () => ({ error: null }),
             };
         },
+    };
+
+    mockLiuyaoUserContext(t, authClient);
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
     });
+    aiModule.callAIUIMessageResult = async () => ({
+        toUIMessageStream(options?: {
+            onFinish?: (event: {
+                responseMessage: { parts: Array<Record<string, unknown>> };
+                finishReason?: string;
+                isAborted: boolean;
+                isContinuation: boolean;
+                messages: Array<{ parts: Array<Record<string, unknown>> }>;
+            }) => PromiseLike<void> | void;
+        }) {
+            const stream = new ReadableStream<Record<string, unknown>>({
+                start(controller) {
+                    controller.enqueue({ type: 'reasoning-start', id: 'reasoning-1' });
+                    controller.enqueue({ type: 'reasoning-delta', id: 'reasoning-1', delta: 'reason' });
+                    controller.enqueue({ type: 'reasoning-end', id: 'reasoning-1' });
+                    controller.enqueue({ type: 'text-start', id: 'text-1' });
+                    controller.enqueue({ type: 'text-delta', id: 'text-1', delta: 'analysis' });
+                    controller.enqueue({ type: 'text-end', id: 'text-1' });
+                    controller.close();
+                },
+            });
+            queueMicrotask(() => {
+                void options?.onFinish?.({
+                    responseMessage: {
+                        parts: [
+                            { type: 'reasoning', text: 'reason', state: 'done' },
+                            { type: 'text', text: 'analysis', state: 'done' },
+                        ],
+                    },
+                    finishReason: 'stop',
+                    isAborted: false,
+                    isContinuation: false,
+                    messages: [],
+                });
+            });
+            return stream;
+        },
+    });
+    aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
+        createArgs = params;
+        return 'conv-1';
+    };
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+    });
+    supabaseServerModule.getSystemAdminClient = () => authClient;
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
@@ -445,24 +528,85 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
 
 test('liuyao route surfaces SSE error when stream persistence fails after content generation', async (t) => {
     const credits = require('../lib/user/credits') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const chartPromptDetailModule = require('../lib/ai/chart-prompt-detail') as any;
     const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
+    const originalAttemptCreditUse = credits.attemptCreditUse;
+    const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalAddCredits = credits.addCredits;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalLoadResolvedChartPromptDetailLevel = chartPromptDetailModule.loadResolvedChartPromptDetailLevel;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalConsoleError = console.error;
 
     let refundCalls = 0;
+    const authClient = {
+        from: (table: string) => {
+            if (table === 'users') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
+                                error: null,
+                            }),
+                            maybeSingle: async () => ({
+                                data: { membership: 'pro', membership_expires_at: null },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'liuyao_divinations') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            eq: () => ({
+                                maybeSingle: async () => ({
+                                    data: { created_at: new Date().toISOString() },
+                                    error: null,
+                                }),
+                            }),
+                        }),
+                    }),
+                    update: () => ({
+                        eq: () => ({
+                            eq: async () => ({ error: null }),
+                        }),
+                    }),
+                    insert: async () => ({ error: null }),
+                };
+            }
+            return {
+                insert: async () => ({ error: null }),
+            };
+        },
+    };
 
+    mockLiuyaoUserContext(t, authClient);
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
+    credits.attemptCreditUse = async () => ({ ok: true, remaining: 9 });
+    aiAccessModule.resolveModelAccessAsync = async () => ({
+        modelId: 'test-model',
+        modelConfig: {
+            id: 'test-model',
+            modelKey: 'test-model',
+            vendor: 'test',
+            usageType: 'chat',
+            supportsReasoning: true,
+            supportsVision: false,
+            requiredTier: 'free',
+        },
+        reasoningEnabled: false,
+    });
     credits.addCredits = async () => { refundCalls += 1; };
     aiModule.callAIUIMessageResult = async () => ({
         toUIMessageStream(options?: {
@@ -505,61 +649,22 @@ test('liuyao route surfaces SSE error when stream persistence fails after conten
     aiAnalysisModule.createAIAnalysisConversation = async () => {
         throw new Error('persist failed');
     };
+    chartPromptDetailModule.loadResolvedChartPromptDetailLevel = async () => 'default';
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
         error: null,
     });
-    supabaseServerModule.getSystemAdminClient = () => ({
-        from: (table: string) => {
-            if (table === 'users') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', membership_expires_at: null },
-                                error: null,
-                            }),
-                            maybeSingle: async () => ({
-                                data: { membership: 'pro', membership_expires_at: null },
-                                error: null,
-                            }),
-                        }),
-                    }),
-                };
-            }
-            if (table === 'liuyao_divinations') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            eq: () => ({
-                                maybeSingle: async () => ({
-                                    data: { created_at: new Date().toISOString() },
-                                    error: null,
-                                }),
-                            }),
-                        }),
-                    }),
-                    update: () => ({
-                        eq: () => ({
-                            eq: async () => ({ error: null }),
-                        }),
-                    }),
-                    insert: async () => ({ error: null }),
-                };
-            }
-            return {
-                insert: async () => ({ error: null }),
-            };
-        },
-    });
+    supabaseServerModule.getSystemAdminClient = () => authClient;
     console.error = () => {};
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
+        credits.attemptCreditUse = originalAttemptCreditUse;
+        aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         credits.addCredits = originalAddCredits;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        chartPromptDetailModule.loadResolvedChartPromptDetailLevel = originalLoadResolvedChartPromptDetailLevel;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         console.error = originalConsoleError;
@@ -607,7 +712,7 @@ test('liuyao route surfaces SSE error when stream persistence fails after conten
     assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
     assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
     assert.match(body, /\[DONE\]/u);
-    assert.equal(refundCalls, 0);
+    assert.equal(refundCalls, 1);
 });
 
 test('liuyao route save returns 400 when question is provided but yongShenTargets is missing', async (t) => {
@@ -687,6 +792,7 @@ test('liuyao route interpret returns 400 when question is provided but yongShenT
     const supabaseModule = require('../lib/auth') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
 
+    mockLiuyaoUserContext(t);
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
         error: null,
@@ -740,13 +846,7 @@ test('liuyao route interpret enforces targets when persisted question exists but
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
-    credits.getUserAuthInfo = async () => ({ credits: 0, effectiveMembership: 'pro', hasCredits: false });
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: (table: string) => {
             if (table === 'liuyao_divinations') {
                 return {
@@ -781,7 +881,15 @@ test('liuyao route interpret enforces targets when persisted question exists but
                 }),
             };
         },
+    };
+
+    mockLiuyaoUserContext(t, authClient);
+    credits.getUserAuthInfo = async () => ({ credits: 0, effectiveMembership: 'pro', hasCredits: false });
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
     });
+    supabaseServerModule.getSystemAdminClient = () => authClient;
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
@@ -832,12 +940,7 @@ test('liuyao route save allows missing yongShenTargets when question is empty', 
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: () => ({
             insert: () => ({
                 select: () => ({
@@ -845,7 +948,14 @@ test('liuyao route save allows missing yongShenTargets when question is empty', 
                 }),
             }),
         }),
+    };
+
+    mockLiuyaoUserContext(t, authClient);
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
     });
+    supabaseServerModule.getSystemAdminClient = () => authClient;
 
     t.after(() => {
         supabaseModule.supabase.auth.getUser = originalGetUser;
@@ -896,16 +1006,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let updated: Record<string, unknown> | null = null;
-
-    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
-    aiModule.callAIWithReasoning = async () => ({ content: 'analysis', reasoning: null });
-    aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: (table: string) => {
             if (table === 'users') {
                 return {
@@ -950,7 +1051,18 @@ test('liuyao route rejects interpret when question is empty and persisted questi
                 insert: async () => ({ error: null }),
             };
         },
+    };
+
+    mockLiuyaoUserContext(t, authClient);
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
+    credits.useCredit = async () => 1;
+    aiModule.callAIWithReasoning = async () => ({ content: 'analysis', reasoning: null });
+    aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
     });
+    supabaseServerModule.getSystemAdminClient = () => authClient;
 
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
@@ -1004,13 +1116,7 @@ test('liuyao route update returns 404 when no record is updated', async (t) => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-
-    supabaseServerModule.getSystemAdminClient = () => ({
+    const authClient = {
         from: () => {
             const builder: Record<string, unknown> = {};
             builder.eq = () => builder;
@@ -1018,7 +1124,15 @@ test('liuyao route update returns 404 when no record is updated', async (t) => {
             builder.update = () => builder;
             return builder;
         },
+    };
+
+    mockLiuyaoUserContext(t, authClient);
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
     });
+
+    supabaseServerModule.getSystemAdminClient = () => authClient;
 
     t.after(() => {
         supabaseModule.supabase.auth.getUser = originalGetUser;

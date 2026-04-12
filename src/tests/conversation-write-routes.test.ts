@@ -142,6 +142,39 @@ test('conversations POST should reject non-string title and personality payloads
   assert.equal(badPersonalityPayload.error, 'personality 必须是字符串或 null');
 });
 
+test('conversations POST should normalize blank titles back to the default title', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/conversations/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      rpc(fn: string, args: Record<string, unknown>) {
+        rpcCall = { fn, args };
+        return Promise.resolve({ data: 'conv-1', error: null });
+      },
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const { POST } = await import('../app/api/conversations/route');
+  const response = await POST(new NextRequest('http://localhost/api/conversations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: '   ' }),
+  }));
+
+  assert.equal(response.status, 201);
+  assert.equal(rpcCall?.args.p_title, '新对话');
+});
+
 test('conversations POST should reject non-array non-null messages payloads', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const routePath = require.resolve('../app/api/conversations/route');
@@ -510,6 +543,41 @@ test('conversation detail PATCH should reject non-string title and personality p
   const badPersonalityPayload = await badPersonalityResponse.json();
   assert.equal(badPersonalityResponse.status, 400);
   assert.equal(badPersonalityPayload.error, 'personality 必须是字符串或 null');
+});
+
+test('conversation detail PATCH should reject blank titles after trimming', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/conversations/[id]/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      rpc() {
+        throw new Error('rpc should not be called');
+      },
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const { PATCH } = await import('../app/api/conversations/[id]/route');
+  const response = await PATCH(
+    new NextRequest(`http://localhost/api/conversations/${VALID_CONVERSATION_ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '   ' }),
+    }),
+    { params: Promise.resolve({ id: VALID_CONVERSATION_ID }) },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(payload.error, 'title 不能为空');
 });
 
 test('conversation detail PATCH should reject invalid message items inside messages array', async (t) => {
