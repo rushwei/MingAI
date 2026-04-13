@@ -15,7 +15,7 @@ import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
-import { useAnalysisSnapshot, type AnalysisSnapshotCallbacks } from '@/lib/hooks/useAnalysisSnapshot';
+import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 
 interface FaceResultData {
     readingId?: string;
@@ -36,7 +36,7 @@ export default function FaceResultPage() {
     const [error, setError] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [awaitingSnapshot, setAwaitingSnapshot] = useState(false);
-    const snapshotCallbacks = useMemo<AnalysisSnapshotCallbacks>(() => ({
+    const snapshotCallbacks = useMemo(() => ({
         onAnalysis: (nextAnalysis: string) => setAnalysis(nextAnalysis),
         onConversationIdResolved: (conversationId: string) => {
             setResultData((prev) => (prev ? { ...prev, conversationId } : prev));

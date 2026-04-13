@@ -10,12 +10,30 @@ export type ConversationAnalysisSnapshot = {
 async function requestConversationAnalysisData<T>(
   url: string,
   options: {
+    allowNotFound: true;
+  },
+): Promise<T | null>;
+async function requestConversationAnalysisData<T>(
+  url: string,
+  options?: {
+    allowNotFound?: false | undefined;
+  },
+): Promise<T>;
+async function requestConversationAnalysisData<T>(
+  url: string,
+  options: {
     allowNotFound?: boolean;
   } = {},
 ): Promise<T | null> {
+  if (options.allowNotFound) {
+    return await requestBrowserData<T>(url, { method: 'GET' }, {
+      fallbackMessage: '加载分析快照失败',
+      allowNotFound: true,
+    });
+  }
+
   return await requestBrowserData<T>(url, { method: 'GET' }, {
     fallbackMessage: '加载分析快照失败',
-    allowNotFound: options.allowNotFound,
   });
 }
 

@@ -10,12 +10,15 @@
  * - 定时恢复已取消，积分主要来自签到、激活码与退款
  */
 
-import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { type MembershipType, getPlanConfig, isMembershipExpired } from './membership';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { ensureUserRecordRow } from '@/lib/user/profile-record';
 
-type CreditReaderClient = Pick<SupabaseClient, 'from'>;
+type CreditReaderClient = Pick<ReturnType<typeof getSystemAdminClient>, 'from'>;
+type CreditQueryOptions = {
+    client?: CreditReaderClient;
+    user?: Parameters<typeof ensureUserRecordRow>[1];
+};
 
 export type UserStateResolutionErrorCode =
     | 'USER_QUERY_FAILED'
@@ -52,22 +55,9 @@ function resolveMembershipType(rawMembership: MembershipType | null | undefined,
  * 一次查询获取用户积分 + 有效会员类型
  * 合并 hasCredits + getEffectiveMembershipType，减少重复 DB 查询
  */
-export async function getUserAuthInfo(userId: string): Promise<{
-    credits: number;
-    effectiveMembership: MembershipType;
-    hasCredits: boolean;
-}>;
 export async function getUserAuthInfo(
     userId: string,
-    options: { client?: CreditReaderClient; user?: Pick<User, 'id' | 'user_metadata'> },
-): Promise<{
-    credits: number;
-    effectiveMembership: MembershipType;
-    hasCredits: boolean;
-}>;
-export async function getUserAuthInfo(
-    userId: string,
-    options?: { client?: CreditReaderClient; user?: Pick<User, 'id' | 'user_metadata'> },
+    options?: CreditQueryOptions,
 ): Promise<{
     credits: number;
     effectiveMembership: MembershipType;
@@ -84,22 +74,9 @@ export async function getUserAuthInfo(
 /**
  * 获取用户完整信息（积分 + 会员类型 + 恢复时间）
  */
-export async function getUserCreditInfo(userId: string): Promise<{
-    credits: number;
-    membership: MembershipType;
-    expiresAt: Date | null;
-}>;
 export async function getUserCreditInfo(
     userId: string,
-    options: { client?: CreditReaderClient; user?: Pick<User, 'id' | 'user_metadata'> },
-): Promise<{
-    credits: number;
-    membership: MembershipType;
-    expiresAt: Date | null;
-}>;
-export async function getUserCreditInfo(
-    userId: string,
-    options?: { client?: CreditReaderClient; user?: Pick<User, 'id' | 'user_metadata'> },
+    options?: CreditQueryOptions,
 ): Promise<{
     credits: number;
     membership: MembershipType;
@@ -213,7 +190,7 @@ async function runCreditDecrement(userId: string): Promise<
 
 export async function attemptCreditUse(
     userId: string,
-    options?: { client?: CreditReaderClient; user?: Pick<User, 'id' | 'user_metadata'> },
+    options?: CreditQueryOptions,
 ): Promise<CreditUseAttemptResult> {
     const decrementResult = await runCreditDecrement(userId);
     if (decrementResult.status === 'ok') {

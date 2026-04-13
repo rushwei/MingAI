@@ -16,7 +16,7 @@ function formatYm(date: Date) {
 }
 
 async function loadPreferredBaziChartRow(
-    supabase: DataSourceQueryContext['client'] | ReturnType<typeof getSystemAdminClient>,
+    supabase: NonNullable<DataSourceQueryContext['client']> | ReturnType<typeof getSystemAdminClient>,
     userId: string,
 ) {
     const { data: settings } = await supabase

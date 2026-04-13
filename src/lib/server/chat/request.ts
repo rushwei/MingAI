@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
-import { getAuthContext, jsonError, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, requireUserContext, resolveRequestDbClient, type AuthContextResult } from '@/lib/api-utils';
 import { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
 import {
   attemptCreditUse,
@@ -24,6 +24,8 @@ const BROWSER_DIRECT_CHAT_RATE_LIMIT_CONFIG = {
   windowMs: 60_000,
 };
 const BROWSER_DIRECT_CHAT_RATE_LIMIT_KEY = '/api/chat/direct/prepare';
+
+type ChatAuthUser = NonNullable<AuthContextResult['user']>;
 
 export interface ChatRequestBody {
   messages: ChatMessage[];
@@ -88,7 +90,7 @@ export async function resolveChatRequest(
   const canSkipCredit = !!(INTERNAL_SECRET && body.skipCreditCheck && body.internalSecret === INTERNAL_SECRET);
 
   let accessTokenForKB: string | null = getChatAccessTokenForKnowledgeBase(request);
-  let authUser: { id: string; user_metadata?: Record<string, unknown> } | null = null;
+  let authUser: ChatAuthUser | null = null;
   let authDb: ReturnType<typeof resolveRequestDbClient> = null;
 
   let userId: string | null = null;

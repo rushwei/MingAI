@@ -68,7 +68,7 @@ type UserContextAuthResult = Extract<
 
 export type DivinationAuthContext = {
   userId: string;
-  db: UserContextAuthResult['db'] | null;
+  db: DivinationDbClient;
   accessToken: string | null;
 };
 
@@ -78,6 +78,10 @@ type SuccessfulDivinationAuthResult = {
   supabase?: UserContextAuthResult['db'];
   accessToken?: string | null;
 };
+
+type DivinationDbClient =
+  | NonNullable<ReturnType<typeof resolveRequestDbClient>>
+  | ReturnType<typeof getSystemAdminClient>;
 
 type RouteError = { error: string; status: number };
 
@@ -272,7 +276,7 @@ export interface PersistentStreamResult {
 
 function resolveAuthDbClient(
   authResult: Partial<Pick<UserContextAuthResult, 'db' | 'supabase'>>,
-): UserContextAuthResult['db'] | null {
+): DivinationDbClient {
   return resolveRequestDbClient(authResult) ?? getSystemAdminClient();
 }
 
@@ -677,7 +681,7 @@ export function createInterpretHandler<
     let authInfo;
     try {
       authInfo = await getUserAuthInfo(user.id, {
-        client: resolveRequestDbClient(authResult) ?? undefined,
+        client: authContext.db,
         user,
       });
     } catch (error) {
@@ -714,7 +718,7 @@ export function createInterpretHandler<
 
     // 4. Deduct credit
     const creditUse = await attemptCreditUse(user.id, {
-      client: resolveRequestDbClient(authResult) ?? undefined,
+      client: authContext.db,
       user,
     });
     if (!creditUse.ok) {
