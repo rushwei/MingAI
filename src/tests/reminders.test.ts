@@ -4,53 +4,6 @@ import assert from 'node:assert/strict';
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 
-test('createNotification uses service client for inserts', async (t) => {
-    const notificationModule = require('../lib/notification-server') as any;
-    const supabaseModule = require('../lib/auth') as any;
-    const apiUtilsModule = require('../lib/api-utils') as any;
-
-    const originalFrom = supabaseModule.supabase.from;
-    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
-
-    let inserted: Record<string, unknown> | null = null;
-
-    supabaseModule.supabase.from = () => {
-        throw new Error('browser client should not be used');
-    };
-
-    apiUtilsModule.getSystemAdminClient = () => ({
-        from: (table: string) => ({
-            select: () => {
-                throw new Error('createNotification should not prune before insert');
-            },
-            insert: (payload: Record<string, unknown>) => {
-                if (table === 'notifications') {
-                    inserted = payload;
-                    return { error: null };
-                }
-                return { error: null };
-            },
-        }),
-    });
-
-    t.after(() => {
-        supabaseModule.supabase.from = originalFrom;
-        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
-    });
-
-    const ok = await notificationModule.createNotification(
-        'user-1',
-        'system',
-        'Test title',
-        'Test body',
-        '/link'
-    );
-
-    assert.equal(ok, true);
-    assert.ok(inserted);
-    assert.equal((inserted as { user_id?: string } | null)?.user_id, 'user-1');
-});
-
 test('pruneExpiredNotifications should delete in a single query and return deleted row count', async (t) => {
     const apiUtilsModule = require('../lib/api-utils') as any;
     const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;

@@ -199,7 +199,6 @@ test('useSessionMembership should keep viewer failures in loading state until bo
         'data-membership-resolved': String(membership.membershipResolved),
         'data-membership-loading': String(membership.membershipLoading),
         'data-membership-info-null': String(membership.membershipInfo === null),
-        'data-membership-error': membership.membershipError?.message ?? '',
       });
     }
 
@@ -207,7 +206,6 @@ test('useSessionMembership should keep viewer failures in loading state until bo
     assert.match(html, /data-membership-resolved="false"/u);
     assert.match(html, /data-membership-loading="true"/u);
     assert.match(html, /data-membership-info-null="true"/u);
-    assert.match(html, /data-membership-error=""/u);
   } finally {
     (clientProvidersModule as { useSessionSafe: typeof import('../components/providers/ClientProviders').useSessionSafe }).useSessionSafe = originalUseSessionSafe;
     (appBootstrapModule as { useAppBootstrap: typeof import('../lib/hooks/useAppBootstrap').useAppBootstrap }).useAppBootstrap = originalUseAppBootstrap;

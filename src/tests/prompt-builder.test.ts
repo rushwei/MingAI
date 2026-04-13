@@ -319,7 +319,7 @@ test('buildPromptWithSources includes relevant chart types based on bazi chart c
 test('buildPromptWithSources should enrich ziwei chart data from base birth info before rendering canonical text', async () => {
     const pb = require('../lib/ai/prompt-builder') as any;
     const ziweiModule = require('../lib/divination/ziwei') as typeof import('../lib/divination/ziwei');
-    const rebuiltChart = ziweiModule.calculateZiwei({
+    const rebuiltChart = ziweiModule.calculateZiweiChartBundle({
         name: '紫微命主',
         gender: 'male',
         birthYear: 1990,
@@ -331,7 +331,7 @@ test('buildPromptWithSources should enrich ziwei chart data from base birth info
         isLeapMonth: false,
         birthPlace: '北京',
         longitude: 116.4074,
-    });
+    }).output;
     const rebuiltText = ziweiModule.generateZiweiChartText(rebuiltChart);
     const res = await pb.buildPromptWithSources({
         modelId: 'deepseek-chat',

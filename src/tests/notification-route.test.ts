@@ -355,7 +355,7 @@ test('getUnreadCount should read count from top-level response', async () => {
 
   try {
     const { getUnreadCount } = await import('../lib/notification');
-    const count = await getUnreadCount('user-1', { bypassCache: true });
+    const count = await getUnreadCount();
     assert.equal(count, 7);
   } finally {
     global.fetch = originalFetch;
@@ -372,7 +372,7 @@ test('getUnreadCount should throw when unread count request fails', async () => 
   try {
     const { getUnreadCount } = await import('../lib/notification');
     await assert.rejects(
-      () => getUnreadCount('user-1', { bypassCache: true }),
+      () => getUnreadCount(),
       /获取通知失败/u,
     );
   } finally {
@@ -394,7 +394,7 @@ test('unread query should not rely on a cold bootstrap zero as fresh initial dat
 
   try {
     const { getUnreadCount } = await import('../lib/notification');
-    const count = await getUnreadCount('user-1');
+    const count = await getUnreadCount();
     assert.equal(count, 3);
     assert.equal(fetchCount, 1);
   } finally {
@@ -412,7 +412,7 @@ test('getNotificationsPage should throw when notifications request fails', async
   try {
     const { getNotificationsPage } = await import('../lib/notification');
     await assert.rejects(
-      () => getNotificationsPage('user-1', { limit: 20, offset: 0 }),
+      () => getNotificationsPage({ limit: 20, offset: 0 }),
       /获取通知列表失败/u,
     );
   } finally {

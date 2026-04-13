@@ -169,7 +169,7 @@ test('linuxdo callback should redirect oauth errors back to sanitized returnTo w
     state: 'expected-state',
     codeVerifier: 'code-verifier',
     intent: 'membership-claim',
-    returnTo: '/user/upgrade',
+    returnTo: '/bazi#settings/upgrade',
   }));
 
   const response = await routeModule.GET(new NextRequest(
@@ -182,7 +182,7 @@ test('linuxdo callback should redirect oauth errors back to sanitized returnTo w
   ));
 
   assert.equal(response.status, 307);
-  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?error=oauth_denied');
+  assert.equal(response.headers.get('location'), 'http://localhost/bazi?error=oauth_denied#settings/upgrade');
 });
 
 test('linuxdo callback should preserve returnTo when token exchange fails after state validation', async (t) => {
@@ -206,7 +206,7 @@ test('linuxdo callback should preserve returnTo when token exchange fails after 
     state: 'expected-state',
     codeVerifier: 'code-verifier',
     intent: 'membership-claim',
-    returnTo: '/user/upgrade',
+    returnTo: '/bazi#settings/upgrade',
   }));
 
   const response = await routeModule.GET(new NextRequest(
@@ -219,7 +219,7 @@ test('linuxdo callback should preserve returnTo when token exchange fails after 
   ));
 
   assert.equal(response.status, 307);
-  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?error=token_exchange_failed');
+  assert.equal(response.headers.get('location'), 'http://localhost/bazi?error=token_exchange_failed#settings/upgrade');
 });
 
 test('linuxdo callback should not reject login when email_verified claim is missing', async (t) => {
@@ -1000,7 +1000,7 @@ test('linuxdo callback should claim monthly membership and redirect back to memb
     state: 'expected-state',
     codeVerifier: 'code-verifier',
     intent: 'membership-claim',
-    returnTo: '/user/upgrade',
+    returnTo: '/bazi#settings/upgrade',
   }));
   const request = new NextRequest(
     'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
@@ -1014,7 +1014,7 @@ test('linuxdo callback should claim monthly membership and redirect back to memb
   const response = await GET(request);
 
   assert.equal(response.status, 307);
-  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?claim=ok');
+  assert.equal(response.headers.get('location'), 'http://localhost/bazi?claim=ok#settings/upgrade');
   assert.equal(rpcCall?.fn, 'claim_linuxdo_membership_as_service');
   assert.deepEqual(rpcCall?.args, {
     p_user_id: 'user-claim',
@@ -1142,7 +1142,7 @@ test('linuxdo callback should short-circuit monthly claim when trust level is in
     state: 'expected-state',
     codeVerifier: 'code-verifier',
     intent: 'membership-claim',
-    returnTo: '/user/upgrade',
+    returnTo: '/bazi#settings/upgrade',
   }));
   const request = new NextRequest(
     'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
@@ -1156,6 +1156,6 @@ test('linuxdo callback should short-circuit monthly claim when trust level is in
   const response = await GET(request);
 
   assert.equal(response.status, 307);
-  assert.equal(response.headers.get('location'), 'http://localhost/user/upgrade?claim=no_eligibility');
+  assert.equal(response.headers.get('location'), 'http://localhost/bazi?claim=no_eligibility#settings/upgrade');
   assert.equal(rpcCalls, 0);
 });

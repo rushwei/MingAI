@@ -35,9 +35,25 @@ test('records detail components reuse src/lib/records.ts instead of maintaining 
   assert.equal(detailSource.includes('importData('), true);
 });
 
-test('records client uses allowNotFound instead of matching 404 error text', () => {
+test('records client should not keep dead allowNotFound fallback for removed single-record helpers', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/lib/records.ts'), 'utf8');
 
-  assert.equal(source.includes('allowNotFound: true'), true);
+  assert.equal(source.includes('allowNotFound: true'), false);
   assert.equal(source.includes('/不存在|404/u.test'), false);
+});
+
+test('records notes and import-export helpers should not keep fake userId passthrough signatures', () => {
+  const source = readFileSync(resolve(process.cwd(), 'src/lib/records.ts'), 'utf8');
+  const pageSource = readFileSync(resolve(process.cwd(), 'src/app/records/page.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(process.cwd(), 'src/components/records/RecordDetail.tsx'), 'utf8');
+
+  assert.equal(source.includes('void userId;'), false);
+  assert.equal(source.includes('getNotesByDate(userId:'), false);
+  assert.equal(source.includes('createNote(userId:'), false);
+  assert.equal(source.includes('exportData(userId:'), false);
+  assert.equal(source.includes('importData(\n    userId,'), false);
+  assert.equal(pageSource.includes('getNotesByDate(user.id,'), false);
+  assert.equal(detailSource.includes('createNote(userId,'), false);
+  assert.equal(detailSource.includes('exportData(userId)'), false);
+  assert.equal(detailSource.includes('importData(userId,'), false);
 });

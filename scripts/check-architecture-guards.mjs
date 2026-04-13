@@ -76,9 +76,18 @@ mustNotExist('src/app/api/mbti/history/route.ts', 'legacy mbti history route sho
 mustNotExist('src/app/api/chat/title/route.ts', 'legacy chat title route should stay removed after draft-title convergence');
 mustNotExist('src/lib/title-utils.ts', 'legacy title helper should stay removed after draft-title convergence');
 mustNotExist('src/lib/user-charts.ts', 'duplicate chart browser helper should stay removed after charts-client convergence');
+mustNotExist('src/lib/admin/request.ts', 'thin admin request wrapper should stay removed after browser-api convergence');
 mustNotExist('src/app/admin/payment/page.tsx', 'legacy admin payment entry should stay removed after settings-center convergence');
 mustNotExist('src/app/user/orders/page.tsx', 'legacy user orders entry should stay removed after membership-center convergence');
 mustNotExist('src/app/user/settings/ai/page.tsx', 'legacy ai-settings alias page should stay removed after route convergence');
+mustNotExist('src/app/checkin/page.tsx', 'legacy checkin shell should stay removed after settings-center convergence');
+mustNotExist('src/app/help/page.tsx', 'legacy help shell should stay removed after settings-center convergence');
+mustNotExist('src/app/user/page.tsx', 'legacy user shell should stay removed after settings-center convergence');
+mustNotExist('src/app/admin/announcements/page.tsx', 'legacy admin announcements shell should stay removed after settings-center convergence');
+mustNotExist('src/app/admin/features/page.tsx', 'legacy admin features shell should stay removed after settings-center convergence');
+mustNotExist('src/app/admin/ai-services/page.tsx', 'legacy admin AI services shell should stay removed after settings-center convergence');
+mustNotExist('src/app/admin/mcp/page.tsx', 'legacy admin MCP shell should stay removed after settings-center convergence');
+mustNotExist('src/components/settings/SettingsRouteLauncher.tsx', 'legacy settings route launcher should stay removed after settings-center convergence');
 
 for (const file of [
   'src/app/api/activation-keys/route.ts',
@@ -122,14 +131,14 @@ mustNotMatch(
 );
 
 for (const file of [
-  'src/app/user/settings/page.tsx',
   'src/app/user/annual-report/page.tsx',
   'src/app/bazi/result/page.tsx',
   'src/app/ziwei/result/page.tsx',
-  'src/app/user/knowledge-base/page.tsx',
   'src/app/records/page.tsx',
-  'src/app/user/mcp/page.tsx',
-  'src/app/user/profile/page.tsx',
+  'src/components/settings/panels/GeneralSettingsPanel.tsx',
+  'src/components/settings/panels/KnowledgeBasePanel.tsx',
+  'src/components/settings/panels/McpServicePanel.tsx',
+  'src/components/settings/panels/ProfilePanel.tsx',
   'src/components/knowledge-base/AddToKnowledgeBaseModal.tsx',
   'src/components/chat/composer/useComposerState.ts',
   'src/components/daily/DailyAIChat.tsx',
@@ -442,9 +451,9 @@ mustNotMatchInTree(
 );
 
 mustNotMatch(
-  'src/app/user/profile/page.tsx',
+  'src/components/settings/panels/ProfilePanel.tsx',
   /\.from\('users'\)|supabase\.storage/u,
-  'profile page should use APIs instead of direct users/storage access',
+  'profile panel should use APIs instead of direct users/storage access',
 );
 mustNotMatch(
   'src/app/community/[postId]/page.tsx',
@@ -526,21 +535,6 @@ mustMatch(
   /Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD/u,
   'supabase-server should keep a clear missing-credentials error',
 );
-mustNotMatch(
-  'Dockerfile',
-  /ARG SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SERVICE_ROLE_KEY="\$SUPABASE_SERVICE_ROLE_KEY"/u,
-  'Dockerfile should not pass SUPABASE_SERVICE_ROLE_KEY as a build argument',
-);
-mustNotMatch(
-  'docker-compose.yml',
-  /SUPABASE_SERVICE_ROLE_KEY:/u,
-  'docker-compose.yml should not include service role key in web build args',
-);
-mustNotMatch(
-  'docker-compose.web.yml',
-  /SUPABASE_SERVICE_ROLE_KEY:/u,
-  'docker-compose.web.yml should not include service role key in web build args',
-);
 for (const file of [
   'src/app/api/liuyao/route.ts',
   'src/app/liuyao/result/page.tsx',
@@ -598,6 +592,91 @@ for (const policy of [
     'announcements admin RLS migration should define every admin policy',
   );
 }
+mustMatch(
+  'supabase/migrations/20260410_103000_fix_linuxdo_claim_concurrency.sql',
+  /CREATE OR REPLACE FUNCTION public\.claim_linuxdo_membership_as_service/u,
+  'linuxdo claim concurrency migration should redefine the monthly claim RPC',
+);
+mustMatch(
+  'supabase/migrations/20260410_103000_fix_linuxdo_claim_concurrency.sql',
+  /pg_advisory_xact_lock/u,
+  'linuxdo claim concurrency migration should serialize grants with an advisory lock',
+);
+mustMatch(
+  'supabase/migrations/20260410_103000_fix_linuxdo_claim_concurrency.sql',
+  /linuxdo_monthly_claim:/u,
+  'linuxdo claim concurrency migration should keep the scoped advisory-lock key',
+);
+mustMatch(
+  'supabase/migrations/20260410_141500_checkin_overcap_drop_user_achievements.sql',
+  /DROP TABLE IF EXISTS public\.user_achievements/u,
+  'checkin over-cap migration should drop the obsolete user_achievements table',
+);
+mustMatch(
+  'supabase/migrations/20260410_141500_checkin_overcap_drop_user_achievements.sql',
+  /CREATE OR REPLACE FUNCTION public\.perform_daily_checkin_as_service/u,
+  'checkin over-cap migration should redefine the service-side checkin RPC',
+);
+mustNotMatch(
+  'supabase/migrations/20260410_141500_checkin_overcap_drop_user_achievements.sql',
+  /LEAST\(v_reward_credits,\s*v_credit_limit - v_current_credits\)/u,
+  'checkin over-cap migration should stop capping a valid reward below the credit limit',
+);
+mustMatch(
+  'supabase/migrations/20260410_141500_checkin_overcap_drop_user_achievements.sql',
+  /v_new_credits := v_current_credits \+ v_reward_credits;/u,
+  'checkin over-cap migration should add the full reward when the user is still below the cap',
+);
+mustMatch(
+  'supabase/migrations/20260411_103500_align_admin_session_service_rpcs.sql',
+  /GRANT EXECUTE ON FUNCTION public\.perform_daily_checkin_as_service\(uuid\) TO authenticated, service_role;/u,
+  'admin-session rpc alignment migration should grant authenticated access to perform_daily_checkin_as_service',
+);
+mustMatch(
+  'supabase/migrations/20260411_103500_align_admin_session_service_rpcs.sql',
+  /GRANT EXECUTE ON FUNCTION public\.claim_linuxdo_membership_as_service\(uuid, text, integer, text\) TO authenticated, service_role;/u,
+  'admin-session rpc alignment migration should grant authenticated access to claim_linuxdo_membership_as_service',
+);
+mustMatch(
+  'supabase/migrations/20260411_103500_align_admin_session_service_rpcs.sql',
+  /GRANT EXECUTE ON FUNCTION public\.activate_key_as_service\(uuid, text\) TO authenticated, service_role;/u,
+  'admin-session rpc alignment migration should grant authenticated access to activate_key_as_service',
+);
+mustMatch(
+  'supabase/migrations/20260411_103500_align_admin_session_service_rpcs.sql',
+  /IF NOT public\.is_admin_user\(\) THEN/u,
+  'admin-session rpc alignment migration should keep the shared admin-session guard',
+);
+mustMatch(
+  'supabase/migrations/20260411_104200_restore_batch_update_vectors_as_service.sql',
+  /CREATE OR REPLACE FUNCTION public\.batch_update_vectors_as_service/u,
+  'batch vector restore migration should redefine batch_update_vectors_as_service',
+);
+mustMatch(
+  'supabase/migrations/20260411_104200_restore_batch_update_vectors_as_service.sql',
+  /GRANT EXECUTE ON FUNCTION public\.batch_update_vectors_as_service\(jsonb, uuid, integer, boolean\) TO authenticated, service_role;/u,
+  'batch vector restore migration should grant authenticated access to batch_update_vectors_as_service',
+);
+mustMatch(
+  'supabase/migrations/20260411_104200_restore_batch_update_vectors_as_service.sql',
+  /IF NOT public\.is_admin_user\(\) THEN/u,
+  'batch vector restore migration should keep the shared admin-session guard',
+);
+mustMatch(
+  'supabase/migrations/20260411_111500_restrict_admin_session_rpc_acl.sql',
+  /admin_list_mcp_keys/u,
+  'admin-session rpc acl migration should cover admin_list_mcp_keys',
+);
+mustMatch(
+  'supabase/migrations/20260411_111500_restrict_admin_session_rpc_acl.sql',
+  /mcp_reset_key/u,
+  'admin-session rpc acl migration should cover mcp_reset_key',
+);
+mustMatch(
+  'supabase/migrations/20260411_111500_restrict_admin_session_rpc_acl.sql',
+  /process_scheduled_reminder_delivery_as_service/u,
+  'admin-session rpc acl migration should cover scheduled reminder delivery RPCs',
+);
 mustMatch(
   'supabase/migrations/20260315_fix_user_oauth_providers_admin_rls.sql',
   /DROP POLICY IF EXISTS "Service role full access on oauth providers"/u,

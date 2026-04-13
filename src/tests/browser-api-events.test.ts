@@ -128,3 +128,29 @@ test('fetchBrowserJson should broadcast knowledge-base sync and data invalidatio
   assert.equal(knowledgeBaseSyncEvents[0]?.method, 'DELETE');
   assert.deepEqual(knowledgeBaseSyncEvents[0]?.responseData, { success: true });
 });
+
+test('fetchBrowserJson should rethrow AbortError so callers can treat cancellation separately', async (t) => {
+  const browserApiPath = require.resolve('../lib/browser-api');
+  const originalFetch = global.fetch;
+
+  global.fetch = (async () => {
+    throw new DOMException('aborted', 'AbortError');
+  }) as FetchLike;
+
+  t.after(() => {
+    global.fetch = originalFetch;
+    delete require.cache[browserApiPath];
+  });
+
+  delete require.cache[browserApiPath];
+  const browserApi = require('../lib/browser-api') as typeof import('../lib/browser-api');
+
+  await assert.rejects(
+    () => browserApi.fetchBrowserJson('/api/conversations?limit=7&offset=0'),
+    (error: unknown) => {
+      assert.ok(error instanceof DOMException);
+      assert.equal(error.name, 'AbortError');
+      return true;
+    },
+  );
+});

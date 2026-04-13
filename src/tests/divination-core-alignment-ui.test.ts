@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { calculateBaziChartBundle, generateBaziChartText } from '@/lib/divination/bazi';
-import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
+import { calculateZiweiChartBundle, generateZiweiChartText } from '@/lib/divination/ziwei';
 import {
     calculateLiuyaoBundle,
     findHexagram,
@@ -80,7 +80,7 @@ test('web divination adapters should use explicit longitude instead of local fuz
         longitude: 121.47,
     });
 
-    const ziweiChart = calculateZiwei({
+    const ziweiChart = calculateZiweiChartBundle({
         name: '测试',
         gender: 'male',
         birthYear: 1990,
@@ -90,14 +90,14 @@ test('web divination adapters should use explicit longitude instead of local fuz
         birthMinute: 0,
         calendarType: 'solar',
         longitude: 121.47,
-    } as Parameters<typeof calculateZiwei>[0] & { longitude: number });
+    } as Parameters<typeof calculateZiweiChartBundle>[0] & { longitude: number }).output;
 
     assert.equal(baziChart.trueSolarTimeInfo?.longitude, 121.47);
     assert.equal(ziweiChart.trueSolarTimeInfo?.longitude, 121.47);
 });
 
 test('ziwei web contract should keep core metadata while default copy text stays compact and ordered', () => {
-    const chart = calculateZiwei({
+    const chart = calculateZiweiChartBundle({
         name: '测试',
         gender: 'male',
         birthYear: 1990,
@@ -106,7 +106,7 @@ test('ziwei web contract should keep core metadata while default copy text stays
         birthHour: 12,
         birthMinute: 0,
         calendarType: 'solar',
-    });
+    }).output;
 
     assert.ok(typeof (chart as unknown as Record<string, unknown>).douJun === 'string', 'ziwei chart should preserve douJun from core output');
     assert.ok(typeof (chart as unknown as Record<string, unknown>).lifeMasterStar === 'string', 'ziwei chart should preserve lifeMasterStar from core output');
@@ -134,7 +134,7 @@ test('ziwei web contract should keep core metadata while default copy text stays
 });
 
 test('ziwei star mutagen variants should be surfaced in text output', () => {
-    const chart = calculateZiwei({
+    const chart = calculateZiweiChartBundle({
         name: '测试',
         gender: 'male',
         birthYear: 1990,
@@ -143,7 +143,7 @@ test('ziwei star mutagen variants should be surfaced in text output', () => {
         birthHour: 12,
         birthMinute: 0,
         calendarType: 'solar',
-    });
+    }).output;
 
     const palace = chart.palaces[0];
     if (palace?.majorStars?.[0]) {

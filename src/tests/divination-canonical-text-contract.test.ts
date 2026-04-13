@@ -14,7 +14,7 @@ import {
   type DaliurenOutput,
 } from '@mingai/core';
 import { calculateBaziChartBundle, generateBaziChartText } from '@/lib/divination/bazi';
-import { calculateZiwei, calculateZiweiChartBundle, generateZiweiChartText } from '@/lib/divination/ziwei';
+import { calculateZiweiChartBundle, generateZiweiChartText } from '@/lib/divination/ziwei';
 
 const renderToolText = (
   toolName: string,
@@ -246,7 +246,7 @@ test('ziwei full text should keep full age arrays instead of truncating them whi
   assert.match(markdown, /时辰索引|真太阳时索引/u, 'mcp ziwei markdown should expose trueTimeIndex');
   assert.match(markdown, /跨日/u, 'mcp ziwei markdown should expose dayOffset');
 
-  const chart = calculateZiwei({
+  const chart = calculateZiweiChartBundle({
     name: '测试',
     gender: 'male',
     birthYear: 1990,
@@ -255,7 +255,7 @@ test('ziwei full text should keep full age arrays instead of truncating them whi
     birthHour: 12,
     birthMinute: 0,
     calendarType: 'solar',
-  });
+  }).output;
 
   chart.trueSolarTimeInfo = {
     clockTime: '23:40',

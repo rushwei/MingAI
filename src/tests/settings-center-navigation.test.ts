@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
@@ -11,7 +11,7 @@ import {
 } from '../lib/settings-center';
 import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_TOOL_ORDER } from '../lib/user/settings';
 
-test('settings center keeps only the merged membership tab and falls back from legacy credits hash', () => {
+test('settings center keeps only the merged membership tab and rejects removed legacy credits hash', () => {
   const tabs = getSettingsCenterTabs({
     upgradeEnabled: true,
     chartsEnabled: true,
@@ -25,7 +25,7 @@ test('settings center keeps only the merged membership tab and falls back from l
 
   assert.equal(tabs.some((tab) => tab.id === 'upgrade' && tab.disabled === false), true);
   assert.equal(registrySource.includes("id: 'settings-upgrade', href: getSettingsCenterRouteTarget('upgrade')"), true);
-  assert.equal(parseSettingsCenterHash('#settings/credits'), 'upgrade');
+  assert.equal(parseSettingsCenterHash('#settings/credits'), null);
   assert.equal(
     getSettingsCenterRouteTarget('upgrade', { search: '?claim=ok' }),
     '/bazi?claim=ok#settings/upgrade',
@@ -95,7 +95,7 @@ test('shared navigation and admin feature toggles no longer expose legacy credit
   assert.equal(registrySource.includes("credits: '积分流水'"), false);
 });
 
-test('help navigation uses canonical /help route and removes /user/help mapping', () => {
+test('help navigation uses canonical settings-center route and removes old help shells', () => {
   const registrySource = readFileSync(resolve(process.cwd(), 'src/lib/navigation/registry.ts'), 'utf8');
 
   assert.equal(registrySource.includes("id: 'settings-help', href: getSettingsCenterRouteTarget('help')"), true);
@@ -113,18 +113,22 @@ test('personalization navigation uses canonical settings-center route and remove
   assert.equal(registrySource.includes("id: 'user/settings/ai'"), false);
   assert.equal(settingsLinkSource.includes('getSettingsCenterRouteTarget(tab)'), true);
   assert.equal(settingsCenterSource.includes("window.history[method](nextState, '', getSettingsCenterRouteTarget(tab,"), true);
-  assert.equal(existsSync(resolve(process.cwd(), 'src/app/user/settings/ai/page.tsx')), false);
 });
 
-test('legacy checkin route is reduced to a settings-center launcher', () => {
-  const checkinSource = readFileSync(resolve(process.cwd(), 'src/app/checkin/page.tsx'), 'utf8');
-  const launcherSource = readFileSync(resolve(process.cwd(), 'src/components/settings/SettingsRouteLauncher.tsx'), 'utf8');
+test('settings center host should load standalone panel modules instead of app route pages', () => {
+  const hostSource = readFileSync(resolve(process.cwd(), 'src/components/settings/SettingsCenterHost.tsx'), 'utf8');
 
-  assert.equal(checkinSource.includes('return <SettingsRouteLauncher tab="upgrade" />;'), true);
-  assert.equal(checkinSource.includes('CheckinModal'), false);
-  assert.equal(checkinSource.includes('FeatureGate'), false);
-  assert.equal(launcherSource.includes('getSettingsCenterTabLabel(tab)'), true);
-  assert.equal(launcherSource.includes('buildSettingsCenterHash(tab'), false);
+  assert.equal(hostSource.includes("@/components/settings/panels/GeneralSettingsPanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/AISettingsPanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/UpgradePanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/ProfilePanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/ChartsPanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/KnowledgeBasePanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/McpServicePanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/HelpPanel"), true);
+  assert.equal(hostSource.includes("import('@/app/user/settings/page')"), false);
+  assert.equal(hostSource.includes("import('@/app/user/profile/page')"), false);
+  assert.equal(hostSource.includes("import('@/app/help/page')"), false);
 });
 
 test('privacy and terms pages link back to canonical settings help route instead of /help shell', () => {
@@ -139,25 +143,31 @@ test('privacy and terms pages link back to canonical settings help route instead
 
 test('header uses canonical settings labels and legal-page back fallback', () => {
   const headerSource = readFileSync(resolve(process.cwd(), 'src/components/layout/Header.tsx'), 'utf8');
+  const announcementHostSource = readFileSync(resolve(process.cwd(), 'src/components/providers/AnnouncementPopupHost.tsx'), 'utf8');
 
-  assert.equal(headerSource.includes("'/checkin': '会员与积分'"), true);
-  assert.equal(headerSource.includes("'/user/ai-settings': '个性化'"), true);
-  assert.equal(headerSource.includes("'/user/settings': '设置'"), true);
-  assert.equal(headerSource.includes("'/user/charts': '命盘'"), true);
-  assert.equal(headerSource.includes("'/user/mcp': 'MCP OAuth'"), true);
-  assert.equal(headerSource.includes("'/help': '帮助'"), true);
+  assert.equal(headerSource.includes("'/checkin': '会员与积分'"), false);
+  assert.equal(headerSource.includes("'/user/ai-settings': '个性化'"), false);
+  assert.equal(headerSource.includes("'/user/settings': '设置'"), false);
+  assert.equal(headerSource.includes("'/user/charts': '命盘'"), false);
+  assert.equal(headerSource.includes("'/user/mcp': 'MCP OAuth'"), false);
+  assert.equal(headerSource.includes("'/help': '帮助'"), false);
   assert.equal(headerSource.includes("'/privacy': '隐私政策'"), true);
   assert.equal(headerSource.includes("'/terms': '服务条款'"), true);
-  assert.equal(headerSource.includes("'/admin/features': '功能与激活码'"), true);
-  assert.equal(headerSource.includes("'/admin/announcements': '公告管理'"), true);
+  assert.equal(headerSource.includes("'/admin/features': '功能与激活码'"), false);
+  assert.equal(headerSource.includes("'/admin/announcements': '公告管理'"), false);
   assert.equal(headerSource.includes("'/privacy': getSettingsCenterRouteTarget('help')"), true);
   assert.equal(headerSource.includes("'/terms': getSettingsCenterRouteTarget('help')"), true);
   assert.equal(headerSource.includes("'/user/settings': '偏好设置'"), false);
   assert.equal(headerSource.includes("'/user/ai-settings': 'AI 个性化'"), false);
   assert.equal(headerSource.includes("'/help': '帮助中心'"), false);
+  assert.equal(headerSource.includes("useActiveSettingsCenterTab"), true);
+  assert.equal(headerSource.includes("isAdminSettingsCenterTab(activeSettingsTab)"), true);
+  assert.equal(announcementHostSource.includes("useActiveSettingsCenterTab"), true);
+  assert.equal(announcementHostSource.includes("isAdminSettingsCenterTab(activeSettingsTab)"), true);
 });
 
-test('legacy admin payment and user orders alias pages are removed', () => {
-  assert.equal(existsSync(resolve(process.cwd(), 'src/app/admin/payment/page.tsx')), false);
-  assert.equal(existsSync(resolve(process.cwd(), 'src/app/user/orders/page.tsx')), false);
+test('navigation registry no longer carries dead checkin-only tool filtering', () => {
+  const registrySource = readFileSync(resolve(process.cwd(), 'src/lib/navigation/registry.ts'), 'utf8');
+
+  assert.equal(registrySource.includes("n.id !== 'checkin'"), false);
 });

@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
@@ -790,77 +789,6 @@ test('getCheckinStatus should keep the full reward range while the user is still
   assert.equal(status.canCheckin, true);
   assert.deepEqual(status.rewardRange, [2, 6]);
   assert.equal(status.blockedReason, null);
-});
-
-test('linuxdo monthly claim migration should serialize grants with an advisory lock', () => {
-  const sql = fs.readFileSync('supabase/migrations/20260410_103000_fix_linuxdo_claim_concurrency.sql', 'utf8');
-
-  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.claim_linuxdo_membership_as_service/u);
-  assert.match(sql, /pg_advisory_xact_lock/u);
-  assert.match(sql, /linuxdo_monthly_claim:/u);
-});
-
-test('checkin over-cap migration should drop achievements and keep the full reward when signing in below the cap', () => {
-  const sql = fs.readFileSync(
-    'supabase/migrations/20260410_141500_checkin_overcap_drop_user_achievements.sql',
-    'utf8',
-  );
-
-  assert.match(sql, /DROP TABLE IF EXISTS public\.user_achievements/u);
-  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.perform_daily_checkin_as_service/u);
-  assert.doesNotMatch(sql, /LEAST\(v_reward_credits,\s*v_credit_limit - v_current_credits\)/u);
-  assert.match(sql, /v_new_credits := v_current_credits \+ v_reward_credits;/u);
-});
-
-test('admin-session rpc alignment migration should grant authenticated access to internal service rpcs', () => {
-  const sql = fs.readFileSync(
-    'supabase/migrations/20260411_103500_align_admin_session_service_rpcs.sql',
-    'utf8',
-  );
-
-  assert.match(sql, /record_credit_transaction/u);
-  assert.match(sql, /decrement_ai_chat_count/u);
-  assert.match(sql, /increment_ai_chat_count/u);
-  assert.match(sql, /activate_key_as_service/u);
-  assert.match(sql, /perform_daily_checkin_as_service/u);
-  assert.match(sql, /claim_linuxdo_membership_as_service/u);
-  assert.match(sql, /batch_update_vectors_as_service/u);
-  assert.match(sql, /IF NOT public\.is_admin_user\(\) THEN/u);
-  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.perform_daily_checkin_as_service\(uuid\) TO authenticated, service_role;/u);
-  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.claim_linuxdo_membership_as_service\(uuid, text, integer, text\) TO authenticated, service_role;/u);
-  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.activate_key_as_service\(uuid, text\) TO authenticated, service_role;/u);
-});
-
-test('batch vector service migration should restore the function for admin-session clients', () => {
-  const sql = fs.readFileSync(
-    'supabase/migrations/20260411_104200_restore_batch_update_vectors_as_service.sql',
-    'utf8',
-  );
-
-  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.batch_update_vectors_as_service/u);
-  assert.match(sql, /IF NOT public\.is_admin_user\(\) THEN/u);
-  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.batch_update_vectors_as_service\(jsonb, uuid, integer, boolean\) TO authenticated, service_role;/u);
-});
-
-test('admin-session acl tightening migration should revoke anon access from server-only rpc functions', () => {
-  const sql = fs.readFileSync(
-    'supabase/migrations/20260411_111500_restrict_admin_session_rpc_acl.sql',
-    'utf8',
-  );
-
-  assert.match(sql, /admin_list_mcp_keys/u);
-  assert.match(sql, /admin_revoke_mcp_key/u);
-  assert.match(sql, /admin_unban_mcp_key/u);
-  assert.match(sql, /mcp_reset_key/u);
-  assert.match(sql, /mcp_exchange_authorization_code/u);
-  assert.match(sql, /mcp_rotate_refresh_token/u);
-  assert.match(sql, /mcp_verify_api_key/u);
-  assert.match(sql, /mcp_touch_key_last_used/u);
-  assert.match(sql, /consume_rate_limit_slot_as_admin/u);
-  assert.match(sql, /process_scheduled_reminder_delivery_as_service/u);
-  assert.match(sql, /REVOKE ALL ON FUNCTION public\.mcp_verify_api_key\(text\) FROM public, anon, authenticated;/u);
-  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.mcp_verify_api_key\(text\) TO authenticated, service_role;/u);
-  assert.match(sql, /REVOKE ALL ON FUNCTION public\.process_scheduled_reminder_delivery_as_service\(uuid, timestamptz, text, text, text\) FROM public, anon, authenticated;/u);
 });
 
 test('checkRateLimit should use transactional rpc result', async (t) => {

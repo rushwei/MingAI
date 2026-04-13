@@ -28,7 +28,7 @@ test('toSavedBaziChart should rebuild core output from stored bazi base fields',
   assert.equal(chart.name, '测试命盘');
 });
 
-test('loadUserChartBundle should throw when chart bundle request fails', async (t) => {
+test('getUserCharts should throw when chart bundle request fails', async (t) => {
   const originalFetch = global.fetch;
   const modulePath = require.resolve('../lib/user/charts-client');
 
@@ -45,10 +45,10 @@ test('loadUserChartBundle should throw when chart bundle request fails', async (
   });
 
   delete require.cache[modulePath];
-  const { loadUserChartBundle } = require('../lib/user/charts-client') as typeof import('../lib/user/charts-client');
+  const { getUserCharts } = require('../lib/user/charts-client') as typeof import('../lib/user/charts-client');
 
   await assert.rejects(
-    () => loadUserChartBundle(),
+    () => getUserCharts(),
     /获取命盘列表失败/u,
   );
 });

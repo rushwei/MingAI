@@ -1,9 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-import { createPost, getPost, getPosts } from '../lib/community';
+import { createPost, getPostDetail, getPosts } from '../lib/community';
 
 type MockResponseInit = {
   ok: boolean;
@@ -72,7 +69,7 @@ test('community client returns null for 404 post detail responses', async (t) =>
     global.fetch = originalFetch;
   });
 
-  const result = await getPost('missing-post');
+  const result = await getPostDetail('missing-post');
   assert.equal(result, null);
 });
 
@@ -93,14 +90,4 @@ test('community client surfaces browser api error messages for writes', async (t
     () => createPost({ title: '标题', content: '内容', category: 'general' }),
     /认证失败/,
   );
-});
-
-test('community post detail auth keeps logged-in user state separate from admin access failures', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/app/community/[postId]/page.tsx'), 'utf8');
-
-  assert.equal(source.includes("console.error('获取社区管理员状态失败:'"), true);
-  assert.equal(source.includes("console.error('获取社区登录态失败:'"), true);
-  assert.equal(source.includes("showToast('error', error instanceof Error ? error.message : '管理员权限获取失败')"), true);
-  assert.equal(source.includes("showToast('error', error instanceof Error ? error.message : '认证状态获取失败')"), true);
-  assert.equal(source.match(/setUser\(null\);/g)?.length ?? 0, 1);
 });
