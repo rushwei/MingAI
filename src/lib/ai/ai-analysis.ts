@@ -121,25 +121,6 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
     return data;
 }
 
-// 塔罗牌阵 ID 到中文名称的映射
-const SPREAD_ID_TO_NAME: Record<string, string> = {
-    'single': '单牌',
-    'three-card': '三牌阵',
-    'love': '爱情牌阵',
-    'celtic-cross': '凯尔特十字',
-};
-
-/**
- * 生成塔罗牌分析标题
- */
-export function generateTarotTitle(question: string | undefined, spreadId: string): string {
-    const spreadName = SPREAD_ID_TO_NAME[spreadId] || spreadId || '自定义';
-    if (question && question.trim()) {
-        return `${question.trim().substring(0, 20)} - ${spreadName}`;
-    }
-    return `塔罗占卜 - ${spreadName}`;
-}
-
 /**
  * 生成六爻分析标题
  * @param hexagramName 主卦名称
@@ -159,25 +140,6 @@ export function generateLiuyaoTitle(
         return `${question.trim().substring(0, 20)} - ${hexagramDisplay}`;
     }
     return `六爻占卜 - ${hexagramDisplay}`;
-}
-
-/**
- * 生成 MBTI 分析标题
- */
-export function generateMbtiTitle(mbtiType: string): string {
-    return `${mbtiType} 人格分析`;
-}
-
-/**
- * 生成合盘分析标题
- */
-export function generateHepanTitle(person1: string, person2: string, type: string): string {
-    const typeNames: Record<string, string> = {
-        'love': '情侣合盘',
-        'business': '商业合伙',
-        'family': '亲子关系'
-    };
-    return `${person1} & ${person2} - ${typeNames[type] || '合盘分析'}`;
 }
 
 /**

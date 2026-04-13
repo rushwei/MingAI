@@ -9,8 +9,7 @@ export function useSessionMembership() {
   const bootstrap = useAppBootstrap();
   const membershipResolved = !user || bootstrap.viewerStateResolved;
 
-  const refreshMembership = useCallback(async (userId?: string | null) => {
-    void userId;
+  const refreshMembership = useCallback(async () => {
     const nextBootstrap = await bootstrap.refresh();
     return nextBootstrap.viewerLoaded ? nextBootstrap.membership : null;
   }, [bootstrap]);
@@ -23,7 +22,6 @@ export function useSessionMembership() {
     membershipInfo: bootstrap.viewerStateLoaded ? bootstrap.data.membership : null,
     membershipLoading: sessionLoading || (!!user && !bootstrap.viewerStateResolved),
     membershipResolved,
-    membershipError: bootstrap.viewerStateError,
     refreshMembership,
   };
 }

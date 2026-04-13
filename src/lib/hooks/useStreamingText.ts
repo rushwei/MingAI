@@ -29,7 +29,7 @@ export interface StreamingTextOptions {
     immediateFirstChar?: boolean;
 }
 
-export interface StreamingTextState {
+interface StreamingTextState {
     /** 当前可见的内容 */
     visibleContent: string;
     /** 是否正在渲染 */
@@ -38,7 +38,7 @@ export interface StreamingTextState {
     pendingCount: number;
 }
 
-export interface StreamingTextActions {
+interface StreamingTextActions {
     /** 添加字符到队列 */
     addCharacters: (chars: string) => void;
     /** 重置状态 */
@@ -49,7 +49,7 @@ export interface StreamingTextActions {
     stop: () => void;
 }
 
-export type UseStreamingTextReturn = StreamingTextState & StreamingTextActions;
+type UseStreamingTextReturn = StreamingTextState & StreamingTextActions;
 
 /**
  * 流式文本平滑渲染 Hook

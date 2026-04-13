@@ -5,17 +5,15 @@
  */
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useAppBootstrap } from '@/lib/hooks/useAppBootstrap';
 
 type FeatureTogglesState = {
-  disabledFeatures: Set<string>;
   isLoading: boolean;
-  isRefreshing: boolean;
   loaded: boolean;
   error: Error | null;
   isFeatureEnabled: (featureId: string) => boolean;
-  refresh: (force?: boolean, showLoading?: boolean) => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 type UseFeatureTogglesOptions = {
@@ -35,30 +33,17 @@ export function useFeatureToggles(options: UseFeatureTogglesOptions = {}): Featu
     )
     : null;
 
-  const refresh = useCallback(async (force = false, showLoading = false) => {
-    void force;
-    void showLoading;
+  const refresh = useCallback(async () => {
     await bootstrap.refresh();
   }, [bootstrap]);
 
-  const disabledFeatures = useMemo(
-    () => new Set(
-      Object.entries(toggles)
-        .filter(([, disabled]) => disabled === true)
-        .map(([featureId]) => featureId),
-    ),
-    [toggles],
-  );
-
   const isFeatureEnabled = useCallback(
-    (featureId: string) => enabled && togglesLoaded && !disabledFeatures.has(featureId),
-    [disabledFeatures, enabled, togglesLoaded],
+    (featureId: string) => enabled && togglesLoaded && toggles[featureId] !== true,
+    [enabled, toggles, togglesLoaded],
   );
 
   return {
-    disabledFeatures,
     isLoading: enabled ? bootstrap.isLoading : false,
-    isRefreshing: enabled ? bootstrap.isFetching && !bootstrap.isLoading : false,
     loaded: enabled ? togglesLoaded : true,
     error: enabled ? toggleError : null,
     isFeatureEnabled,

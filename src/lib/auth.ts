@@ -14,7 +14,6 @@ import {
     requestBrowserJson,
 } from '@/lib/browser-api';
 import {
-    getCurrentUserProfile,
     updateAvatarUrl as updateAvatarProfile,
     updateNickname as updateNicknameProfile,
 } from '@/lib/user/profile';
@@ -412,10 +411,6 @@ export async function getSession() {
         throw new Error(error.message || '获取会话失败');
     }
     return session;
-}
-
-export async function getUserProfile(userId?: string) {
-    return getCurrentUserProfile(userId);
 }
 
 export { getCurrentUserProfileBundle } from '@/lib/user/profile';

@@ -28,8 +28,7 @@ export function useCurrentUserProfile(options?: { enabled?: boolean }) {
   const profile = toUserProfile(bootstrap.data);
   const profileResolved = bootstrap.viewerStateResolved;
 
-  const refresh = useCallback(async (force = false) => {
-    void force;
+  const refresh = useCallback(async () => {
     await bootstrap.refresh();
   }, [bootstrap]);
 

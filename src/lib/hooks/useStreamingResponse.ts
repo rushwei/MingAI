@@ -16,7 +16,7 @@ import {
 } from '@/lib/ai/browser-direct-provider';
 import { useStreamingText, type StreamingTextOptions } from './useStreamingText';
 
-export interface StreamingState {
+interface StreamingState {
     content: string;
     reasoning: string | null;
     reasoningStartTime: number | undefined;
@@ -25,14 +25,14 @@ export interface StreamingState {
     error: string | null;
 }
 
-export interface StreamingResponseOptions {
+interface StreamingResponseOptions {
     /** 是否启用平滑渲染 */
     smoothRendering?: boolean;
     /** 平滑渲染配置 */
     smoothRenderingOptions?: StreamingTextOptions;
 }
 
-export interface StreamingCallbacks {
+interface StreamingCallbacks {
     onContent?: (content: string) => void;
     onReasoning?: (reasoning: string) => void;
     onReasoningStart?: (startTime: number) => void;
@@ -59,7 +59,7 @@ interface ParsedSSEData {
     messageMetadata?: Record<string, unknown>;
 }
 
-export interface ParsedStreamingSSEFrame {
+interface ParsedStreamingSSEFrame {
     contentDelta?: string;
     reasoningDelta?: string;
     error?: string;

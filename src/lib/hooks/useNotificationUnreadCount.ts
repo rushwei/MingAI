@@ -21,7 +21,7 @@ export function useNotificationUnreadCount(
 
   const query = useQuery({
     queryKey: queryKeys.notificationsUnread(userId),
-    queryFn: () => getUnreadCount(userId ?? ''),
+    queryFn: () => getUnreadCount(),
     enabled: enabled && !!userId,
     staleTime: 5_000,
     refetchOnWindowFocus: true,

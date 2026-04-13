@@ -9,7 +9,7 @@ import { queryKeys } from '@/lib/query/keys';
 import type { AIVendor } from '@/types';
 import type { MembershipType } from '@/lib/user/membership';
 
-export type AvailableModel = {
+type AvailableModel = {
   id: string;
   name: string;
   vendor: AIVendor;

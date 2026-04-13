@@ -141,10 +141,6 @@ export async function getUserCharts(): Promise<UserChartBundle> {
   return normalizeUserChartBundle(data);
 }
 
-export async function loadUserChartBundle(): Promise<UserChartBundle> {
-  return getUserCharts();
-}
-
 export async function listSelectableCharts(): Promise<SelectableChart[]> {
   const data = await getUserCharts();
   return [
@@ -171,7 +167,7 @@ export function selectPrimarySavedBaziChart(bundle: UserChartBundle | null | und
 }
 
 export async function loadPrimarySavedBaziChart(): Promise<SavedBaziChart | null> {
-  const bundle = await loadUserChartBundle();
+  const bundle = await getUserCharts();
   return selectPrimarySavedBaziChart(bundle);
 }
 

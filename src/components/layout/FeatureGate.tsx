@@ -47,7 +47,7 @@ export function FeatureGate({ featureId, children }: FeatureGateProps) {
                 </p>
                 <button
                     type="button"
-                    onClick={() => void refresh(true, true)}
+                    onClick={() => void refresh()}
                     className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                     重试

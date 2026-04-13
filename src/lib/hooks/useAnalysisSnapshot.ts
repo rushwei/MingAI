@@ -8,7 +8,7 @@ import {
 import { resolveHistoryConversationId } from '@/lib/history/client';
 import type { HistoryType } from '@/lib/history/registry';
 
-export interface AnalysisSnapshotCallbacks {
+interface AnalysisSnapshotCallbacks {
     /** Called when a saved analysis text is found */
     onAnalysis: (analysis: string) => void;
     /** Called when saved reasoning text is found */
@@ -25,7 +25,7 @@ export interface AnalysisSnapshotCallbacks {
     onError?: (message: string) => void;
 }
 
-export interface UseAnalysisSnapshotOptions {
+interface UseAnalysisSnapshotOptions {
     /** Current conversationId (may be null initially) */
     conversationId: string | null | undefined;
     /** Divination/reading record ID used to look up conversation from history */

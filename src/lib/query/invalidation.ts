@@ -59,16 +59,3 @@ export function invalidateQueriesForPath(pathname: string) {
     void queryClient.invalidateQueries({ queryKey: key });
   }
 }
-
-export function invalidateLatestAnnouncementQuery() {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const queryClient = getBrowserQueryClient();
-  if (!queryClient) {
-    return;
-  }
-
-  void queryClient.invalidateQueries({ queryKey: queryKeys.latestAnnouncement() });
-}
