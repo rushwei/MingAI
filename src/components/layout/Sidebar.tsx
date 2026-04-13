@@ -26,8 +26,8 @@ import { getSidebarNavItems, getSidebarToolItems } from '@/lib/navigation/regist
 import { useConversationList } from '@/lib/chat/ConversationListContext';
 
 // Derive from registry once at module level
-const navItems = getSidebarNavItems().map((item) => ({ ...item, available: true }));
-const toolItems = getSidebarToolItems().map((item) => ({ ...item, available: true }));
+const navItems = getSidebarNavItems();
+const toolItems = getSidebarToolItems();
 
 export function Sidebar() {
     return (
@@ -125,7 +125,7 @@ function SidebarInner() {
     }
 
     if (featureError && !featureLoading) {
-        return <SidebarLoadError onRetry={() => { void refreshFeatures(true, true); }} />;
+        return <SidebarLoadError onRetry={() => { void refreshFeatures(); }} />;
     }
 
     if (!featureLoaded) {
@@ -182,7 +182,7 @@ function SidebarInner() {
                                 return (
                                     <li key={item.href}>
                                         <Link
-                                            href={item.available ? item.href : '#'}
+                                            href={item.href}
                                             className={`
                                                 flex items-center px-3 gap-2 py-1.5 rounded-md
                                                 transition-colors duration-150
@@ -190,9 +190,7 @@ function SidebarInner() {
                                                     ? 'bg-[#e3e1db] dark:bg-white/8 text-[#37352f] dark:text-[#f5f3ee]'
                                                     : 'text-[#37352f] dark:text-[#f5f3ee] hover:bg-[#efedea] dark:hover:bg-white/6'
                                                 }
-                                                ${!item.available && 'opacity-50 cursor-not-allowed'}
                                             `}
-                                            onClick={(event) => !item.available && event.preventDefault()}
                                         >
                                             <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f] dark:text-[#f5f3ee]' : 'text-[#37352f]/70 dark:text-[#f5f3ee]/70'}`} />
                                             <div className="min-w-0 flex-1">
@@ -221,7 +219,7 @@ function SidebarInner() {
                                 return (
                                     <li key={item.href}>
                                         <Link
-                                            href={item.available ? item.href : '#'}
+                                            href={item.href}
                                             className={`
                                                 flex items-center px-3 gap-2 py-1.5 rounded-md
                                                 transition-colors duration-150
@@ -231,11 +229,6 @@ function SidebarInner() {
                                                 }
                                             `}
                                             onClick={(event) => {
-                                                if (!item.available) {
-                                                    event.preventDefault();
-                                                    return;
-                                                }
-
                                                 if (isChatItem) {
                                                     event.preventDefault();
                                                     handleNewChat().then(() => {

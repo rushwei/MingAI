@@ -15,6 +15,8 @@ import {
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useLatestAnnouncement } from '@/lib/hooks/useLatestAnnouncement';
 import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
+import { useActiveSettingsCenterTab } from '@/lib/hooks/useSettingsCenterRouteState';
+import { isAdminSettingsCenterTab } from '@/lib/settings-center';
 
 export type AnnouncementCenterTab = 'notifications' | 'announcements';
 
@@ -81,8 +83,10 @@ export function AnnouncementPopupHost({
     const [localStateVersion, setLocalStateVersion] = useState(0);
     const openRef = useRef(false);
     const previousUnreadCountRef = useRef<number | null>(null);
+    const activeSettingsTab = useActiveSettingsCenterTab();
+    const isAdminContext = pathname.startsWith('/admin') || isAdminSettingsCenterTab(activeSettingsTab);
     const latestAnnouncementQuery = useLatestAnnouncement({
-        enabled: !authLoading && !pathname.startsWith('/admin'),
+        enabled: !authLoading && !isAdminContext,
     });
     const latestAnnouncement = latestAnnouncementQuery.data ?? null;
     const unreadNotificationCount = useNotificationUnreadCount(userId, {
@@ -156,7 +160,7 @@ export function AnnouncementPopupHost({
     const announcementPromptCount = useMemo(() => {
         void localStateVersion;
 
-        if (pathname.startsWith('/admin') || authLoading || latestAnnouncementQuery.isLoading) {
+        if (isAdminContext || authLoading || latestAnnouncementQuery.isLoading) {
             return 0;
         }
 
@@ -164,10 +168,10 @@ export function AnnouncementPopupHost({
             announcementKey: getAnnouncementPromptIdentity(latestAnnouncement),
             state: readAnnouncementCenterLocalState(),
         }) ? 1 : 0;
-    }, [authLoading, latestAnnouncement, latestAnnouncementQuery.isLoading, localStateVersion, pathname]);
+    }, [authLoading, isAdminContext, latestAnnouncement, latestAnnouncementQuery.isLoading, localStateVersion]);
 
     useEffect(() => {
-        if (pathname.startsWith('/admin') && openRef.current) {
+        if (isAdminContext && openRef.current) {
             queueMicrotask(() => {
                 setOpen(false);
             });
@@ -182,7 +186,7 @@ export function AnnouncementPopupHost({
             setPreferredTab('announcements');
             setOpen(true);
         });
-    }, [announcementPromptCount, pathname]);
+    }, [announcementPromptCount, isAdminContext]);
 
     const contextValue = useMemo<AnnouncementCenterContextValue>(() => ({
         openAnnouncementCenter,

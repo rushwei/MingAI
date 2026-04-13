@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, Mail } from 'lucide-react';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 
 interface FAQItem {
   question: string;
@@ -37,11 +36,11 @@ const FAQ_LIST: FAQItem[] = [
   },
 ];
 
-function HelpContent({ embedded = false }: { embedded?: boolean }) {
+export default function HelpPanel() {
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   return (
-    <div className={embedded ? 'space-y-8' : 'mx-auto max-w-3xl space-y-8 px-4 py-6'}>
+    <div className="space-y-8">
       <section className="space-y-3">
         <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-foreground/50">常见问题</h2>
         <div className="overflow-hidden rounded-md border border-border bg-background divide-y divide-border/60">
@@ -93,11 +92,3 @@ function HelpContent({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
-
-function HelpPage() {
-  return <SettingsRouteLauncher tab="help" />;
-}
-
-const HelpPageEntry = Object.assign(HelpPage, { Content: HelpContent });
-
-export default HelpPageEntry;

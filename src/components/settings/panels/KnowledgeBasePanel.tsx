@@ -18,7 +18,6 @@ import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { KNOWLEDGE_BASE_SYNC_EVENT } from '@/lib/browser-api';
 import { MING_RECORD_SOURCE_TYPE } from '@/lib/data-sources/types';
 import {
@@ -96,7 +95,7 @@ const sourceTypeLabel: Record<string, string> = {
     daliuren_divination: '大六壬',
 };
 
-function KnowledgeBaseManageContent({ embedded = false }: { embedded?: boolean }) {
+export default function KnowledgeBasePanel() {
     const { showToast } = useToast();
     const {
         userId,
@@ -411,11 +410,7 @@ function KnowledgeBaseManageContent({ embedded = false }: { embedded?: boolean }
     const removeArchive = useCallback(async (archive: ArchivedSource) => {
         setRemovingArchiveId(archive.id);
         try {
-            await removeKnowledgeBaseArchive(archive.id, {
-                sourceType: archive.source_type,
-                sourceId: archive.source_id,
-                kbId: archive.kb_id,
-            });
+            await removeKnowledgeBaseArchive(archive.id);
             if (expandedKbId) {
                 invalidateArchiveBucket(expandedKbId);
                 await loadArchives(expandedKbId);
@@ -469,8 +464,8 @@ function KnowledgeBaseManageContent({ embedded = false }: { embedded?: boolean }
 
     return (
         <>
-            <div className={embedded ? "space-y-6" : "min-h-screen bg-background"}>
-                <div className={embedded ? "space-y-6" : "max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6"}>
+            <div className="space-y-6">
+                <div className="space-y-6">
                 {/* 桌面端 Header */}
                 <div className="mb-6 flex items-center justify-between gap-4">
                     <div>
@@ -888,11 +883,3 @@ function KnowledgeBaseManageContent({ embedded = false }: { embedded?: boolean }
         </>
     );
 }
-
-function KnowledgeBaseManagePage() {
-    return <SettingsRouteLauncher tab="knowledge-base" />;
-}
-
-const KnowledgeBaseManagePageEntry = Object.assign(KnowledgeBaseManagePage, { Content: KnowledgeBaseManageContent });
-
-export default KnowledgeBaseManagePageEntry;

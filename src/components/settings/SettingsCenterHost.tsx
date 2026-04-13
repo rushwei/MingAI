@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ComponentType, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -21,51 +21,27 @@ import {
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useCurrentUserProfile } from '@/lib/hooks/useCurrentUserProfile';
+import { useActiveSettingsCenterTab } from '@/lib/hooks/useSettingsCenterRouteState';
 import {
-  SETTINGS_CENTER_EVENT,
   SETTINGS_CENTER_GROUP_LABELS,
   closeSettingsCenter,
   getSettingsCenterDisabledState,
   getSettingsCenterTabs,
+  isAdminSettingsCenterTab,
   openSettingsCenter,
-  parseSettingsCenterHash,
   type SettingsCenterFlags,
   type SettingsCenterTab,
 } from '@/lib/settings-center';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
 
-const LazyGeneralSettingsContent = lazy(async () => {
-  const pageModule = await import('@/app/user/settings/page');
-  return { default: pageModule.default.Content };
-});
-const LazyUpgradeContent = lazy(async () => {
-  const pageModule = await import('@/app/user/upgrade/page');
-  return { default: pageModule.default.Content };
-});
-const LazyAISettingsContent = lazy(async () => {
-  const pageModule = await import('@/app/user/ai-settings/page');
-  return { default: pageModule.default.Content };
-});
-const LazyChartsContent = lazy(async () => {
-  const pageModule = await import('@/app/user/charts/page');
-  return { default: pageModule.default.Content };
-});
-const LazyKnowledgeBaseManageContent = lazy(async () => {
-  const pageModule = await import('@/app/user/knowledge-base/page');
-  return { default: pageModule.default.Content };
-});
-const LazyMcpPageContent = lazy(async () => {
-  const pageModule = await import('@/app/user/mcp/page');
-  return { default: pageModule.default.Content };
-});
-const LazyProfileContent = lazy(async () => {
-  const pageModule = await import('@/app/user/profile/page');
-  return { default: pageModule.default.Content };
-});
-const LazyHelpContent = lazy(async () => {
-  const pageModule = await import('@/app/help/page');
-  return { default: pageModule.default.Content };
-});
+const LazyGeneralSettingsContent = lazy(() => import('@/components/settings/panels/GeneralSettingsPanel'));
+const LazyUpgradeContent = lazy(() => import('@/components/settings/panels/UpgradePanel'));
+const LazyAISettingsContent = lazy(() => import('@/components/settings/panels/AISettingsPanel'));
+const LazyChartsContent = lazy(() => import('@/components/settings/panels/ChartsPanel'));
+const LazyKnowledgeBaseManageContent = lazy(() => import('@/components/settings/panels/KnowledgeBasePanel'));
+const LazyMcpPageContent = lazy(() => import('@/components/settings/panels/McpServicePanel'));
+const LazyProfileContent = lazy(() => import('@/components/settings/panels/ProfilePanel'));
+const LazyHelpContent = lazy(() => import('@/components/settings/panels/HelpPanel'));
 const LazyAdminAnnouncementsContent = lazy(async () => ({
   default: (await import('@/components/settings/AccountAdminPanels')).AdminAnnouncementsContent,
 }));
@@ -157,7 +133,7 @@ function AdminStateErrorState() {
 }
 
 function isAdminTab(tab: SettingsCenterTab) {
-  return tab.startsWith('admin-');
+  return isAdminSettingsCenterTab(tab);
 }
 
 function renderLazyPanel(node: ReactElement) {
@@ -203,21 +179,21 @@ function renderSettingsCenterPanel(
 
   switch (tab) {
     case 'profile':
-      return renderLazyPanel(<LazyProfileContent embedded />);
+      return renderLazyPanel(<LazyProfileContent />);
     case 'general':
-      return renderLazyPanel(<LazyGeneralSettingsContent embedded />);
+      return renderLazyPanel(<LazyGeneralSettingsContent />);
     case 'upgrade':
-      return renderLazyPanel(<LazyUpgradeContent embedded />);
+      return renderLazyPanel(<LazyUpgradeContent />);
     case 'personalization':
-      return renderLazyPanel(<LazyAISettingsContent embedded />);
+      return renderLazyPanel(<LazyAISettingsContent />);
     case 'help':
-      return renderLazyPanel(<LazyHelpContent embedded />);
+      return renderLazyPanel(<LazyHelpContent />);
     case 'charts':
-      return renderLazyPanel(<LazyChartsContent embedded />);
+      return renderLazyPanel(<LazyChartsContent />);
     case 'knowledge-base':
-      return renderLazyPanel(<LazyKnowledgeBaseManageContent embedded />);
+      return renderLazyPanel(<LazyKnowledgeBaseManageContent />);
     case 'mcp-service':
-      return renderLazyPanel(<LazyMcpPageContent embedded />);
+      return renderLazyPanel(<LazyMcpPageContent />);
     case 'admin-announcements':
       return renderLazyPanel(<LazyAdminAnnouncementsContent />);
     case 'admin-features':
@@ -229,36 +205,8 @@ function renderSettingsCenterPanel(
   }
 }
 
-function useSettingsCenterState() {
-  const [activeTab, setActiveTab] = useState<SettingsCenterTab | null>(null);
-
-  useEffect(() => {
-    const sync = () => {
-      setActiveTab(parseSettingsCenterHash(window.location.hash));
-    };
-
-    sync();
-    window.addEventListener('hashchange', sync);
-    window.addEventListener('popstate', sync);
-    window.addEventListener(SETTINGS_CENTER_EVENT, sync as EventListener);
-    return () => {
-      window.removeEventListener('hashchange', sync);
-      window.removeEventListener('popstate', sync);
-      window.removeEventListener(SETTINGS_CENTER_EVENT, sync as EventListener);
-    };
-  }, []);
-
-  return {
-    activeTab,
-    setActiveTab: (tab: SettingsCenterTab) => {
-      openSettingsCenter(tab, { replace: true });
-      setActiveTab(tab);
-    },
-  };
-}
-
 export function SettingsCenterHost() {
-  const { activeTab, setActiveTab } = useSettingsCenterState();
+  const activeTab = useActiveSettingsCenterTab();
   const { isFeatureEnabled } = useFeatureToggles();
   const { user } = useSessionSafe();
   const mounted = useSyncExternalStore(
@@ -268,6 +216,9 @@ export function SettingsCenterHost() {
   );
   const { profile, loading: profileLoading, error: profileError } = useCurrentUserProfile({ enabled: !!activeTab });
   const isAdmin = !!profile?.is_admin;
+  const setActiveTab = useCallback((tab: SettingsCenterTab) => {
+    openSettingsCenter(tab, { replace: true });
+  }, []);
 
   useEffect(() => {
     if (!activeTab) return;

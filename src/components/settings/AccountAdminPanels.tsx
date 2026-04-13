@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy } from 'react';
 import type { ReactNode } from 'react';
-import { openSettingsCenter, parseSettingsCenterHashSubpath } from '@/lib/settings-center';
+import { useSettingsCenterSubpath } from '@/lib/hooks/useSettingsCenterRouteState';
+import { openSettingsCenter } from '@/lib/settings-center';
 import {
   Bot,
   GitBranch,
@@ -118,31 +119,17 @@ function resolveAdminAITab(value: string | null | undefined): AdminAITab {
   }
 }
 
+function useResolvedSettingsCenterSubtab<T extends string>(
+  resolveTab: (value: string | null | undefined) => T,
+) {
+  const subpath = useSettingsCenterSubpath();
+  return resolveTab(subpath);
+}
+
 export function AdminFeaturesContent() {
-  const [activeTab, setActiveTab] = useState<AdminFeatureTab>(() => {
-    if (typeof window === 'undefined') {
-      return 'toggles';
-    }
-    return resolveAdminFeatureTab(parseSettingsCenterHashSubpath(window.location.hash));
-  });
-
-  useEffect(() => {
-    const sync = () => {
-      setActiveTab(resolveAdminFeatureTab(parseSettingsCenterHashSubpath(window.location.hash)));
-    };
-
-    window.addEventListener('hashchange', sync);
-    window.addEventListener('popstate', sync);
-    window.addEventListener('mingai:settings-center:change', sync as EventListener);
-    return () => {
-      window.removeEventListener('hashchange', sync);
-      window.removeEventListener('popstate', sync);
-      window.removeEventListener('mingai:settings-center:change', sync as EventListener);
-    };
-  }, []);
+  const activeTab = useResolvedSettingsCenterSubtab(resolveAdminFeatureTab);
 
   const switchTab = (nextTab: AdminFeatureTab) => {
-    setActiveTab(nextTab);
     openSettingsCenter('admin-features', {
       replace: true,
       subpath: nextTab === 'toggles' ? null : nextTab,
@@ -167,30 +154,9 @@ export function AdminFeaturesContent() {
 }
 
 export function AdminAIServicesContent() {
-  const [activeTab, setActiveTab] = useState<AdminAITab>(() => {
-    if (typeof window === 'undefined') {
-      return 'models';
-    }
-    return resolveAdminAITab(parseSettingsCenterHashSubpath(window.location.hash));
-  });
-
-  useEffect(() => {
-    const sync = () => {
-      setActiveTab(resolveAdminAITab(parseSettingsCenterHashSubpath(window.location.hash)));
-    };
-
-    window.addEventListener('hashchange', sync);
-    window.addEventListener('popstate', sync);
-    window.addEventListener('mingai:settings-center:change', sync as EventListener);
-    return () => {
-      window.removeEventListener('hashchange', sync);
-      window.removeEventListener('popstate', sync);
-      window.removeEventListener('mingai:settings-center:change', sync as EventListener);
-    };
-  }, []);
+  const activeTab = useResolvedSettingsCenterSubtab(resolveAdminAITab);
 
   const switchTab = (nextTab: AdminAITab) => {
-    setActiveTab(nextTab);
     openSettingsCenter('admin-ai-services', {
       replace: true,
       subpath: nextTab === 'models' ? null : nextTab,

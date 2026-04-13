@@ -3,7 +3,7 @@
  *
  * 'use client' 标记说明：
  * - 使用 hooks 管理用户设置加载与保存
- * - 该模块既供统一设置中心复用，也保留旧路由启动入口
+ * - 该模块供统一设置中心复用
  */
 'use client';
 
@@ -25,7 +25,6 @@ import { useTheme } from '@/components/ui/ThemeProvider';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { loadReminderSubscriptions, type ReminderType, updateReminderSubscriptionClient } from '@/lib/reminders-client';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
@@ -142,7 +141,7 @@ function PreferenceSwitch({
   );
 }
 
-function GeneralSettingsContent({ embedded = false }: { embedded?: boolean }) {
+export default function GeneralSettingsPanel() {
   const { theme, themeMode, setThemeMode } = useTheme();
   const { user, loading: sessionLoading } = useSessionSafe();
   const [loading, setLoading] = useState(true);
@@ -281,7 +280,7 @@ function GeneralSettingsContent({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <div className={embedded ? 'space-y-8' : 'mx-auto max-w-4xl space-y-8 px-4 py-6'}>
+    <div className="space-y-8">
       {loadError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {loadError}
@@ -414,11 +413,3 @@ function GeneralSettingsContent({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
-
-function SettingsPage() {
-  return <SettingsRouteLauncher tab="general" />;
-}
-
-const SettingsPageEntry = Object.assign(SettingsPage, { Content: GeneralSettingsContent });
-
-export default SettingsPageEntry;

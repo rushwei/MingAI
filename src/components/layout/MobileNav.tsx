@@ -16,13 +16,12 @@ import {
     X,
 } from 'lucide-react';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { useActiveSettingsCenterTab } from '@/lib/hooks/useSettingsCenterRouteState';
 import { DEFAULT_MOBILE_MAIN_ITEMS, DEFAULT_MOBILE_DRAWER_ORDER } from '@/lib/user/settings';
 import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
 import {
-    SETTINGS_CENTER_EVENT,
     getSettingsCenterTabFromRouteTarget,
     openSettingsCenter,
-    parseSettingsCenterHash,
 } from '@/lib/settings-center';
 
 const ALL_NAV_ITEMS = getMobileItemsRecord();
@@ -41,10 +40,9 @@ const GRID_COLS_CLASS: Record<number, string> = {
 export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [currentHash, setCurrentHash] = useState('');
     const { isFeatureEnabled, isLoading: featureLoading, loaded: featureLoaded, error: featureError, refresh: refreshFeatures } = useFeatureToggles();
     const isNavLoading = featureLoading;
-    const activeSettingsTab = useMemo(() => parseSettingsCenterHash(currentHash), [currentHash]);
+    const activeSettingsTab = useActiveSettingsCenterTab();
 
     // 底部导航栏项目（硬编码默认顺序）
     const mainNavItems = useMemo(() => {
@@ -80,22 +78,6 @@ export function MobileNav() {
         };
     }, [isDrawerOpen]);
 
-    useEffect(() => {
-        const syncHash = () => {
-            setCurrentHash(window.location.hash);
-        };
-
-        syncHash();
-        window.addEventListener('hashchange', syncHash);
-        window.addEventListener('popstate', syncHash);
-        window.addEventListener(SETTINGS_CENTER_EVENT, syncHash as EventListener);
-        return () => {
-            window.removeEventListener('hashchange', syncHash);
-            window.removeEventListener('popstate', syncHash);
-            window.removeEventListener(SETTINGS_CENTER_EVENT, syncHash as EventListener);
-        };
-    }, []);
-
     if (isNavLoading) {
         return (
             <nav
@@ -130,7 +112,7 @@ export function MobileNav() {
                     <span className="text-xs text-foreground-secondary">导航状态加载失败</span>
                     <button
                         type="button"
-                        onClick={() => { void refreshFeatures(true, true); }}
+                        onClick={() => { void refreshFeatures(); }}
                         className="rounded-md bg-foreground px-3 py-1.5 text-xs text-background"
                     >
                         重试

@@ -141,7 +141,7 @@ export function getSidebarNavItems() {
 
 /** Sidebar "工具" items (tool category). */
 export function getSidebarToolItems() {
-  return NAV_REGISTRY.filter((n) => n.category === 'tool' && n.id !== 'checkin');
+  return NAV_REGISTRY.filter((n) => n.category === 'tool');
 }
 
 /** MobileNav — all items keyed by id. */
@@ -151,11 +151,6 @@ export function getMobileItemsRecord(): Record<string, { href: string; label: st
     record[n.id] = { href: n.href, label: n.label, icon: n.icon };
   }
   return record;
-}
-
-/** Flat array of { id, label, icon } for mobile nav items. */
-export function getMobileItemsList(): { id: string; label: string; icon: NavIcon }[] {
-  return NAV_REGISTRY.map(n => ({ id: n.id, label: n.label, icon: n.icon }));
 }
 
 /** FeatureTogglePanel — modules list with admin-specific labels. */

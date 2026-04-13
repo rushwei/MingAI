@@ -80,10 +80,6 @@ function isSettingsCenterTabDisabled(tab: SettingsCenterTab, flags: SettingsCent
   }
 }
 
-export function getSettingsCenterTabLabel(tab: SettingsCenterTab): string {
-  return SETTINGS_CENTER_TAB_META[tab].label;
-}
-
 export function getSettingsCenterTabs(flags: SettingsCenterFlags): SettingsCenterTabState[] {
   return SETTINGS_CENTER_TABS
     .filter((tab) => flags.isAdmin || SETTINGS_CENTER_TAB_META[tab].group !== 'management')
@@ -139,15 +135,14 @@ export function getSettingsCenterDisabledState(
 
 export const SETTINGS_CENTER_EVENT = 'mingai:settings-center:change';
 const SETTINGS_CENTER_STATE_KEY = '__mingaiSettingsCenter';
-const LEGACY_SETTINGS_CENTER_TAB_ALIASES: Record<string, SettingsCenterTab> = {
-  checkin: 'upgrade',
-  credits: 'upgrade',
-  membership: 'upgrade',
-};
 export type SettingsCenterCloseMode = 'back' | 'replace';
 
 export function isSettingsCenterTab(value: unknown): value is SettingsCenterTab {
   return typeof value === 'string' && SETTINGS_CENTER_TABS.includes(value as SettingsCenterTab);
+}
+
+export function isAdminSettingsCenterTab(tab: SettingsCenterTab | null | undefined): boolean {
+  return tab?.startsWith('admin-') === true;
 }
 
 function normalizeSettingsCenterSubpath(subpath?: string | null): string | null {
@@ -189,11 +184,7 @@ export function parseSettingsCenterHash(hash: string | null | undefined): Settin
     return null;
   }
 
-  if (isSettingsCenterTab(tab)) {
-    return tab;
-  }
-
-  return tab ? (LEGACY_SETTINGS_CENTER_TAB_ALIASES[tab] ?? 'general') : 'general';
+  return isSettingsCenterTab(tab) ? tab : null;
 }
 
 export function parseSettingsCenterHashSubpath(hash: string | null | undefined): string | null {
@@ -205,6 +196,36 @@ export function parseSettingsCenterHashSubpath(hash: string | null | undefined):
     return null;
   }
   return subpath;
+}
+
+export function readSettingsCenterHashFromWindow(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return window.location.hash;
+}
+
+export function readSettingsCenterTabFromWindow(): SettingsCenterTab | null {
+  return parseSettingsCenterHash(readSettingsCenterHashFromWindow());
+}
+
+export function readSettingsCenterSubpathFromWindow(): string | null {
+  return parseSettingsCenterHashSubpath(readSettingsCenterHashFromWindow());
+}
+
+export function subscribeSettingsCenterLocation(listener: () => void): () => void {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  window.addEventListener('hashchange', listener);
+  window.addEventListener('popstate', listener);
+  window.addEventListener(SETTINGS_CENTER_EVENT, listener as EventListener);
+  return () => {
+    window.removeEventListener('hashchange', listener);
+    window.removeEventListener('popstate', listener);
+    window.removeEventListener(SETTINGS_CENTER_EVENT, listener as EventListener);
+  };
 }
 
 function emitSettingsCenterChange() {
@@ -236,8 +257,6 @@ export function openSettingsCenter(
   const nextState = {
     ...(window.history.state ?? {}),
     [SETTINGS_CENTER_STATE_KEY]: true,
-    tab,
-    subpath: normalizeSettingsCenterSubpath(options?.subpath),
   };
   const method = options?.replace ? 'replaceState' : 'pushState';
   window.history[method](nextState, '', getSettingsCenterRouteTarget(tab, {
@@ -261,6 +280,9 @@ export function closeSettingsCenter() {
   }
   if (nextState && 'tab' in nextState) {
     delete nextState.tab;
+  }
+  if (nextState && 'subpath' in nextState) {
+    delete nextState.subpath;
   }
   window.history.replaceState(nextState, '', buildCurrentUrlWithoutHash());
   emitSettingsCenterChange();

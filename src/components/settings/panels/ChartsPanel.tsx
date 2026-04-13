@@ -3,7 +3,7 @@
  *
  * 'use client' 标记说明：
  * - 使用 hooks 管理命盘列表、默认值和删除确认
- * - 供统一设置中心复用，旧路由仅保留启动入口
+ * - 供统一设置中心复用
  */
 'use client';
 
@@ -16,10 +16,9 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { writeLocalCache } from '@/lib/cache/local-storage';
 import { getNavItemById } from '@/lib/navigation/registry';
-import { closeSettingsCenter, getSettingsCenterCloseMode, parseSettingsCenterHash } from '@/lib/settings-center';
+import { closeSettingsCenter, getSettingsCenterCloseMode } from '@/lib/settings-center';
 import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user/charts-client';
 
 type ChartType = 'bazi' | 'ziwei';
@@ -208,7 +207,7 @@ function ChartSection({
   );
 }
 
-function ChartsContent({ embedded = false }: { embedded?: boolean }) {
+export default function ChartsPanel() {
   const router = useRouter();
   const { user, loading: sessionLoading } = useSessionSafe();
   const { showToast } = useToast();
@@ -275,18 +274,11 @@ function ChartsContent({ embedded = false }: { embedded?: boolean }) {
   }, [sessionLoading, showToast, user]);
 
   const handleNavigate = useCallback((event: MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (!embedded) return;
     if (event.defaultPrevented || event.button !== 0 || isModifiedEvent(event)) return;
 
     event.preventDefault();
 
     if (typeof window === 'undefined') {
-      router.push(href);
-      return;
-    }
-
-    const isSettingsCenterOpen = parseSettingsCenterHash(window.location.hash) !== null;
-    if (!isSettingsCenterOpen) {
       router.push(href);
       return;
     }
@@ -303,7 +295,7 @@ function ChartsContent({ embedded = false }: { embedded?: boolean }) {
 
     window.addEventListener('popstate', handlePopState, { once: true });
     closeSettingsCenter();
-  }, [embedded, router]);
+  }, [router]);
 
   const handleDelete = async (id: string, type: ChartType) => {
     try {
@@ -357,7 +349,7 @@ function ChartsContent({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <div className={embedded ? 'space-y-8' : 'mx-auto max-w-4xl space-y-8 px-4 py-6'}>
+    <div className="space-y-8">
 
       <ChartSection
         title="八字命盘"
@@ -401,11 +393,3 @@ function ChartsContent({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
-
-function ChartsPage() {
-  return <SettingsRouteLauncher tab="charts" />;
-}
-
-const ChartsPageEntry = Object.assign(ChartsPage, { Content: ChartsContent });
-
-export default ChartsPageEntry;

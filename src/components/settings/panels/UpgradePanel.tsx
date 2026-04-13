@@ -3,7 +3,7 @@
  *
  * 'use client' 标记说明：
  * - 使用 hooks 管理会员、签到、激活码与积分记录状态
- * - 该模块供统一设置中心复用，旧路由仅保留启动入口
+ * - 该模块供统一设置中心复用
  */
 'use client';
 
@@ -27,7 +27,6 @@ import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
 import { CreditTransactionsPanel } from '@/components/membership/CreditTransactionsPanel';
 import { KeyActivationModal } from '@/components/membership/KeyActivationModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { useToast } from '@/components/ui/Toast';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { getSettingsCenterRouteTarget } from '@/lib/settings-center';
@@ -82,7 +81,7 @@ function ActionButton({
   );
 }
 
-function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
+export default function UpgradePanel() {
   const { user, loading: sessionLoading } = useSessionSafe();
   const searchParams = useSearchParams();
   const { isFeatureEnabled, loaded: featureLoaded } = useFeatureToggles();
@@ -100,9 +99,7 @@ function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
   const { showToast } = useToast();
 
   const checkinEnabled = featureLoaded && isFeatureEnabled('checkin');
-  const containerClass = embedded
-    ? 'space-y-8'
-    : 'mx-auto max-w-4xl space-y-8 px-4 py-6';
+  const containerClass = 'space-y-8';
 
   const refreshMembership = useCallback(async (userId: string) => {
     const result = await getMembershipInfo(userId);
@@ -429,16 +426,8 @@ function UpgradeContent({ embedded = false }: { embedded?: boolean }) {
       <CheckinModal
         isOpen={showCheckinModal}
         onClose={() => setShowCheckinModal(false)}
-        stackLevel={embedded ? 'settings' : 'page'}
+        stackLevel="settings"
       />
     </div>
   );
 }
-
-function UpgradePage() {
-  return <SettingsRouteLauncher tab="upgrade" preserveExistingSearch />;
-}
-
-const UpgradePageEntry = Object.assign(UpgradePage, { Content: UpgradeContent });
-
-export default UpgradePageEntry;

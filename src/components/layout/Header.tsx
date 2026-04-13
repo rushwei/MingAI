@@ -26,7 +26,8 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
 import { useAnnouncementCenterSafe } from '@/components/providers/AnnouncementPopupHost';
 import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
-import { getSettingsCenterRouteTarget } from '@/lib/settings-center';
+import { useActiveSettingsCenterTab } from '@/lib/hooks/useSettingsCenterRouteState';
+import { getSettingsCenterRouteTarget, isAdminSettingsCenterTab } from '@/lib/settings-center';
 
 // 路由到标题的映射
 const ROUTE_LABELS: Record<string, string> = {
@@ -58,24 +59,10 @@ const ROUTE_LABELS: Record<string, string> = {
     '/monthly': '每月运势',
     '/records': '命理记录',
     '/community': '命理社区',
-    '/checkin': '会员与积分',
     // 用户子页面
-    '/user/ai-settings': '个性化',
-    '/user/settings': '设置',
     '/user/notifications': '通知中心',
-    '/user/charts': '命盘',
-    '/user/upgrade': '会员与积分',
-    '/user/profile': '个人资料',
     '/user/annual-report': '年度报告',
-    '/user/knowledge-base': '知识库',
-    '/user/mcp': 'MCP OAuth',
-    '/user': '个人资料',
-    '/admin/announcements': '公告管理',
-    '/admin/features': '功能与激活码',
-    '/admin/ai-services': 'AI 服务',
-    '/admin/mcp': 'MCP 管理',
     '/chat': 'AI 对话',
-    '/help': '帮助',
     '/privacy': '隐私政策',
     '/terms': '服务条款',
     // 六爻子页面
@@ -92,8 +79,8 @@ const SUB_PAGE_FALLBACKS: Record<string, string> = {
 
 // 需要显示返回按钮的子页面路径模式
 const SUB_PAGE_PATTERNS = [
-    '/user/',      // 用户子页面
-    '/admin/',
+    '/user/notifications',
+    '/user/annual-report',
     '/bazi/result',
     '/ziwei/result',
     '/tarot/result',
@@ -111,7 +98,6 @@ const SUB_PAGE_PATTERNS = [
     '/palm/history',
     '/mbti/result',
     '/mbti/history',
-    '/help',
     '/privacy',
     '/terms',
 ];
@@ -128,6 +114,8 @@ export function Header() {
     const headerMenuContext = useHeaderMenuSafe();
     const customMenuItems = headerMenuContext?.menuItems || [];
     const announcementMenuLabel = user ? '通知 / 公告' : '公告';
+    const activeSettingsTab = useActiveSettingsCenterTab();
+    const isAdminContext = !!pathname?.startsWith('/admin') || isAdminSettingsCenterTab(activeSettingsTab);
 
     // 获取当前页面标题
     const getPageTitle = () => {
@@ -220,7 +208,7 @@ export function Header() {
 
                     {menuOpen && (
                         <div className="absolute right-0 top-full mt-1 w-44 bg-background border border-border rounded-xl shadow-lg py-1 z-50">
-                            {!pathname?.startsWith('/admin') && (
+                            {!isAdminContext && (
                                 <>
                                     <button
                                         onClick={() => {

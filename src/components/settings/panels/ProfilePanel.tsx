@@ -11,7 +11,6 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { StatusBanner } from '@/components/profile/StatusBanner';
 import { PasswordSection } from '@/components/profile/PasswordSection';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { useCurrentUserProfile } from '@/lib/hooks/useCurrentUserProfile';
 
 function Avatar({ src, alt }: { src: string | null; alt: string }) {
@@ -39,7 +38,7 @@ function Avatar({ src, alt }: { src: string | null; alt: string }) {
   );
 }
 
-function ProfileContent({ embedded = false }: { embedded?: boolean }) {
+export default function ProfilePanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ensuredUserIdRef = useRef<string | null>(null);
   const { user, loading: sessionLoading } = useSessionSafe();
@@ -163,7 +162,7 @@ function ProfileContent({ embedded = false }: { embedded?: boolean }) {
   const displayEmail = getUserEmailDisplay(user);
 
   return (
-    <div className={embedded ? 'space-y-8' : 'mx-auto max-w-3xl space-y-8 px-4 py-6'}>
+    <div className="space-y-8">
       <StatusBanner error={error} success={success} />
 
       <section className="space-y-3">
@@ -249,11 +248,3 @@ function ProfileContent({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
-
-function ProfilePage() {
-  return <SettingsRouteLauncher tab="profile" />;
-}
-
-const ProfilePageEntry = Object.assign(ProfilePage, { Content: ProfileContent });
-
-export default ProfilePageEntry;

@@ -3,7 +3,7 @@
  *
  * 'use client' 标记说明：
  * - 使用 hooks 管理用户偏好表单和保存状态
- * - 该模块供统一设置中心复用，旧路由仅保留启动入口
+ * - 该模块供统一设置中心复用
  */
 'use client';
 
@@ -20,7 +20,6 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useToast } from '@/components/ui/Toast';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { CustomProviderPanel } from '@/components/chat/CustomProviderPanel';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
@@ -133,7 +132,7 @@ function ToggleButton({
   );
 }
 
-function AISettingsContent({ embedded = false }: { embedded?: boolean }) {
+export default function AISettingsPanel() {
   const { user, loading: sessionLoading } = useSessionSafe();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -333,7 +332,7 @@ function AISettingsContent({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <div className={embedded ? 'space-y-8' : 'mx-auto max-w-4xl space-y-8 px-4 py-6'}>
+    <div className="space-y-8">
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
@@ -563,11 +562,3 @@ function AISettingsContent({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
-
-function AISettingsPage() {
-  return <SettingsRouteLauncher tab="personalization" />;
-}
-
-const AISettingsPageEntry = Object.assign(AISettingsPage, { Content: AISettingsContent });
-
-export default AISettingsPageEntry;

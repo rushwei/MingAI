@@ -6,9 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   Copy,
   Check,
   RefreshCw,
@@ -20,7 +18,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
+import { requestBrowserJson } from '@/lib/browser-api';
 
 interface McpKeyData {
   id: string;
@@ -54,7 +52,7 @@ function formatTime(iso: string | null): string {
   return new Date(iso).toLocaleString('zh-CN');
 }
 
-function McpPageContent({ embedded = false }: { embedded?: boolean }) {
+export default function McpServicePanel() {
   const { showToast } = useToast();
   const { user, loading: sessionLoading } = useSessionSafe();
   const [keyData, setKeyData] = useState<McpKeyData | null>(null);
@@ -79,10 +77,11 @@ function McpPageContent({ embedded = false }: { embedded?: boolean }) {
   const fetchKey = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch('/api/user/mcp-key');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '获取失败');
-      setKeyData(data.key || null);
+      const result = await requestBrowserJson<{ key?: McpKeyData | null }>('/api/user/mcp-key', {
+        method: 'GET',
+      });
+      if (result.error) throw new Error(result.error.message || '获取失败');
+      setKeyData(result.data?.key || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取 Key 失败');
     } finally {
@@ -103,13 +102,11 @@ function McpPageContent({ embedded = false }: { embedded?: boolean }) {
     setOperating(true);
     setError(null);
     try {
-      const res = await fetch('/api/user/mcp-key', {
+      const result = await requestBrowserJson<{ key?: McpKeyData | null }>('/api/user/mcp-key', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '创建失败');
-      setKeyData(data.key);
+      if (result.error) throw new Error(result.error.message || '创建失败');
+      setKeyData(result.data?.key || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败');
     } finally {
@@ -122,13 +119,11 @@ function McpPageContent({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     // 不关闭弹窗，让 loading 状态在弹窗内显示
     try {
-      const res = await fetch('/api/user/mcp-key', {
+      const result = await requestBrowserJson<{ key?: McpKeyData | null }>('/api/user/mcp-key', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '重置失败');
-      setKeyData(data.key);
+      if (result.error) throw new Error(result.error.message || '重置失败');
+      setKeyData(result.data?.key || null);
       setShowResetConfirm(false);
       showToast('success', 'MCP Key 重置成功');
     } catch (err) {
@@ -175,15 +170,6 @@ function McpPageContent({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 animate-fade-in">
-      {!embedded ? (
-        <div className="mb-6 flex items-center gap-3">
-          <Link href="/user" className="rounded-lg p-2 -ml-2 transition-colors hover:bg-background-secondary">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-xl font-bold">MCP 服务</h1>
-        </div>
-      ) : null}
-
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-500 text-sm flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -396,11 +382,3 @@ function McpPageContent({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
-
-function McpPage() {
-  return <SettingsRouteLauncher tab="mcp-service" />;
-}
-
-const McpPageEntry = Object.assign(McpPage, { Content: McpPageContent });
-
-export default McpPageEntry;
