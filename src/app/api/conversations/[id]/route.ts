@@ -283,7 +283,6 @@ export async function DELETE(
     const db = resolveRequestDbClient(auth) ?? auth.supabase;
     const result = await deleteConversationGraph(
         db as never,
-        auth.user.id,
         id,
     );
     if (result.error) {

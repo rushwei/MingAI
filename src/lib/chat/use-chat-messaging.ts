@@ -333,7 +333,6 @@ export function useChatMessaging({
                 setPendingSidebarTitle(draftTitle || DEFAULT_CONVERSATION_TITLE);
                 setHasLoadedConversations(true);
                 const newId = await createConversation({
-                    userId,
                     personality: 'general',
                     title: draftTitle || DEFAULT_CONVERSATION_TITLE,
                 });

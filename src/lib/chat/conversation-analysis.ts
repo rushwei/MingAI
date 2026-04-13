@@ -1,3 +1,5 @@
+import { requestBrowserData } from '@/lib/browser-api';
+
 export type ConversationAnalysisSnapshot = {
   analysis: string | null;
   reasoning: string | null;
@@ -5,25 +7,26 @@ export type ConversationAnalysisSnapshot = {
   reasoningEnabled: boolean;
 };
 
+async function requestConversationAnalysisData<T>(
+  url: string,
+  options: {
+    allowNotFound?: boolean;
+  } = {},
+): Promise<T | null> {
+  return await requestBrowserData<T>(url, { method: 'GET' }, {
+    fallbackMessage: '加载分析快照失败',
+    allowNotFound: options.allowNotFound,
+  });
+}
+
 export async function loadConversationAnalysisSnapshot(
   conversationId: string,
 ): Promise<ConversationAnalysisSnapshot | null> {
-  const response = await fetch(`/api/conversations/${conversationId}?snapshot=analysis`, {
-    credentials: 'include',
-  });
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(payload?.error || '加载分析快照失败');
-  }
-
-  const payload = await response.json().catch(() => null) as {
+  const payload = await requestConversationAnalysisData<{
     snapshot?: ConversationAnalysisSnapshot | null;
-  } | null;
+  }>(`/api/conversations/${conversationId}?snapshot=analysis`, {
+    allowNotFound: true,
+  });
 
   return payload?.snapshot ?? null;
 }
@@ -41,20 +44,9 @@ export async function loadLatestConversationAnalysisSnapshot(filters: {
     query.set('chartId', filters.chartId);
   }
 
-  const response = await fetch(`/api/conversations?${query.toString()}`, {
-    credentials: 'include',
-  });
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(payload?.error || '加载分析快照失败');
-  }
-
-  const payload = await response.json().catch(() => null) as {
+  const payload = await requestConversationAnalysisData<{
     conversations?: Array<{ id?: string | null }>;
-  } | null;
+  }>(`/api/conversations?${query.toString()}`);
   const conversationId = payload?.conversations?.[0]?.id;
   if (typeof conversationId !== 'string' || !conversationId) {
     return null;

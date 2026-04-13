@@ -8,6 +8,7 @@
 
 import { memo } from 'react';
 import { Archive, Check, Ellipsis, X } from 'lucide-react';
+import { getConversationDisplayParts } from '@/lib/chat/conversation-title-display';
 import type { ConversationListItem } from '@/types';
 
 interface ConversationItemProps {
@@ -40,38 +41,7 @@ export const ConversationItem = memo(function ConversationItem({
     onCancelRename,
     compact = false,
 }: ConversationItemProps) {
-    const question = conv.questionPreview || null;
-
-    let mainTitle = conv.title.replace(/ -> /g, ' 变 ');
-    let subTitle: string | null = null;
-    let changedTitle: string | null = null;
-
-    if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && mainTitle.includes(' - ')) {
-        mainTitle = mainTitle.split(' - ').slice(1).join(' - ');
-        subTitle = question;
-    }
-
-    if (conv.sourceType === 'liuyao' && mainTitle.includes(' 变 ')) {
-        const parts = mainTitle.split(' 变 ');
-        mainTitle = parts[0];
-        changedTitle = parts.slice(1).join(' 变 ');
-    }
-
-    if ((conv.sourceType === 'bazi_personality' || conv.sourceType === 'bazi_wuxing') && mainTitle.includes(' - ')) {
-        const parts = mainTitle.split(' - ');
-        subTitle = parts[0];
-        mainTitle = parts.slice(1).join(' - ');
-    }
-
-    if (conv.sourceType === 'hepan' && mainTitle.includes(' - ')) {
-        const parts = mainTitle.split(' - ');
-        subTitle = parts[0];
-        mainTitle = parts.slice(1).join(' - ');
-    }
-
-    if ((conv.sourceType === 'palm' || conv.sourceType === 'face') && mainTitle.includes(' - ')) {
-        mainTitle = mainTitle.split(' - ').slice(1).join(' - ');
-    }
+    const { mainTitle, subTitle, changedTitle } = getConversationDisplayParts(conv);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') {

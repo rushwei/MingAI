@@ -209,7 +209,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     }
 
     try {
-      const payload = await loadConversations(targetUserId, {
+      const payload = await loadConversations({
         limit: INITIAL_CONVERSATION_LOAD_LIMIT,
         offset,
         signal: controller.signal,
@@ -275,7 +275,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     try {
       const loadedCount = conversationsRef.current.length;
       const loadedConversationIds = conversationsRef.current.map((conversation) => conversation.id);
-      const payload = await loadConversationWindow(id, {
+      const payload = await loadConversationWindow({
         targetCount: loadedCount > 0 ? loadedCount : INITIAL_CONVERSATION_LOAD_LIMIT,
         preserveIds: loadedConversationIds,
         pageSize: INITIAL_CONVERSATION_LOAD_LIMIT,

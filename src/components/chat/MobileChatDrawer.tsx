@@ -22,6 +22,7 @@ import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useK
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-groups';
+import { formatConversationMenuTitle as formatMenuTitle } from '@/lib/chat/conversation-title-display';
 
 export function MobileChatDrawer() {
     const router = useRouter();
@@ -161,23 +162,6 @@ export function MobileChatDrawer() {
         setArchiveTarget(actionConv);
         closeActionSheet();
     }, [actionConv, closeActionSheet]);
-
-    const formatMenuTitle = useCallback((conv: ConversationListItem) => {
-        let title = conv.title.replace(/ -> /g, ' 变 ');
-        if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && title.includes(' - ')) {
-            title = title.split(' - ').slice(1).join(' - ');
-        }
-        if ((conv.sourceType === 'bazi_personality' || conv.sourceType === 'bazi_wuxing') && title.includes(' - ')) {
-            title = title.split(' - ').slice(1).join(' - ');
-        }
-        if (conv.sourceType === 'hepan' && title.includes(' - ')) {
-            title = title.split(' - ').slice(1).join(' - ');
-        }
-        if ((conv.sourceType === 'palm' || conv.sourceType === 'face') && title.includes(' - ')) {
-            title = title.split(' - ').slice(1).join(' - ');
-        }
-        return title;
-    }, []);
 
     useEffect(() => {
         if (

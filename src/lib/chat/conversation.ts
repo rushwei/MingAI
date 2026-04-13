@@ -5,10 +5,15 @@
  */
 
 import { hydrateConversationMessages } from '@/lib/ai/ai-analysis-query';
+import {
+    fetchBrowserJson,
+    requestBrowserData,
+    requestBrowserPayloadOrThrow,
+} from '@/lib/browser-api';
 import { normalizeConversationSourceType } from '@/lib/source-contracts';
 import type { AIPersonality, ChatMessage, Conversation, ConversationListItem } from '@/types';
 
-export interface PaginatedConversations {
+interface PaginatedConversations {
     conversations: ConversationListItem[];
     pagination: {
         hasMore: boolean;
@@ -43,7 +48,7 @@ type ConversationListApiRow = {
     archived_kb_ids?: string[] | null;
 };
 
-export type ConversationLoadResult =
+type ConversationLoadResult =
     | { ok: true; conversation: Conversation }
     | { ok: false; notFound: true }
     | { ok: false; notFound: false; error: string };
@@ -64,6 +69,10 @@ const normalizePersonality = (value?: string | null): AIPersonality => {
     }
     return 'general';
 };
+
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+    return error instanceof Error && error.message ? error.message : fallbackMessage;
+}
 
 function toConversation(row: ConversationDetailApiRow): Conversation {
     return {
@@ -96,89 +105,46 @@ function toConversationListItem(row: ConversationListApiRow): ConversationListIt
     };
 }
 
-async function parseJson<T>(response: Response): Promise<T | null> {
-    return await response.json().catch(() => null) as T | null;
-}
-
-async function parseErrorMessage(response: Response, fallbackMessage: string): Promise<string> {
-    const payload = await parseJson<{ error?: string }>(response);
-    return payload?.error || fallbackMessage;
-}
-
-async function requestConversationPayload<T>(
-    url: string,
-    options: {
-        signal?: AbortSignal;
-        fallbackMessage: string;
-    },
-): Promise<T> {
-    let response: Response;
-
-    try {
-        response = await fetch(url, {
-            credentials: 'include',
-            signal: options.signal,
-        });
-    } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-            throw error;
-        }
-        throw new Error(error instanceof Error ? error.message : options.fallbackMessage);
-    }
-
-    if (!response.ok) {
-        throw new Error(await parseErrorMessage(response, options.fallbackMessage));
-    }
-
-    const payload = await parseJson<T>(response);
-    if (!payload) {
-        throw new Error(options.fallbackMessage);
-    }
-
-    return payload;
-}
-
 export async function createConversation(params: {
-    userId: string;
     personality?: AIPersonality;
     title?: string;
 }): Promise<string | null> {
-    void params.userId;
+    try {
+        const result = await requestBrowserPayloadOrThrow<{ id?: string | null }>(
+            '/api/conversations',
+            {
+                method: 'POST',
+                headers: JSON_HEADERS,
+                body: JSON.stringify({
+                    personality: params.personality || 'general',
+                    title: params.title || DEFAULT_CONVERSATION_TITLE,
+                    messages: [],
+                }),
+            },
+            '创建对话失败',
+        );
 
-    const response = await fetch('/api/conversations', {
-        method: 'POST',
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-            personality: params.personality || 'general',
-            title: params.title || DEFAULT_CONVERSATION_TITLE,
-            messages: [],
-        }),
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 创建对话失败');
+        return result.data?.id || null;
+    } catch (error) {
+        console.error('[conversation] 创建对话失败:', getErrorMessage(error, '创建对话失败'));
         return null;
     }
-
-    const payload = await parseJson<{ id?: string | null }>(response);
-    return payload?.id || null;
 }
 
 export async function loadConversations(
-    userId: string,
     options: {
         limit?: number;
         offset?: number;
         signal?: AbortSignal;
     } = {},
 ): Promise<PaginatedConversations> {
-    void userId;
     const { limit = CONVERSATION_PAGE_SIZE, offset = 0, signal } = options;
-    const payload = await requestConversationPayload<{
+    const payload = await requestBrowserData<{
         conversations?: ConversationListApiRow[];
         pagination?: { hasMore?: boolean; nextOffset?: number | null };
     }>(`/api/conversations?limit=${limit}&offset=${offset}`, {
         signal,
+    }, {
         fallbackMessage: '加载对话列表失败',
     });
 
@@ -192,7 +158,6 @@ export async function loadConversations(
 }
 
 export async function loadConversationWindow(
-    userId: string,
     options: {
         targetCount: number;
         preserveIds?: string[];
@@ -209,7 +174,7 @@ export async function loadConversationWindow(
     let nextOffset: number | null = null;
 
     for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
-        const payload = await loadConversations(userId, {
+        const payload = await loadConversations({
             limit: pageSize,
             offset,
             signal,
@@ -243,14 +208,16 @@ export async function loadConversationWindow(
 }
 
 export async function loadConversation(conversationId: string): Promise<ConversationLoadResult> {
-    let response: Response;
+    const { ok, status, result } = await fetchBrowserJson<{
+        conversation?: ConversationDetailApiRow | null;
+    }>(`/api/conversations/${conversationId}`);
 
-    try {
-        response = await fetch(`/api/conversations/${conversationId}`, {
-            credentials: 'include',
-        });
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '加载对话失败';
+    if (status === 404) {
+        return { ok: false, notFound: true };
+    }
+
+    if (!ok || result.error) {
+        const errorMessage = result.error?.message || '加载对话失败';
         console.error('[conversation] 加载对话失败:', errorMessage);
         return {
             ok: false,
@@ -259,28 +226,13 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         };
     }
 
-    if (!response.ok) {
-        if (response.status === 404) {
-            return { ok: false, notFound: true };
-        }
-
-        const errorMessage = await parseErrorMessage(response, '加载对话失败');
-        console.error('[conversation] 加载对话失败:', errorMessage);
-        return {
-            ok: false,
-            notFound: false,
-            error: errorMessage,
-        };
-    }
-
-    const payload = await parseJson<{ conversation?: ConversationDetailApiRow | null }>(response);
-    if (!payload?.conversation) {
+    if (!result.data?.conversation) {
         return { ok: false, notFound: true };
     }
 
     return {
         ok: true,
-        conversation: toConversation(payload.conversation),
+        conversation: toConversation(result.data.conversation),
     };
 }
 
@@ -289,50 +241,59 @@ export async function saveConversation(
     messages: ChatMessage[],
     title?: string
 ): Promise<boolean> {
-    const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'PATCH',
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-            messages,
-            ...(title ? { title } : {}),
-        }),
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 保存对话失败');
+    try {
+        await requestBrowserPayloadOrThrow(
+            `/api/conversations/${conversationId}`,
+            {
+                method: 'PATCH',
+                headers: JSON_HEADERS,
+                body: JSON.stringify({
+                    messages,
+                    ...(title ? { title } : {}),
+                }),
+            },
+            '保存对话失败',
+        );
+        return true;
+    } catch (error) {
+        console.error('[conversation] 保存对话失败:', getErrorMessage(error, '保存对话失败'));
         return false;
     }
-
-    return true;
 }
 
 export async function deleteConversation(conversationId: string): Promise<boolean> {
-    const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'DELETE',
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 删除对话失败');
+    try {
+        await requestBrowserPayloadOrThrow(
+            `/api/conversations/${conversationId}`,
+            {
+                method: 'DELETE',
+            },
+            '删除对话失败',
+        );
+        return true;
+    } catch (error) {
+        console.error('[conversation] 删除对话失败:', getErrorMessage(error, '删除对话失败'));
         return false;
     }
-
-    return true;
 }
 
 export async function renameConversation(
     conversationId: string,
     title: string
 ): Promise<boolean> {
-    const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'PATCH',
-        headers: JSON_HEADERS,
-        body: JSON.stringify({ title }),
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 重命名对话失败');
+    try {
+        await requestBrowserPayloadOrThrow(
+            `/api/conversations/${conversationId}`,
+            {
+                method: 'PATCH',
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ title }),
+            },
+            '重命名对话失败',
+        );
+        return true;
+    } catch (error) {
+        console.error('[conversation] 重命名对话失败:', getErrorMessage(error, '重命名对话失败'));
         return false;
     }
-
-    return true;
 }

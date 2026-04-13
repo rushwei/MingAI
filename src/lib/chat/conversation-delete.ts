@@ -14,7 +14,6 @@ function normalizeError(error: QueryError) {
 
 export async function deleteConversationGraph(
   supabase: ConversationDeleteClient,
-  _userId: string,
   conversationId: string,
 ) {
   const { data, error } = await supabase.rpc('delete_conversation_graph', {

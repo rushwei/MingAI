@@ -58,7 +58,7 @@ test('loadConversationWindow should preserve the already loaded conversation win
 
   try {
     const conversationModule = await import('../lib/chat/conversation');
-    const result = await conversationModule.loadConversationWindow('user-1', {
+    const result = await conversationModule.loadConversationWindow({
       targetCount: 14,
     });
 
@@ -150,7 +150,7 @@ test('loadConversationWindow should keep fetching until previously loaded conver
 
   try {
     const conversationModule = await import('../lib/chat/conversation');
-    const result = await conversationModule.loadConversationWindow('user-1', {
+    const result = await conversationModule.loadConversationWindow({
       targetCount: 14,
       preserveIds: Array.from({ length: 14 }, (_, index) => `conv-${index + 1}`),
     });
