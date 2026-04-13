@@ -19,7 +19,11 @@ import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useK
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { ConfirmDeleteModal } from '@/components/common/ConfirmDeleteModal';
 import { useToast } from '@/components/ui/Toast';
-import { HISTORY_SUMMARY_DELETED_EVENT, KNOWLEDGE_BASE_SYNC_EVENT } from '@/lib/browser-api';
+import {
+    DATA_INDEX_INVALIDATED_EVENT,
+    HISTORY_SUMMARY_DELETED_EVENT,
+    KNOWLEDGE_BASE_SYNC_EVENT,
+} from '@/lib/browser-api';
 import {
     applyHistoryRestorePayload,
     deleteHistorySummary,
@@ -419,7 +423,7 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
             setAppendError(null);
             removeHistoryItem(id);
             if (invalidateTypes?.length) {
-                window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: invalidateTypes } }));
+                window.dispatchEvent(new CustomEvent(DATA_INDEX_INVALIDATED_EVENT, { detail: { types: invalidateTypes } }));
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : '删除历史记录失败';

@@ -18,6 +18,13 @@ export type BrowserApiPayload<T = unknown> = {
   statusText?: string;
 };
 
+function isAbortError(error: unknown): boolean {
+  return !!error
+    && typeof error === 'object'
+    && 'name' in error
+    && (error as { name?: unknown }).name === 'AbortError';
+}
+
 type BrowserApiWriteEventDetail = {
   pathname: string;
   method: string;
@@ -232,6 +239,10 @@ export async function fetchBrowserJson<T>(input: RequestInfo, init?: RequestInit
       },
     };
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     return {
       ok: false,
       status: 500,
@@ -262,6 +273,22 @@ export async function requestBrowserPayloadOrThrow<T>(
   return result;
 }
 
+export async function requestBrowserData<T>(
+  url: string,
+  init: RequestInit | undefined,
+  options: {
+    fallbackMessage?: string;
+    allowNotFound: true;
+  },
+): Promise<T | null>;
+export async function requestBrowserData<T>(
+  url: string,
+  init?: RequestInit,
+  options?: {
+    fallbackMessage?: string;
+    allowNotFound?: false | undefined;
+  },
+): Promise<T>;
 export async function requestBrowserData<T>(
   url: string,
   init?: RequestInit,

@@ -7,8 +7,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Save } from 'lucide-react';
+import { requestBrowserData } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 
 interface AIGateway {
@@ -40,10 +40,10 @@ export function AIGatewayPanel() {
         setError(null);
 
         try {
-            const data = await requestAdminJson<{ gateways?: AIGateway[] }>(
+            const data = await requestBrowserData<{ gateways?: AIGateway[] }>(
                 '/api/admin/ai-gateways',
                 { method: 'GET' },
-                '获取网关列表失败',
+                { fallbackMessage: '获取网关列表失败' },
             );
             setGateways(data.gateways || []);
         } catch (e) {
@@ -68,7 +68,7 @@ export function AIGatewayPanel() {
     const saveGateway = async (gateway: AIGateway) => {
         setUpdatingId(gateway.id);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-gateways/${gateway.id}`,
                 {
                     method: 'PATCH',
@@ -84,7 +84,7 @@ export function AIGatewayPanel() {
                         notes: gateway.notes?.trim() || null,
                     }),
                 },
-                '保存网关失败',
+                { fallbackMessage: '保存网关失败' },
             );
 
             showToast('success', `${gateway.displayName} 已更新`);

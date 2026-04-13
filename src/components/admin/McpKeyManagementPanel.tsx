@@ -5,8 +5,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Ban, Key, Users, Activity } from 'lucide-react';
+import { requestBrowserData } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { requestAdminJson } from '@/lib/admin/request';
 
 interface McpKeyRow {
     id: string;
@@ -35,10 +35,10 @@ export function McpKeyManagementPanel() {
     const fetchKeys = useCallback(async () => {
         try {
             setError(null);
-            const data = await requestAdminJson<{ keys?: McpKeyRow[] }>(
+            const data = await requestBrowserData<{ keys?: McpKeyRow[] }>(
                 '/api/admin/mcp-keys',
                 { method: 'GET' },
-                '获取失败',
+                { fallbackMessage: '获取失败' },
             );
             setKeys(data.keys || []);
         } catch (err) {
@@ -53,7 +53,7 @@ export function McpKeyManagementPanel() {
     const handleRevoke = async (userId: string) => {
         setRevoking(userId);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 '/api/admin/mcp-keys',
                 {
                     method: 'DELETE',
@@ -62,7 +62,7 @@ export function McpKeyManagementPanel() {
                     },
                     body: JSON.stringify({ userId }),
                 },
-                '封禁失败',
+                { fallbackMessage: '封禁失败' },
             );
             await fetchKeys();
         } catch (err) {
@@ -75,7 +75,7 @@ export function McpKeyManagementPanel() {
     const handleUnban = async (userId: string) => {
         setUnbanning(userId);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 '/api/admin/mcp-keys',
                 {
                     method: 'PATCH',
@@ -84,7 +84,7 @@ export function McpKeyManagementPanel() {
                     },
                     body: JSON.stringify({ userId }),
                 },
-                '解除封禁失败',
+                { fallbackMessage: '解除封禁失败' },
             );
             await fetchKeys();
         } catch (err) {

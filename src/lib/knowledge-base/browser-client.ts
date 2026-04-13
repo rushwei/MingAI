@@ -19,19 +19,10 @@ export type ArchivedSource = {
   preview?: string | null;
 };
 
-export type KnowledgeBaseArchivePage = {
+type KnowledgeBaseArchivePage = {
   items: ArchivedSource[];
   hasMore: boolean;
   nextOffset: number | null;
-};
-
-export const KNOWLEDGE_BASE_ARCHIVE_CHANGED_EVENT = 'mingai:knowledge-base:archive-changed';
-
-export type KnowledgeBaseArchiveChangedDetail = {
-  action: 'archive' | 'unarchive';
-  sourceType: string;
-  sourceId: string;
-  kbId: string;
 };
 
 type KnowledgeBaseArchivePayload = {
@@ -42,27 +33,11 @@ type KnowledgeBaseArchivePayload = {
   };
 };
 
-export function dispatchKnowledgeBaseArchiveChanged(detail: KnowledgeBaseArchiveChangedDetail) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.dispatchEvent(new CustomEvent(KNOWLEDGE_BASE_ARCHIVE_CHANGED_EVENT, { detail }));
-}
-
-async function requestKnowledgeBaseJson<T>(
-  url: string,
-  init?: RequestInit,
-  fallbackMessage = '请求失败',
-): Promise<T> {
-  return await requestBrowserData<T>(url, init, { fallbackMessage }) as T;
-}
-
 export async function listKnowledgeBases(): Promise<KnowledgeBaseSummary[]> {
-  const data = await requestKnowledgeBaseJson<{ knowledgeBases?: KnowledgeBaseSummary[] }>(
+  const data = await requestBrowserData<{ knowledgeBases?: KnowledgeBaseSummary[] }>(
     '/api/knowledge-base',
     { method: 'GET' },
-    '获取知识库失败',
+    { fallbackMessage: '获取知识库失败' },
   );
 
   return Array.isArray(data.knowledgeBases) ? data.knowledgeBases : [];
@@ -73,13 +48,13 @@ export async function createKnowledgeBase(input: {
   description?: string | null;
   weight?: KnowledgeBaseWeight;
 }): Promise<KnowledgeBaseSummary> {
-  return await requestKnowledgeBaseJson<KnowledgeBaseSummary>(
+  return await requestBrowserData<KnowledgeBaseSummary>(
     '/api/knowledge-base',
     {
       method: 'POST',
       body: JSON.stringify(input),
     },
-    '创建知识库失败',
+    { fallbackMessage: '创建知识库失败' },
   );
 }
 
@@ -91,21 +66,21 @@ export async function updateKnowledgeBase(
     weight?: KnowledgeBaseWeight;
   },
 ): Promise<KnowledgeBaseSummary> {
-  return await requestKnowledgeBaseJson<KnowledgeBaseSummary>(
+  return await requestBrowserData<KnowledgeBaseSummary>(
     `/api/knowledge-base/${id}`,
     {
       method: 'PATCH',
       body: JSON.stringify(input),
     },
-    '更新知识库失败',
+    { fallbackMessage: '更新知识库失败' },
   );
 }
 
 export async function deleteKnowledgeBase(id: string): Promise<void> {
-  await requestKnowledgeBaseJson<{ success?: boolean }>(
+  await requestBrowserData<{ success?: boolean }>(
     `/api/knowledge-base/${id}`,
     { method: 'DELETE' },
-    '删除知识库失败',
+    { fallbackMessage: '删除知识库失败' },
   );
 }
 
@@ -118,10 +93,10 @@ export async function listKnowledgeBaseArchives(
     limit: String(options.limit ?? 20),
     offset: String(options.offset ?? 0),
   });
-  const data = await requestKnowledgeBaseJson<KnowledgeBaseArchivePayload>(
+  const data = await requestBrowserData<KnowledgeBaseArchivePayload>(
     `/api/knowledge-base/archive?${params.toString()}`,
     { method: 'GET' },
-    '获取归档失败',
+    { fallbackMessage: '获取归档失败' },
   );
 
   return {
@@ -139,41 +114,24 @@ export async function ingestKnowledgeBaseSource(input: {
   sourceId: string;
   sourceMeta?: Record<string, unknown>;
 }): Promise<Record<string, unknown>> {
-  const result = await requestKnowledgeBaseJson<Record<string, unknown>>(
+  const result = await requestBrowserData<Record<string, unknown>>(
     '/api/knowledge-base/ingest',
     {
       method: 'POST',
       body: JSON.stringify(input),
     },
-    '加入知识库失败',
+    { fallbackMessage: '加入知识库失败' },
   );
-
-  dispatchKnowledgeBaseArchiveChanged({
-    action: 'archive',
-    sourceType: input.sourceType,
-    sourceId: input.sourceId,
-    kbId: input.kbId,
-  });
 
   return result;
 }
 
-export async function removeKnowledgeBaseArchive(
-  id: string,
-  detail?: Pick<KnowledgeBaseArchiveChangedDetail, 'sourceType' | 'sourceId' | 'kbId'>,
-): Promise<void> {
-  await requestKnowledgeBaseJson<{ success?: boolean }>(
+export async function removeKnowledgeBaseArchive(id: string): Promise<void> {
+  await requestBrowserData<{ success?: boolean }>(
     `/api/knowledge-base/archive/${id}`,
     { method: 'DELETE' },
-    '取消归档失败',
+    { fallbackMessage: '取消归档失败' },
   );
-
-  if (detail) {
-    dispatchKnowledgeBaseArchiveChanged({
-      action: 'unarchive',
-      ...detail,
-    });
-  }
 }
 
 export async function uploadKnowledgeBaseFile(
@@ -184,12 +142,12 @@ export async function uploadKnowledgeBaseFile(
   formData.append('kbId', kbId);
   formData.append('file', file);
 
-  return await requestKnowledgeBaseJson<Record<string, unknown>>(
+  return await requestBrowserData<Record<string, unknown>>(
     '/api/knowledge-base/upload',
     {
       method: 'POST',
       body: formData,
     },
-    '上传失败',
+    { fallbackMessage: '上传失败' },
   );
 }

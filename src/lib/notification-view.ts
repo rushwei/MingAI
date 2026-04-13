@@ -70,3 +70,13 @@ export function reconcileSelectedNotificationIds(
         Array.from(selectedIds).filter((id) => visibleIds.has(id)),
     );
 }
+
+export function resolveNotificationLink(link: string, origin?: string) {
+    const resolvedOrigin = origin ?? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    try {
+        const url = new URL(link, resolvedOrigin);
+        return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+        return link.startsWith('/') ? link : `/${link}`;
+    }
+}

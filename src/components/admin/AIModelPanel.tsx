@@ -23,9 +23,9 @@ import {
     Save,
     Trash2,
 } from 'lucide-react';
+import { requestBrowserData } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 import { getVendorIcon } from '@/lib/ai/vendor-config';
@@ -299,10 +299,10 @@ export function AIModelPanel() {
         setError(null);
 
         try {
-            const data = await requestAdminJson<{ models?: AIModel[] }>(
+            const data = await requestBrowserData<{ models?: AIModel[] }>(
                 '/api/admin/ai-models?includeDisabled=true',
                 { method: 'GET' },
-                '获取模型列表失败',
+                { fallbackMessage: '获取模型列表失败' },
             );
             const loadedModels = data.models || [];
             setModels(loadedModels);
@@ -373,7 +373,7 @@ export function AIModelPanel() {
         setUpdating(modelId);
 
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-models/${modelId}`,
                 {
                     method: 'PATCH',
@@ -382,7 +382,7 @@ export function AIModelPanel() {
                     },
                     body: JSON.stringify(updates),
                 },
-                '更新失败',
+                { fallbackMessage: '更新失败' },
             );
 
             // 刷新列表
@@ -412,7 +412,7 @@ export function AIModelPanel() {
         try {
             const customParameters = parseCustomParametersText(newModel.customParametersText);
 
-            await requestAdminJson(
+            await requestBrowserData(
                 '/api/admin/ai-models',
                 {
                     method: 'POST',
@@ -442,7 +442,7 @@ export function AIModelPanel() {
                         description: newModel.description.trim() || undefined,
                     }),
                 },
-                '创建模型失败',
+                { fallbackMessage: '创建模型失败' },
             );
 
             showToast('success', '模型已创建');
@@ -509,12 +509,12 @@ export function AIModelPanel() {
         setUpdating(modelId);
 
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-models/${modelId}/sources/${sourceId}`,
                 {
                     method: 'POST',
                 },
-                '切换来源失败',
+                { fallbackMessage: '切换来源失败' },
             );
 
             // 刷新列表
@@ -543,7 +543,7 @@ export function AIModelPanel() {
 
         setUpdating(modelId);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-models/${modelId}/sources/${sourceId}`,
                 {
                     method: 'PATCH',
@@ -558,7 +558,7 @@ export function AIModelPanel() {
                         notes: editingDraft.notes.trim() || null,
                     }),
                 },
-                '保存来源失败',
+                { fallbackMessage: '保存来源失败' },
             );
 
             setEditingSourceId(null);
@@ -576,7 +576,7 @@ export function AIModelPanel() {
     const addSource = async (modelId: string, modelKey: string) => {
         setUpdating(modelId);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-models/${modelId}/sources`,
                 {
                     method: 'POST',
@@ -592,7 +592,7 @@ export function AIModelPanel() {
                         notes: newSource.notes.trim() || null,
                     }),
                 },
-                '添加来源失败',
+                { fallbackMessage: '添加来源失败' },
             );
 
             setAddingToModel(null);
@@ -610,12 +610,12 @@ export function AIModelPanel() {
     const deleteSource = async (modelId: string, sourceId: string) => {
         setUpdating(modelId);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-models/${modelId}/sources/${sourceId}`,
                 {
                     method: 'DELETE',
                 },
-                '删除来源失败',
+                { fallbackMessage: '删除来源失败' },
             );
 
             await loadModels();
@@ -632,12 +632,12 @@ export function AIModelPanel() {
     const deleteModel = async (modelId: string) => {
         setUpdating(modelId);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/ai-models/${modelId}`,
                 {
                     method: 'DELETE',
                 },
-                '删除模型失败',
+                { fallbackMessage: '删除模型失败' },
             );
 
             if (expandedModel === modelId) {
@@ -657,12 +657,12 @@ export function AIModelPanel() {
     // 清除缓存
     const clearCache = async () => {
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 '/api/admin/ai-models/cache',
                 {
                     method: 'POST',
                 },
-                '清除缓存失败',
+                { fallbackMessage: '清除缓存失败' },
             );
             invalidateQueriesForPath('/api/admin/ai-models/cache');
             showToast('success', '缓存已清除');

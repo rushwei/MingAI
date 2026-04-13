@@ -17,9 +17,9 @@ import {
     Coins,
     Filter
 } from 'lucide-react';
+import { requestBrowserData } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 
 interface ActivationKey {
@@ -64,10 +64,10 @@ export function KeyManagementPanel() {
                 url += '?' + params.toString();
             }
 
-            const data = await requestAdminJson<{ success?: boolean; data?: ActivationKey[] }>(
+            const data = await requestBrowserData<{ success?: boolean; data?: ActivationKey[] }>(
                 url,
                 { method: 'GET' },
-                '获取激活码失败',
+                { fallbackMessage: '获取激活码失败' },
             );
             setKeys(data.data || []);
         } catch (error) {
@@ -97,7 +97,7 @@ export function KeyManagementPanel() {
                 body.membershipType = createType;
             }
 
-            const data = await requestAdminJson<{ success?: boolean; error?: string }>(
+            const data = await requestBrowserData<{ success?: boolean; error?: string }>(
                 '/api/activation-keys',
                 {
                     method: 'POST',
@@ -106,7 +106,7 @@ export function KeyManagementPanel() {
                     },
                     body: JSON.stringify(body),
                 },
-                '创建失败',
+                { fallbackMessage: '创建失败' },
             );
             if (data.success) {
                 setShowCreateForm(false);
@@ -125,12 +125,12 @@ export function KeyManagementPanel() {
 
     const handleDelete = async (keyId: string) => {
         try {
-            const data = await requestAdminJson<{ success?: boolean; error?: string }>(
+            const data = await requestBrowserData<{ success?: boolean; error?: string }>(
                 `/api/activation-keys?id=${keyId}`,
                 {
                     method: 'DELETE',
                 },
-                '删除失败',
+                { fallbackMessage: '删除失败' },
             );
             if (data.success) {
                 setKeys(keys.filter(k => k.id !== keyId));

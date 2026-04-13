@@ -8,6 +8,7 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import type { Mention, PromptLayerDiagnostic } from '@/types';
 import type { MembershipType } from '@/lib/user/membership';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { DATA_INDEX_INVALIDATED_EVENT } from '@/lib/browser-api';
 import { readLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { formatPromptLayerLabel } from '@/lib/chat/prompt-labels';
@@ -308,10 +309,10 @@ export function useComposerState(opts: UseComposerStateOptions) {
         void refresh(false);
 
         const onInvalidate = () => void refresh(true);
-        window.addEventListener('mingai:data-index:invalidate', onInvalidate as EventListener);
+        window.addEventListener(DATA_INDEX_INVALIDATED_EVENT, onInvalidate as EventListener);
         return () => {
             cancelled = true;
-            window.removeEventListener('mingai:data-index:invalidate', onInvalidate as EventListener);
+            window.removeEventListener(DATA_INDEX_INVALIDATED_EVENT, onInvalidate as EventListener);
         };
     }, [canMentionDataSources, canUseKnowledgeBase, readMentionCache, refreshMentionData, userId]);
 

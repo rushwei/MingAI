@@ -7,23 +7,6 @@
 import { requestBrowserData } from '@/lib/browser-api';
 import { isValidUUID } from '@/lib/validation';
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T>;
-async function requestJson<T>(
-    url: string,
-    init: RequestInit | undefined,
-    options: { allowNotFound: true },
-): Promise<T | null>;
-async function requestJson<T>(
-    url: string,
-    init?: RequestInit,
-    options: { allowNotFound?: boolean } = {},
-): Promise<T | null> {
-    return await requestBrowserData<T>(url, init, {
-        fallbackMessage: '请求失败',
-        allowNotFound: options.allowNotFound,
-    });
-}
-
 // =====================================================
 // 类型定义
 // =====================================================
@@ -59,7 +42,7 @@ export interface MingNote {
     updated_at: string;
 }
 
-export interface RecordInput {
+interface RecordInput {
     title: string;
     content?: string | null;
     category?: RecordCategory;
@@ -70,7 +53,7 @@ export interface RecordInput {
     is_pinned?: boolean;
 }
 
-export interface NoteInput {
+interface NoteInput {
     note_date?: string | null;
     content: string;
     mood?: NoteMood | null;
@@ -85,7 +68,7 @@ export interface RecordFilters {
     isPinned?: boolean;
 }
 
-export interface ExportData {
+interface ExportData {
     version: string;
     exportedAt: string;
     records: MingRecord[];
@@ -373,7 +356,9 @@ export async function getRecords(
         query.append('tag', tag);
     }
 
-    const payload = await requestJson<{ records?: unknown[]; total?: number }>(`/api/records?${query.toString()}`);
+    const payload = await requestBrowserData<{ records?: unknown[]; total?: number }>(`/api/records?${query.toString()}`, undefined, {
+        fallbackMessage: '请求失败',
+    });
     const validRecords = (payload.records ?? []).filter(isValidMingRecord);
     return {
         records: validRecords,
@@ -382,28 +367,14 @@ export async function getRecords(
 }
 
 /**
- * 获取单条记录
- */
-export async function getRecord(recordId: string): Promise<MingRecord | null> {
-    const payload = await requestJson<unknown>(`/api/records/${recordId}`, undefined, {
-        allowNotFound: true,
-    });
-    if (payload == null) {
-        return null;
-    }
-
-    const record = toMingRecord(payload);
-    if (!record) throw new Error('Invalid record data');
-    return record;
-}
-
-/**
  * 创建记录
  */
 export async function createRecord(input: RecordInput): Promise<MingRecord> {
-    const payload = await requestJson<unknown>('/api/records', {
+    const payload = await requestBrowserData<unknown>('/api/records', {
         method: 'POST',
         body: JSON.stringify(input),
+    }, {
+        fallbackMessage: '请求失败',
     });
     const record = toMingRecord(payload);
     if (!record) throw new Error('Invalid record data');
@@ -414,9 +385,11 @@ export async function createRecord(input: RecordInput): Promise<MingRecord> {
  * 更新记录
  */
 export async function updateRecord(recordId: string, input: Partial<RecordInput>): Promise<MingRecord> {
-    const payload = await requestJson<unknown>(`/api/records/${recordId}`, {
+    const payload = await requestBrowserData<unknown>(`/api/records/${recordId}`, {
         method: 'PUT',
         body: JSON.stringify(input),
+    }, {
+        fallbackMessage: '请求失败',
     });
     const record = toMingRecord(payload);
     if (!record) throw new Error('Invalid record data');
@@ -427,8 +400,10 @@ export async function updateRecord(recordId: string, input: Partial<RecordInput>
  * 删除记录
  */
 export async function deleteRecord(recordId: string): Promise<void> {
-    await requestJson(`/api/records/${recordId}`, {
+    await requestBrowserData(`/api/records/${recordId}`, {
         method: 'DELETE',
+    }, {
+        fallbackMessage: '请求失败',
     });
 }
 
@@ -436,9 +411,11 @@ export async function deleteRecord(recordId: string): Promise<void> {
  * 切换记录置顶状态
  */
 export async function toggleRecordPin(recordId: string): Promise<MingRecord> {
-    const payload = await requestJson<unknown>(`/api/records/${recordId}`, {
+    const payload = await requestBrowserData<unknown>(`/api/records/${recordId}`, {
         method: 'PUT',
         body: JSON.stringify({ togglePin: true }),
+    }, {
+        fallbackMessage: '请求失败',
     });
     const record = toMingRecord(payload);
     if (!record) throw new Error('Invalid record data');
@@ -450,64 +427,24 @@ export async function toggleRecordPin(recordId: string): Promise<MingRecord> {
 // =====================================================
 
 /**
- * 获取小记列表
- */
-export async function getNotes(
-    userId: string,
-    startDate?: string,
-    endDate?: string,
-    page: number = 1,
-    pageSize: number = 20
-): Promise<{ notes: MingNote[]; total: number }> {
-    void userId;
-
-    const query = new URLSearchParams({
-        page: String(page),
-        pageSize: String(pageSize),
-    });
-    if (startDate) query.set('startDate', startDate);
-    if (endDate) query.set('endDate', endDate);
-
-    const payload = await requestJson<{ notes?: unknown[]; total?: number }>(`/api/notes?${query.toString()}`);
-    const validNotes = (payload.notes ?? []).filter(isValidMingNote);
-    return {
-        notes: validNotes,
-        total: payload.total || 0,
-    };
-}
-
-/**
  * 获取某日的小记
  */
-export async function getNotesByDate(userId: string, date: string): Promise<MingNote[]> {
-    void userId;
-
-    const payload = await requestJson<{ notes?: unknown[] }>(`/api/notes?date=${encodeURIComponent(date)}`);
+export async function getNotesByDate(date: string): Promise<MingNote[]> {
+    const payload = await requestBrowserData<{ notes?: unknown[] }>(`/api/notes?date=${encodeURIComponent(date)}`, undefined, {
+        fallbackMessage: '请求失败',
+    });
     return (payload.notes ?? []).filter(isValidMingNote);
 }
 
 /**
  * 创建小记
  */
-export async function createNote(userId: string, input: NoteInput): Promise<MingNote> {
-    void userId;
-
-    const payload = await requestJson<unknown>('/api/notes', {
+export async function createNote(input: NoteInput): Promise<MingNote> {
+    const payload = await requestBrowserData<unknown>('/api/notes', {
         method: 'POST',
         body: JSON.stringify(input),
-    });
-    const note = toMingNote(payload);
-    if (!note) throw new Error('Invalid note data');
-    return note;
-}
-
-/**
- * 更新小记
- */
-export async function updateNote(noteId: string, input: Partial<NoteInput>): Promise<MingNote> {
-    const payload = await requestJson<unknown>(`/api/notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify(input),
+    }, {
+        fallbackMessage: '请求失败',
     });
     const note = toMingNote(payload);
     if (!note) throw new Error('Invalid note data');
@@ -518,8 +455,10 @@ export async function updateNote(noteId: string, input: Partial<NoteInput>): Pro
  * 删除小记
  */
 export async function deleteNote(noteId: string): Promise<void> {
-    await requestJson(`/api/notes/${noteId}`, {
+    await requestBrowserData(`/api/notes/${noteId}`, {
         method: 'DELETE',
+    }, {
+        fallbackMessage: '请求失败',
     });
 }
 
@@ -530,11 +469,11 @@ export async function deleteNote(noteId: string): Promise<void> {
 /**
  * 导出所有数据
  */
-export async function exportData(userId: string): Promise<ExportData> {
-    void userId;
-
-    const payload = await requestJson<ExportData>('/api/records/export', {
+export async function exportData(): Promise<ExportData> {
+    const payload = await requestBrowserData<ExportData>('/api/records/export', {
         method: 'GET',
+    }, {
+        fallbackMessage: '请求失败',
     });
     return {
         ...payload,
@@ -547,18 +486,17 @@ export async function exportData(userId: string): Promise<ExportData> {
  * 导入数据（覆盖模式）
  */
 export async function importData(
-    userId: string,
     data: ExportData,
 ): Promise<{ message?: string; recordsImported: number; notesImported: number }> {
-    void userId;
-
-    const payload = await requestJson<{
+    const payload = await requestBrowserData<{
         message?: string;
         recordsImported?: number;
         notesImported?: number;
     }>('/api/records/import', {
         method: 'POST',
         body: JSON.stringify(data),
+    }, {
+        fallbackMessage: '请求失败',
     });
 
     const recordsImported = Number(payload.recordsImported ?? NaN);

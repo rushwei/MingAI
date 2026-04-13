@@ -244,7 +244,7 @@ export function DailyNotes({
         setLoading(true);
         setError('');
         try {
-            await createNote(userId, { content: content.trim(), mood });
+            await createNote({ content: content.trim(), mood });
             setContent('');
             await Promise.resolve(onRefresh());
         } catch (submitError) {
@@ -429,7 +429,7 @@ export function ImportExportModal({
         setError('');
         setSuccess('');
         try {
-            const data = await exportData(userId);
+            const data = await exportData();
             downloadExportData(data);
             setSuccess('导出成功！');
         } catch (exportError) {
@@ -454,7 +454,7 @@ export function ImportExportModal({
 
         try {
             const data = await readImportFile(file);
-            const result = await importData(userId, data);
+            const result = await importData(data);
             setSuccess(`成功导入 ${result.recordsImported} 条记录和 ${result.notesImported} 条小记`);
             await Promise.resolve(onImport());
         } catch (importError) {

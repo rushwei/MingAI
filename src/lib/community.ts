@@ -54,17 +54,14 @@ export interface CommunityComment {
     replies?: CommunityComment[];
 }
 
-export interface CommunityViewerState {
+interface CommunityViewerState {
     isAuthenticated: boolean;
     isAuthor: boolean;
-    canEdit: boolean;
-    canDelete: boolean;
 }
 
-export interface CommunityPostDetail {
+interface CommunityPostDetail {
     post: CommunityPost;
     comments: CommunityComment[];
-    isAuthor: boolean;
     viewer: CommunityViewerState;
     viewerVotes: {
         post: VoteType | null;
@@ -72,16 +69,7 @@ export interface CommunityPostDetail {
     };
 }
 
-export interface CommunityVote {
-    id: string;
-    user_id: string;
-    target_type: TargetType;
-    target_id: string;
-    vote_type: VoteType;
-    created_at: string;
-}
-
-export interface CommunityReport {
+interface CommunityReport {
     id: string;
     reporter_id: string;
     target_type: TargetType;
@@ -95,14 +83,14 @@ export interface CommunityReport {
     created_at: string;
 }
 
-export interface PostInput {
+interface PostInput {
     title: string;
     content: string;
     category?: PostCategory;
     tags?: string[];
 }
 
-export interface CommentInput {
+interface CommentInput {
     post_id: string;
     content: string;
     parent_id?: string;
@@ -200,29 +188,6 @@ export function normalizePostInput(
     return { data };
 }
 
-async function requestCommunityJson<T>(
-    input: string,
-    init: RequestInit | undefined,
-    fallbackMessage: string,
-): Promise<T>;
-async function requestCommunityJson<T>(
-    input: string,
-    init: RequestInit | undefined,
-    fallbackMessage: string,
-    options: { allowNotFound: true },
-): Promise<T | null>;
-async function requestCommunityJson<T>(
-    input: string,
-    init: RequestInit | undefined,
-    fallbackMessage: string,
-    options: { allowNotFound?: boolean } = {},
-): Promise<T | null> {
-    return await requestBrowserData<T>(input, init, {
-        fallbackMessage,
-        allowNotFound: options.allowNotFound,
-    });
-}
-
 // =====================================================
 // 帖子分类配置
 // =====================================================
@@ -264,10 +229,10 @@ export async function getPosts(
     if (filters?.category) query.set('category', filters.category);
     if (filters?.search) query.set('search', filters.search);
 
-    const payload = await requestCommunityJson<{ posts?: CommunityPost[]; total?: number }>(
+    const payload = await requestBrowserData<{ posts?: CommunityPost[]; total?: number }>(
         `/api/community/posts?${query.toString()}`,
         { method: 'GET' },
-        '获取帖子失败',
+        { fallbackMessage: '获取帖子失败' },
     );
     return {
         posts: payload.posts || [],
@@ -275,24 +240,10 @@ export async function getPosts(
     };
 }
 
-/**
- * 获取帖子详情
- */
-export async function getPost(postId: string): Promise<CommunityPost | null> {
-    const payload = await requestCommunityJson<{ post?: CommunityPost | null }>(
-        `/api/community/posts/${postId}`,
-        { method: 'GET' },
-        '获取帖子失败',
-        { allowNotFound: true },
-    );
-    return (payload?.post ?? null) as CommunityPost | null;
-}
-
 export async function getPostDetail(postId: string): Promise<CommunityPostDetail | null> {
-    const payload = await requestCommunityJson<{
+    const payload = await requestBrowserData<{
         post?: CommunityPost | null;
         comments?: CommunityComment[];
-        isAuthor?: boolean;
         viewer?: CommunityViewerState | null;
         viewerVotes?: {
             post?: VoteType | null;
@@ -301,8 +252,7 @@ export async function getPostDetail(postId: string): Promise<CommunityPostDetail
     }>(
         `/api/community/posts/${postId}`,
         { method: 'GET' },
-        '获取帖子失败',
-        { allowNotFound: true },
+        { fallbackMessage: '获取帖子失败', allowNotFound: true },
     );
 
     if (!payload?.post) {
@@ -312,12 +262,9 @@ export async function getPostDetail(postId: string): Promise<CommunityPostDetail
     return {
         post: payload.post,
         comments: payload.comments ?? [],
-        isAuthor: payload.isAuthor === true,
         viewer: payload.viewer ?? {
             isAuthenticated: false,
             isAuthor: false,
-            canEdit: false,
-            canDelete: false,
         },
         viewerVotes: {
             post: payload.viewerVotes?.post ?? null,
@@ -330,7 +277,7 @@ export async function getPostDetail(postId: string): Promise<CommunityPostDetail
  * 创建帖子
  */
 export async function createPost(input: PostInput): Promise<CommunityPost> {
-    const payload = await requestCommunityJson<CommunityPost>(
+    const payload = await requestBrowserData<CommunityPost>(
         '/api/community/posts',
         {
             method: 'POST',
@@ -341,34 +288,34 @@ export async function createPost(input: PostInput): Promise<CommunityPost> {
                 tags: input.tags || [],
             }),
         },
-        '创建帖子失败',
+        { fallbackMessage: '创建帖子失败' },
     );
-    return payload as CommunityPost;
+    return payload;
 }
 
 /**
  * 更新帖子
  */
 export async function updatePost(postId: string, input: Partial<PostInput>): Promise<CommunityPost> {
-    const payload = await requestCommunityJson<CommunityPost>(
+    const payload = await requestBrowserData<CommunityPost>(
         `/api/community/posts/${postId}`,
         {
             method: 'PUT',
             body: JSON.stringify(input),
         },
-        '更新帖子失败',
+        { fallbackMessage: '更新帖子失败' },
     );
-    return payload as CommunityPost;
+    return payload;
 }
 
 /**
  * 删除帖子（软删除）
  */
 export async function deletePost(postId: string): Promise<void> {
-    await requestCommunityJson(
+    await requestBrowserData(
         `/api/community/posts/${postId}`,
         { method: 'DELETE' },
-        '删除帖子失败',
+        { fallbackMessage: '删除帖子失败' },
     );
 }
 
@@ -377,22 +324,10 @@ export async function deletePost(postId: string): Promise<void> {
 // =====================================================
 
 /**
- * 获取帖子评论
- */
-export async function getComments(postId: string): Promise<CommunityComment[]> {
-    const payload = await requestCommunityJson<{ comments?: CommunityComment[] }>(
-        `/api/community/posts/${postId}`,
-        { method: 'GET' },
-        '获取评论失败',
-    );
-    return payload.comments ?? [];
-}
-
-/**
  * 创建评论
  */
 export async function createComment(input: CommentInput): Promise<CommunityComment> {
-    const payload = await requestCommunityJson<CommunityComment>(
+    const payload = await requestBrowserData<CommunityComment>(
         '/api/community/comments',
         {
             method: 'POST',
@@ -402,58 +337,25 @@ export async function createComment(input: CommentInput): Promise<CommunityComme
                 parent_id: input.parent_id || null,
             }),
         },
-        '创建评论失败',
+        { fallbackMessage: '创建评论失败' },
     );
-    return payload as CommunityComment;
-}
-
-/**
- * 更新评论
- */
-export async function updateComment(commentId: string, content: string): Promise<CommunityComment> {
-    return await requestCommunityJson<CommunityComment>(
-        `/api/community/comments/${commentId}`,
-        {
-            method: 'PUT',
-            body: JSON.stringify({ content }),
-        },
-        '更新评论失败',
-    ) as CommunityComment;
+    return payload;
 }
 
 /**
  * 删除评论（软删除）
  */
 export async function deleteComment(commentId: string): Promise<void> {
-    await requestCommunityJson(
+    await requestBrowserData(
         `/api/community/comments/${commentId}`,
         { method: 'DELETE' },
-        '删除评论失败',
+        { fallbackMessage: '删除评论失败' },
     );
 }
 
 // =====================================================
 // 投票功能
 // =====================================================
-
-/**
- * 获取用户对目标的投票
- */
-export async function getUserVote(
-    userId: string,
-    targetType: TargetType,
-    targetId: string
-): Promise<VoteType | null> {
-    void userId;
-
-    const query = new URLSearchParams({ targetType, targetId });
-    const payload = await requestCommunityJson<{ vote: VoteType | null }>(
-        `/api/community/votes?${query.toString()}`,
-        { method: 'GET' },
-        '获取投票状态失败',
-    );
-    return payload.vote || null;
-}
 
 /**
  * 投票（切换）
@@ -463,13 +365,13 @@ export async function vote(
     targetId: string,
     voteType: VoteType
 ): Promise<VoteType | null> {
-    const payload = await requestCommunityJson<{ vote: VoteType | null }>(
+    const payload = await requestBrowserData<{ vote: VoteType | null }>(
         '/api/community/votes',
         {
             method: 'POST',
             body: JSON.stringify({ targetType, targetId, voteType }),
         },
-        '投票失败',
+        { fallbackMessage: '投票失败' },
     );
     return payload.vote || null;
 }
@@ -487,14 +389,14 @@ export async function createReport(
     reason: ReportReason,
     description?: string
 ): Promise<CommunityReport> {
-    return await requestCommunityJson<CommunityReport>(
+    return await requestBrowserData<CommunityReport>(
         '/api/community/reports',
         {
             method: 'POST',
             body: JSON.stringify({ targetType, targetId, reason, description }),
         },
-        '提交举报失败',
-    ) as CommunityReport;
+        { fallbackMessage: '提交举报失败' },
+    );
 }
 
 // =====================================================
@@ -505,13 +407,13 @@ export async function createReport(
  * 管理员置顶帖子
  */
 export async function adminPinPost(postId: string, isPinned: boolean): Promise<void> {
-    await requestCommunityJson(
+    await requestBrowserData(
         `/api/community/posts/${postId}/admin`,
         {
             method: 'PUT',
             body: JSON.stringify({ action: 'pin', value: isPinned }),
         },
-        '置顶帖子失败',
+        { fallbackMessage: '置顶帖子失败' },
     );
 }
 
@@ -519,13 +421,13 @@ export async function adminPinPost(postId: string, isPinned: boolean): Promise<v
  * 管理员设置精华帖子
  */
 export async function adminFeaturePost(postId: string, isFeatured: boolean): Promise<void> {
-    await requestCommunityJson(
+    await requestBrowserData(
         `/api/community/posts/${postId}/admin`,
         {
             method: 'PUT',
             body: JSON.stringify({ action: 'feature', value: isFeatured }),
         },
-        '设置精华失败',
+        { fallbackMessage: '设置精华失败' },
     );
 }
 
@@ -533,97 +435,12 @@ export async function adminFeaturePost(postId: string, isFeatured: boolean): Pro
  * 管理员删除帖子
  */
 export async function adminDeletePost(postId: string): Promise<void> {
-    await requestCommunityJson(
+    await requestBrowserData(
         `/api/community/posts/${postId}/admin`,
         {
             method: 'PUT',
             body: JSON.stringify({ action: 'delete' }),
         },
-        '删除帖子失败',
+        { fallbackMessage: '删除帖子失败' },
     );
-}
-
-/**
- * 管理员删除评论
- */
-export async function adminDeleteComment(commentId: string): Promise<void> {
-    await requestCommunityJson(
-        `/api/community/comments/${commentId}/admin`,
-        { method: 'DELETE' },
-        '删除评论失败',
-    );
-}
-
-/**
- * 管理员获取举报列表
- */
-export async function adminGetReports(
-    status?: ReportStatus,
-    page: number = 1,
-    pageSize: number = 20
-): Promise<{ reports: CommunityReport[]; total: number }> {
-    const query = new URLSearchParams({
-        page: String(page),
-        pageSize: String(pageSize),
-    });
-    if (status) query.set('status', status);
-
-    const payload = await requestCommunityJson<{ reports?: CommunityReport[]; total?: number }>(
-        `/api/community/reports?${query.toString()}`,
-        { method: 'GET' },
-        '获取举报列表失败',
-    );
-    return {
-        reports: payload.reports || [],
-        total: payload.total || 0,
-    };
-}
-
-/**
- * 管理员处理举报
- */
-export async function adminResolveReport(
-    reportId: string,
-    adminId: string,
-    status: 'resolved' | 'dismissed',
-    notes?: string
-): Promise<void> {
-    void adminId;
-
-    await requestCommunityJson(
-        '/api/community/reports',
-        {
-            method: 'PUT',
-            body: JSON.stringify({ reportId, status, notes }),
-        },
-        '处理举报失败',
-    );
-}
-
-/**
- * 检查用户是否是帖子作者
- */
-export async function isPostAuthor(postId: string, userId: string): Promise<boolean> {
-    void userId;
-
-    const payload = await requestCommunityJson<{ viewer?: { isAuthor?: boolean | null } }>(
-        `/api/community/posts/${postId}`,
-        { method: 'GET' },
-        '获取作者信息失败',
-    );
-    return payload.viewer?.isAuthor === true;
-}
-
-/**
- * 检查用户是否是评论作者
- */
-export async function isCommentAuthor(commentId: string, userId: string): Promise<boolean> {
-    void userId;
-
-    const payload = await requestCommunityJson<{ viewer?: { isAuthor?: boolean | null } }>(
-        `/api/community/comments/${commentId}`,
-        { method: 'GET' },
-        '获取作者信息失败',
-    );
-    return payload.viewer?.isAuthor === true;
 }

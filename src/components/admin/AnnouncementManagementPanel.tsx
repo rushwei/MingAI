@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Megaphone, PencilLine, Plus, RefreshCw, Save, Trash2, GripVertical } from 'lucide-react';
+import { requestBrowserData } from '@/lib/browser-api';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { requestAdminJson } from '@/lib/admin/request';
 import { useToast } from '@/components/ui/Toast';
 import type { Announcement } from '@/lib/announcement';
 import { invalidateQueriesForPath } from '@/lib/query/invalidation';
@@ -70,10 +70,10 @@ export function AnnouncementManagementPanel() {
         setError(null);
 
         try {
-            const payload = await requestAdminJson<{ announcements?: Announcement[] }>(
+            const payload = await requestBrowserData<{ announcements?: Announcement[] }>(
                 '/api/admin/announcements',
                 { method: 'GET' },
-                '获取公告列表失败',
+                { fallbackMessage: '获取公告列表失败' },
             );
             const nextAnnouncements = (payload.announcements || []) as Announcement[];
             setAnnouncements(nextAnnouncements);
@@ -129,7 +129,7 @@ export function AnnouncementManagementPanel() {
 
         setSaving(true);
         try {
-            const payload = await requestAdminJson<{ announcement?: Announcement }>(
+            const payload = await requestBrowserData<{ announcement?: Announcement }>(
                 form.id ? `/api/admin/announcements/${form.id}` : '/api/admin/announcements',
                 {
                     method: form.id ? 'PATCH' : 'POST',
@@ -140,7 +140,7 @@ export function AnnouncementManagementPanel() {
                         content: form.content,
                     }),
                 },
-                '保存公告失败',
+                { fallbackMessage: '保存公告失败' },
             );
 
             const saved = payload.announcement as Announcement;
@@ -160,12 +160,12 @@ export function AnnouncementManagementPanel() {
     const deleteAnnouncement = async (announcement: Announcement) => {
         setDeletingId(announcement.id);
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 `/api/admin/announcements/${announcement.id}`,
                 {
                     method: 'DELETE',
                 },
-                '删除公告失败',
+                { fallbackMessage: '删除公告失败' },
             );
 
             if (selectedId === announcement.id) {

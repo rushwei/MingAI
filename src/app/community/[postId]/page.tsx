@@ -100,7 +100,7 @@ export default function PostDetailPage() {
             }
             setPost(detail.post);
             setComments(detail.comments);
-            setIsAuthor(detail.viewer.isAuthor || detail.isAuthor);
+            setIsAuthor(detail.viewer.isAuthor);
             setPostVote(detail.viewerVotes.post);
             setUserVotes(new Map(Object.entries(detail.viewerVotes.comments)));
             setLoadError(null);

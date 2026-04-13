@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/Toast';
 import {
     deleteNotification,
     deleteNotifications,
-    getNotifications,
+    getNotificationsPage,
     markAllAsRead,
     markAsRead,
     markSelectedAsRead,
@@ -31,6 +31,7 @@ import {
     filterNotifications,
     groupNotificationsByDay,
     reconcileSelectedNotificationIds,
+    resolveNotificationLink,
     type NotificationFilterState,
 } from '@/lib/notification-view';
 
@@ -87,15 +88,6 @@ function NotificationsContent() {
         type: 'all',
     });
 
-    const resolveNotificationLink = (link: string) => {
-        try {
-            const url = new URL(link, window.location.origin);
-            return `${url.pathname}${url.search}${url.hash}`;
-        } catch {
-            return link.startsWith('/') ? link : `/${link}`;
-        }
-    };
-
     useEffect(() => {
         const init = async () => {
             if (sessionLoading) {
@@ -108,8 +100,8 @@ function NotificationsContent() {
                 }
 
                 setLoadError(null);
-                const data = await getNotifications(user.id, 50);
-                setNotifications(data);
+                const data = await getNotificationsPage({ limit: 50 });
+                setNotifications(data.notifications);
             } catch (error) {
                 const message = error instanceof Error ? error.message : '获取通知失败';
                 setNotifications([]);

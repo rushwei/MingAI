@@ -42,8 +42,6 @@ export async function GET(
             viewer: {
                 isAuthenticated: true,
                 isAuthor,
-                canEdit: isAuthor,
-                canDelete: isAuthor,
             },
         });
     } catch (error) {

@@ -6,10 +6,6 @@
 
 import { requestBrowserPayloadOrThrow, requestBrowserJson } from '@/lib/browser-api';
 
-export type UnreadCountOptions = {
-  bypassCache?: boolean;
-};
-
 export interface Notification {
   id: string;
   user_id: string;
@@ -21,32 +17,18 @@ export interface Notification {
   created_at: string;
 }
 
-export interface NotificationPagination {
+interface NotificationPagination {
   hasMore: boolean;
   nextOffset: number | null;
 }
 
-export interface NotificationPageResult {
+interface NotificationPageResult {
   notifications: Notification[];
   pagination: NotificationPagination;
 }
 
-async function requestNotificationJson<T>(
-  url: string,
-  init: RequestInit,
-  fallbackMessage: string,
-) {
-  return await requestBrowserPayloadOrThrow<T>(url, init, fallbackMessage);
-}
-
-export async function getUnreadCount(
-  userId: string,
-  options: UnreadCountOptions = {},
-): Promise<number> {
-  void options;
-  if (!userId) return 0;
-
-  const result = await requestNotificationJson<{ count?: number }>(
+export async function getUnreadCount(): Promise<number> {
+  const result = await requestBrowserPayloadOrThrow<{ count?: number }>(
     '/api/notifications?count=1&unread=1',
     { method: 'GET' },
     '获取未读数量失败',
@@ -55,26 +37,16 @@ export async function getUnreadCount(
   return result.count ?? result.data?.count ?? 0;
 }
 
-export async function getNotifications(
-  userId: string,
-  limit: number = 20,
-): Promise<Notification[]> {
-  const page = await getNotificationsPage(userId, { limit });
-  return page.notifications;
-}
-
 export async function getNotificationsPage(
-  userId: string,
   options: {
     limit?: number;
     offset?: number;
   } = {},
 ): Promise<NotificationPageResult> {
-  void userId;
   const limit = options.limit ?? 20;
   const offset = options.offset ?? 0;
 
-  const result = await requestNotificationJson<{
+  const result = await requestBrowserPayloadOrThrow<{
     notifications?: Notification[];
     pagination?: NotificationPagination;
   }>(

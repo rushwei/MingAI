@@ -8,7 +8,7 @@
 'use client';
 
 import { useState } from "react";
-import { requestAdminJson } from '@/lib/admin/request';
+import { requestBrowserData } from '@/lib/browser-api';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
 import { getFeatureModules } from '@/lib/navigation/registry';
@@ -27,7 +27,7 @@ export function FeatureTogglePanel() {
         setError("");
 
         try {
-            await requestAdminJson(
+            await requestBrowserData(
                 "/api/feature-toggles",
                 {
                     method: "POST",
@@ -36,10 +36,10 @@ export function FeatureTogglePanel() {
                     },
                     body: JSON.stringify({ featureId, disabled: currentlyEnabled }),
                 },
-                "更新失败",
+                { fallbackMessage: "更新失败" },
             );
 
-            await refresh(true, true);
+            await refresh();
         } catch (err) {
             console.error("[feature-toggles] Update failed:", err);
             setError("网络错误，请重试");

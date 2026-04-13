@@ -110,8 +110,6 @@ export async function GET(
         const viewer = {
             isAuthenticated: !!currentUserId,
             isAuthor: isPostAuthor,
-            canEdit: isPostAuthor,
-            canDelete: isPostAuthor,
         };
         const commentIds = comments.map((comment) => comment.id);
         const viewerVotes = {
@@ -183,7 +181,6 @@ export async function GET(
         return jsonOk({
             post: safePost,
             comments: safeComments,
-            isAuthor: isPostAuthor,
             viewer,
             viewerVotes,
         });

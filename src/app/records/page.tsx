@@ -132,7 +132,7 @@ export default function RecordsPage() {
         setNotesError(null);
         const today = new Date().toISOString().split('T')[0];
         try {
-            const nextNotes = await getNotesByDate(user.id, today);
+            const nextNotes = await getNotesByDate(today);
             setNotes(nextNotes);
         } catch (error) {
             const message = error instanceof Error ? error.message : '获取小记失败';

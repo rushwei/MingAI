@@ -19,6 +19,7 @@ import {
     markAsRead,
     type Notification,
 } from '@/lib/notification';
+import { resolveNotificationLink } from '@/lib/notification-view';
 import type { Announcement } from '@/lib/announcement';
 import type { AnnouncementCenterTab } from '@/components/providers/AnnouncementPopupHost';
 
@@ -57,15 +58,6 @@ function formatAnnouncementDate(dateStr: string) {
     const date = new Date(dateStr);
     const pad = (value: number) => String(value).padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function resolveNotificationLink(link: string) {
-    try {
-        const url = new URL(link, window.location.origin);
-        return `${url.pathname}${url.search}${url.hash}`;
-    } catch {
-        return link.startsWith('/') ? link : `/${link}`;
-    }
 }
 
 export function SidebarAnnouncementCenter({
@@ -175,7 +167,7 @@ export function SidebarAnnouncementCenter({
             if (!append) {
                 setNotificationError(null);
             }
-            const result = await getNotificationsPage(userId, {
+            const result = await getNotificationsPage({
                 limit: NOTIFICATION_LIMIT,
                 offset: options?.offset ?? 0,
             });

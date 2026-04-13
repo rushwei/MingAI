@@ -1,4 +1,3 @@
-import type { DataSourceType } from '@/lib/data-sources/types';
 import type { MembershipType } from '@/lib/user/membership';
 
 export type KnowledgeBaseWeight = 'low' | 'normal' | 'high';
@@ -17,17 +16,6 @@ export interface KnowledgeBaseInput {
     name: string;
     description?: string | null;
     weight?: KnowledgeBaseWeight;
-}
-
-export type ArchivedSourceType = 'conversation' | 'record' | 'chat_message' | DataSourceType;
-
-export interface ArchivedSource {
-    id: string;
-    user_id: string;
-    source_type: ArchivedSourceType;
-    source_id: string;
-    kb_id: string;
-    created_at: string;
 }
 
 export type SearchConfig = 'simple' | 'english';

@@ -13,14 +13,6 @@ type HistoryPagination = {
 
 const HISTORY_PAGE_SIZE = 100;
 
-async function requestHistoryJson<T>(
-  url: string,
-  init?: RequestInit,
-  fallbackMessage = '请求失败',
-): Promise<T> {
-  return await requestBrowserData<T>(url, init, { fallbackMessage }) as T;
-}
-
 export async function loadHistorySummariesPage(
   type: HistoryType,
   options: { limit?: number; offset?: number } = {},
@@ -33,10 +25,10 @@ export async function loadHistorySummariesPage(
     offset: String(offset),
   });
 
-  const data = await requestHistoryJson<{ items?: HistorySummaryItem[]; pagination?: HistoryPagination }>(
+  const data = await requestBrowserData<{ items?: HistorySummaryItem[]; pagination?: HistoryPagination }>(
     `/api/history-summaries?${params.toString()}`,
     { method: 'GET' },
-    '加载历史记录失败',
+    { fallbackMessage: '加载历史记录失败' },
   );
 
   return {
@@ -58,10 +50,10 @@ export async function loadHistoryRestore(
     query.set('timezone', timezone);
   }
 
-  const data = await requestHistoryJson<{ item?: HistoryRestorePayload | null }>(
+  const data = await requestBrowserData<{ item?: HistoryRestorePayload | null }>(
     `/api/history-summaries?${query.toString()}`,
     { method: 'GET' },
-    '加载历史记录失败',
+    { fallbackMessage: '加载历史记录失败' },
   );
 
   return data.item ?? null;
@@ -73,10 +65,10 @@ export async function deleteHistorySummary(type: HistoryType, id: string): Promi
     id,
   });
 
-  const data = await requestHistoryJson<{ success?: boolean }>(
+  const data = await requestBrowserData<{ success?: boolean }>(
     `/api/history-summaries?${query.toString()}`,
     { method: 'DELETE' },
-    '删除历史记录失败',
+    { fallbackMessage: '删除历史记录失败' },
   );
   if (data.success !== true) {
     throw new Error('删除历史记录失败');
