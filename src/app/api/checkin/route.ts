@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         }
         const { user } = auth;
 
-        const result = await performCheckin(user.id, { client: auth.db });
+        const result = await performCheckin(user.id);
 
         if (!result.success) {
             const status = result.blockedReason || result.errorType === 'blocked' ? 400 : 500;

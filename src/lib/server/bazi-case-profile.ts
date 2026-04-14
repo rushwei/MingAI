@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import {
     createEmptyBaziCaseProfile,
     parseBaziCaseEvents,
@@ -118,7 +119,8 @@ export async function saveBaziCaseProfile(args: {
     events: BaziCaseEvent[];
 }): Promise<BaziCaseProfile> {
     const { supabase, userId, chartId, masterReview, ownerFeedback, events } = args;
-    const { data, error } = await supabase.rpc('save_bazi_case_profile_as_service', {
+    const serviceClient = getSystemAdminClient();
+    const { data, error } = await serviceClient.rpc('save_bazi_case_profile_as_service', {
         p_user_id: userId,
         p_chart_id: chartId,
         p_master_review: masterReview,

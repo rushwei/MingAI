@@ -99,7 +99,6 @@ export async function getCheckinStatus(
 
 export async function performCheckin(
     userId: string,
-    options?: { client?: CheckinClient },
 ): Promise<{
     success: boolean;
     rewardCredits: number;
@@ -109,7 +108,7 @@ export async function performCheckin(
     errorType?: 'blocked' | 'system';
     error?: string;
 }> {
-    const supabase = resolveCheckinClient(options);
+    const supabase = getSystemAdminClient();
     const { data, error } = await supabase.rpc('perform_daily_checkin_as_service', {
         p_user_id: userId,
     });

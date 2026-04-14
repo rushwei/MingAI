@@ -576,6 +576,51 @@ test('checkin route should return structured status when the user already checke
   assert.equal(payload.data.result.blockedReason, 'already_checked_in');
 });
 
+test('checkin route should not forward the user-scoped db client into the service rpc helper', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const checkinModule = require('../lib/user/checkin') as any;
+  const routePath = require.resolve('../app/api/checkin/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalPerformCheckin = checkinModule.performCheckin;
+
+  const authDbSentinel = { tag: 'user-db-client' };
+  let performCheckinArgs: unknown[] | null = null;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    db: authDbSentinel,
+  });
+  checkinModule.performCheckin = async (...args: unknown[]) => {
+    performCheckinArgs = args;
+    return {
+      success: true,
+      rewardCredits: 2,
+      credits: 11,
+      creditLimit: 20,
+    };
+  };
+  delete require.cache[routePath];
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    checkinModule.performCheckin = originalPerformCheckin;
+    delete require.cache[routePath];
+  });
+
+  const { POST } = await import('../app/api/checkin/route');
+  const response = await POST(new NextRequest('http://localhost/api/checkin', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer token',
+    },
+  }));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(performCheckinArgs, ['user-1']);
+  assert.equal(payload.data.result.rewardCredits, 2);
+});
+
 test('checkin route should return structured cap details when credits are full', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const checkinModule = require('../lib/user/checkin') as any;

@@ -515,3 +515,83 @@ test('knowledge-base archive DELETE should unarchive through transactional rpc',
   });
   assert.equal(payload.success, true);
 });
+
+test('knowledge-base archive DELETE should use the privileged rpc client instead of auth.db', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/knowledge-base/archive/[id]/route');
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+  let rpcCall: { fn: string; args: Record<string, unknown> } | null = null;
+  const authDb = {
+    from(table: string) {
+      if (table !== 'archived_sources') {
+        throw new Error(`Unexpected table: ${table}`);
+      }
+      return {
+        select() {
+          return {
+            eq() {
+              return {
+                eq() {
+                  return {
+                    maybeSingle: async () => ({
+                      data: {
+                        id: 'archive-1',
+                        kb_id: 'kb-1',
+                        source_type: 'conversation',
+                        source_id: 'conv-1',
+                      },
+                      error: null,
+                    }),
+                  };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+    rpc() {
+      throw new Error('knowledge-base archive DELETE should not call rpc on auth.db');
+    },
+  };
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    db: authDb,
+    supabase: authDb,
+  });
+  apiUtilsModule.getSystemAdminClient = () => ({
+    rpc(fn: string, args: Record<string, unknown>) {
+      rpcCall = { fn, args };
+      return Promise.resolve({ data: true, error: null });
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/knowledge-base/archive/[id]/route') as typeof import('../app/api/knowledge-base/archive/[id]/route');
+  const response = await routeModule.DELETE(
+    new NextRequest('http://localhost/api/knowledge-base/archive/archive-1', {
+      method: 'DELETE',
+    }),
+    { params: Promise.resolve({ id: 'archive-1' }) },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(rpcCall?.fn, 'kb_unarchive_source_as_service');
+  assert.deepEqual(rpcCall?.args, {
+    p_user_id: 'user-1',
+    p_kb_id: 'kb-1',
+    p_source_type: 'conversation',
+    p_source_id: 'conv-1',
+  });
+  assert.equal(payload.success, true);
+});
