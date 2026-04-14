@@ -12,7 +12,6 @@ import {
     Atom,
     AtSign,
     BookOpenText,
-    Cpu,
     Globe,
     KeyRound,
     Moon,
