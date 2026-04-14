@@ -117,11 +117,13 @@ test('exchangeCode should retry backup token endpoint when primary host fails', 
 
 test('linuxdo route should sanitize external returnTo before storing oauth state', async (t) => {
   const linuxdoModule = require('../lib/oauth/linuxdo') as any;
+  const apiUtilsModule = require('../lib/api-utils') as any;
   const routePath = require.resolve('../app/api/auth/linuxdo/route');
 
   const originalGenerateState = linuxdoModule.generateState;
   const originalGeneratePKCE = linuxdoModule.generatePKCE;
   const originalBuildAuthUrl = linuxdoModule.buildAuthUrl;
+  const originalGetAuthContext = apiUtilsModule.getAuthContext;
 
   linuxdoModule.generateState = () => 'oauth-state';
   linuxdoModule.generatePKCE = () => ({
@@ -129,11 +131,20 @@ test('linuxdo route should sanitize external returnTo before storing oauth state
     codeChallenge: 'code-challenge',
   });
   linuxdoModule.buildAuthUrl = () => 'https://connect.linux.do/oauth2/authorize?mock=1';
+  apiUtilsModule.getAuthContext = async () => ({
+    user: {
+      id: 'linuxdo-user',
+      user_metadata: {
+        linuxdo_sub: 'linuxdo-sub-1',
+      },
+    },
+  });
 
   t.after(() => {
     linuxdoModule.generateState = originalGenerateState;
     linuxdoModule.generatePKCE = originalGeneratePKCE;
     linuxdoModule.buildAuthUrl = originalBuildAuthUrl;
+    apiUtilsModule.getAuthContext = originalGetAuthContext;
     delete require.cache[routePath];
   });
 
@@ -154,6 +165,46 @@ test('linuxdo route should sanitize external returnTo before storing oauth state
   assert.equal(parsed.codeVerifier, 'code-verifier');
   assert.equal(parsed.intent, 'membership-claim');
   assert.equal(parsed.returnTo, '/');
+});
+
+test('linuxdo route should reject monthly claim intent when current session is not a linuxdo user', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as any;
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const routePath = require.resolve('../app/api/auth/linuxdo/route');
+
+  const originalGenerateState = linuxdoModule.generateState;
+  const originalGeneratePKCE = linuxdoModule.generatePKCE;
+  const originalBuildAuthUrl = linuxdoModule.buildAuthUrl;
+  const originalGetAuthContext = apiUtilsModule.getAuthContext;
+
+  linuxdoModule.generateState = () => 'oauth-state';
+  linuxdoModule.generatePKCE = () => ({
+    codeVerifier: 'code-verifier',
+    codeChallenge: 'code-challenge',
+  });
+  linuxdoModule.buildAuthUrl = () => 'https://connect.linux.do/oauth2/authorize?mock=1';
+  apiUtilsModule.getAuthContext = async () => ({
+    user: {
+      id: 'normal-user',
+      user_metadata: {},
+    },
+  });
+
+  t.after(() => {
+    linuxdoModule.generateState = originalGenerateState;
+    linuxdoModule.generatePKCE = originalGeneratePKCE;
+    linuxdoModule.buildAuthUrl = originalBuildAuthUrl;
+    apiUtilsModule.getAuthContext = originalGetAuthContext;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/auth/linuxdo/route') as typeof import('../app/api/auth/linuxdo/route');
+  const response = await routeModule.GET(new NextRequest('http://localhost/api/auth/linuxdo?intent=membership-claim&returnTo=%2Fbazi%23settings%2Fupgrade'));
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/bazi?claim=missing_linuxdo#settings/upgrade');
+  assert.equal(response.cookies.get('linuxdo-oauth-state'), undefined);
 });
 
 test('linuxdo callback should redirect oauth errors back to sanitized returnTo when state cookie is present', async (t) => {

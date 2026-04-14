@@ -1,5 +1,5 @@
 /**
- * 会员与积分内容
+ * 订阅内容
  *
  * 'use client' 标记说明：
  * - 使用 hooks 管理会员、签到、激活码与积分记录状态
@@ -97,6 +97,8 @@ export default function UpgradePanel() {
   const [showCheckinModal, setShowCheckinModal] = useState(false);
   const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
   const { showToast } = useToast();
+  const hasLinuxDoLogin = typeof user?.user_metadata?.linuxdo_sub === 'string'
+    && user.user_metadata.linuxdo_sub.trim().length > 0;
 
   const checkinEnabled = featureLoaded && isFeatureEnabled('checkin');
   const containerClass = 'space-y-8';
@@ -360,11 +362,13 @@ export default function UpgradePanel() {
 
       <div className="rounded-lg border border-[#ebe8e2] bg-[#f7f6f3] px-4 py-4">
         <div className="flex flex-wrap gap-2">
-          <ActionButton
-            href={linuxdoClaimUrl}
-            icon={<RefreshCw className="h-4 w-4" />}
-            label="领取月度会员"
-          />
+          {hasLinuxDoLogin ? (
+            <ActionButton
+              href={linuxdoClaimUrl}
+              icon={<RefreshCw className="h-4 w-4" />}
+              label="领取月度会员"
+            />
+          ) : null}
           <ActionButton
             onClick={() => {
               if (!user) {

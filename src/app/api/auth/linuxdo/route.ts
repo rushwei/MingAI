@@ -5,9 +5,16 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { generateState, generatePKCE, buildAuthUrl, normalizeLinuxDoReturnTo } from '@/lib/oauth/linuxdo';
+import { getAuthContext } from '@/lib/api-utils';
 
 const OAUTH_STATE_COOKIE = 'linuxdo-oauth-state';
 const CLAIM_INTENT = 'membership-claim';
+
+function redirectWithClaimStatus(origin: string, returnTo: string, claim: string) {
+  const url = new URL(normalizeLinuxDoReturnTo(returnTo), origin);
+  url.searchParams.set('claim', claim);
+  return NextResponse.redirect(url);
+}
 
 export async function GET(request: NextRequest) {
   const state = generateState();
@@ -16,6 +23,16 @@ export async function GET(request: NextRequest) {
   const returnTo = normalizeLinuxDoReturnTo(request.nextUrl.searchParams.get('returnTo'));
 
   const origin = request.nextUrl.origin;
+  if (intent === CLAIM_INTENT) {
+    const auth = await getAuthContext(request);
+    const linuxdoSub = typeof auth.user?.user_metadata?.linuxdo_sub === 'string'
+      ? auth.user.user_metadata.linuxdo_sub.trim()
+      : '';
+    if (!linuxdoSub) {
+      return redirectWithClaimStatus(origin, returnTo, 'missing_linuxdo');
+    }
+  }
+
   const redirectUri = `${origin}/api/auth/linuxdo/callback`;
   const authUrl = buildAuthUrl(state, codeChallenge, redirectUri);
 
