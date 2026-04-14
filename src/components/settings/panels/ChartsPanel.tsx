@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, ChevronRight, MapPin, Plus, Star, Trash2 } from 'lucide-react';
+import { Calendar, ChevronRight, MapPin, Star, Trash2 } from 'lucide-react';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
@@ -46,35 +46,20 @@ function isModifiedEvent(event: MouseEvent<HTMLElement>) {
 function SectionTitle({
   type,
   title,
-  createHref,
-  createText,
-  onNavigate,
 }: {
   type: ChartType;
   title: string;
-  createHref: string;
-  createText: string;
-  onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   const Icon = getNavItemById(type)?.icon;
 
   return (
     <div className="flex items-center justify-between gap-3 px-1">
-      <h2 className="flex items-center gap-3 text-sm font-semibold text-foreground">
+      <h2 className="flex items-center gap-1 text-sm font-semibold text-foreground">
         <span className="flex h-8 w-8 items-center justify-center rounded-md text-foreground/60">
-          {Icon ? <Icon className="h-4 w-4" /> : null}
+          {Icon ? <Icon className="h-5 w-5" /> : null}
         </span>
         <span>{title}</span>
       </h2>
-
-      <Link
-        href={createHref}
-        onClick={(event) => onNavigate?.(event, createHref)}
-        className="inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
-      >
-        <Plus className="h-4 w-4" />
-        {createText}
-      </Link>
     </div>
   );
 }
@@ -105,7 +90,7 @@ function ChartRow({
       <div className="min-w-0 flex-1 pl-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="truncate text-sm font-medium text-foreground">{chart.name}</h3>
-          <span className="rounded-md border border-border bg-background-secondary px-1.5 py-0.5 text-[10px] font-semibold text-foreground/60">
+          <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-foreground/60">
             {getGenderLabel(chart.gender)}
           </span>
           {chart.is_default ? (
@@ -159,8 +144,6 @@ function ChartSection({
   title,
   list,
   type,
-  createHref,
-  createText,
   onDelete,
   onSetDefault,
   onNavigate,
@@ -168,15 +151,13 @@ function ChartSection({
   title: string;
   list: ChartItem[];
   type: ChartType;
-  createHref: string;
-  createText: string;
   onDelete: (id: string, type: ChartType, event: MouseEvent<HTMLButtonElement>) => void;
   onSetDefault: (id: string, type: ChartType, event: MouseEvent<HTMLButtonElement>) => void;
   onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   return (
     <section className="space-y-3">
-      <SectionTitle type={type} title={title} createHref={createHref} createText={createText} onNavigate={onNavigate} />
+      <SectionTitle type={type} title={title} />
 
       {list.length > 0 ? (
         <div className="space-y-2">
@@ -193,14 +174,6 @@ function ChartSection({
       ) : (
         <div className="rounded-md border border-dashed border-border bg-background px-4 py-8 text-center">
           <p className="text-sm text-foreground-secondary">暂无{title}</p>
-          <Link
-            href={createHref}
-            onClick={(event) => onNavigate?.(event, createHref)}
-            className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
-          >
-            <Plus className="h-4 w-4" />
-            {createText}
-          </Link>
         </div>
       )}
     </section>
@@ -355,8 +328,6 @@ export default function ChartsPanel() {
         title="八字命盘"
         list={baziCharts}
         type="bazi"
-        createHref="/bazi"
-        createText="新建八字"
         onDelete={(id, type, event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -370,8 +341,6 @@ export default function ChartsPanel() {
         title="紫微命盘"
         list={ziweiCharts}
         type="ziwei"
-        createHref="/ziwei"
-        createText="新建紫微"
         onDelete={(id, type, event) => {
           event.preventDefault();
           event.stopPropagation();

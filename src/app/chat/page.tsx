@@ -6,8 +6,8 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
-import { BookOpenText, MessageCircleHeart, RefreshCw } from 'lucide-react';
+import { createElement, useEffect, useState } from 'react';
+import { BookOpenText, RefreshCw } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
@@ -22,6 +22,7 @@ import { ChatLayout } from '@/components/chat/ChatLayout';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { openSettingsCenter } from '@/lib/settings-center';
+import { SETTINGS_CENTER_TAB_ICONS } from '@/components/settings/settings-center-icons';
 
 export default function ChatPage() {
     const router = useRouter();
@@ -73,7 +74,7 @@ export default function ChatPage() {
         if (aiPersonalizationEnabled) {
             menuItems.push({
                 id: 'ai-settings', label: '个性化',
-                icon: <MessageCircleHeart className="w-4 h-4" />,
+                icon: createElement(SETTINGS_CENTER_TAB_ICONS.personalization, { className: 'w-4 h-4' }),
                 onClick: () => openSettingsCenter('personalization'),
             });
         }

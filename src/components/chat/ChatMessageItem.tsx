@@ -233,7 +233,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                                 <span>{new Date(message.dreamInfo.dreamDate).toLocaleDateString('zh-CN')}</span>
                             </div>
                         )}
-                        <div className={`px-4 py-2.5 rounded-lg rounded-tr-none shadow-sm text-foreground border ${message.dreamInfo
+                        <div className={`px-4 py-1.5 rounded-xl rounded-tr-none shadow-sm text-foreground border ${message.dreamInfo
                             ? 'bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20'
                             : 'bg-accent/10 border border-accent/20'
                         }`}>

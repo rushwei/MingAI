@@ -287,7 +287,7 @@ export function Header() {
                                 hover:bg-background-secondary hover:text-foreground
                                 transition-all duration-200
                             "
-                            title="个人资料"
+                            title="账户"
                         >
                             <User className="w-5 h-5" />
                         </SettingsCenterLink>

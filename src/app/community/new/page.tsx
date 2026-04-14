@@ -145,7 +145,7 @@ export default function NewPostPage() {
                                     社区将显示你的公开昵称
                                 </div>
                                 <p className="text-xs text-foreground-secondary/60 ml-1">
-                                    如需修改显示名称，请前往个人资料页调整昵称
+                                    如需修改显示名称，请前往账户页调整昵称
                                 </p>
                             </div>
                         </div>

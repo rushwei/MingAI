@@ -9,21 +9,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  Bell,
-  Check,
-  CalendarClock,
-  CalendarHeart,
-  Globe,
-  Monitor,
-  Moon,
-  Shield,
-  Sparkles,
-  Sun,
-} from 'lucide-react';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { SegmentedChoice } from '@/components/settings/SegmentedChoice';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
 import { loadReminderSubscriptions, type ReminderType, updateReminderSubscriptionClient } from '@/lib/reminders-client';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
@@ -44,65 +33,50 @@ const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
 const REMINDER_ITEMS: Array<{
   type: ReminderType;
   label: string;
-  description: string;
 }> = [
   {
     type: 'solar_term',
     label: '节气提醒',
-    description: '节气当天养生建议。',
   },
   {
     type: 'fortune',
     label: '运势提醒',
-    description: '每日运势变化提醒。',
   },
   {
     type: 'key_date',
     label: '关键日提醒',
-    description: '重要日期提醒。',
   },
 ];
 
+const THEME_MODE_OPTIONS = [
+  { value: 'light', label: '浅色' },
+  { value: 'dark', label: '深色' },
+  { value: 'system', label: '自动' },
+] as const;
+
 function SectionTitle({
-  icon,
   children,
 }: {
-  icon?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <h2 className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-foreground/50">
-      {icon ? <span className="text-foreground/60">{icon}</span> : null}
       <span>{children}</span>
     </h2>
   );
 }
 
 function Row({
-  icon,
   title,
-  description,
   control,
 }: {
-  icon?: ReactNode;
   title: string;
-  description: string;
   control: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-4 py-2">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3">
-          {icon ? (
-            <div className="flex h-8 w-8 items-center justify-center rounded-md text-foreground/70">
-              {icon}
-            </div>
-          ) : null}
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">{title}</p>
-            <p className="text-sm text-foreground-secondary">{description}</p>
-          </div>
-        </div>
+        <p className="text-sm font-medium text-foreground">{title}</p>
       </div>
       {control}
     </div>
@@ -113,37 +87,37 @@ function PreferenceSwitch({
   checked,
   onToggle,
   disabled = false,
-  onIcon,
-  offIcon,
 }: {
   checked: boolean;
   onToggle: () => void;
   disabled?: boolean;
-  onIcon?: ReactNode;
-  offIcon?: ReactNode;
 }) {
-  const statusIcon = checked ? onIcon : offIcon;
-
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={onToggle}
       disabled={disabled}
-      className={`inline-flex min-w-[72px] items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors duration-150 ${
+      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors duration-150 ${
         checked
-          ? 'border-border bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
-          : 'border-border bg-transparent text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
+          ? 'bg-[#2383e2]'
+          : 'bg-[#d8d2c8] dark:bg-background-tertiary'
       } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
     >
-      {statusIcon ? <span className="mr-1">{statusIcon}</span> : null}
-      {checked ? '已开启' : '已关闭'}
+      <span
+        className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
     </button>
   );
 }
 
 export default function GeneralSettingsPanel() {
-  const { theme, themeMode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode } = useTheme();
   const { user, loading: sessionLoading } = useSessionSafe();
+  const userId = user?.id ?? null;
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings>({
     notifications: true,
@@ -153,79 +127,84 @@ export default function GeneralSettingsPanel() {
   const [remindersLoading, setRemindersLoading] = useState(true);
   const [reminderLoadError, setReminderLoadError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [initializedForUserId, setInitializedForUserId] = useState<string | null | undefined>(undefined);
 
   const load = useCallback(async () => {
-      if (sessionLoading) return;
-      if (!user) {
-        setLoading(false);
-        setRemindersLoading(false);
-        setReminderLoadError(null);
-        setLoadError(null);
+    if (sessionLoading) return;
+    if (!userId) {
+      setLoading(false);
+      setRemindersLoading(false);
+      setReminderLoadError(null);
+      setLoadError(null);
+      return;
+    }
+
+    setLoading(true);
+    setRemindersLoading(true);
+
+    try {
+      const [settingsResult, remindersResult] = await Promise.allSettled([
+        getCurrentUserSettings(),
+        loadReminderSubscriptions(),
+      ]);
+
+      if (settingsResult.status === 'rejected') {
+        setLoadError('加载偏好设置失败');
         return;
       }
 
-      setLoading(true);
-      setRemindersLoading(true);
+      if (settingsResult.value.error) {
+        setLoadError(settingsResult.value.error.message || '加载偏好设置失败');
+        return;
+      }
 
-      try {
-        const [settingsResult, remindersResult] = await Promise.allSettled([
-          getCurrentUserSettings(),
-          loadReminderSubscriptions(),
-        ]);
+      setLoadError(null);
+      setSettings({
+        notifications: settingsResult.value.settings?.notificationsEnabled ?? true,
+        language: settingsResult.value.settings?.language ?? 'zh',
+      });
 
-        if (settingsResult.status === 'rejected') {
-          setLoadError('加载偏好设置失败');
-          return;
-        }
-
-        if (settingsResult.value.error) {
-          setLoadError(settingsResult.value.error.message || '加载偏好设置失败');
-          return;
-        }
-
-        setLoadError(null);
-        setSettings({
-          notifications: settingsResult.value.settings?.notificationsEnabled ?? true,
-          language: settingsResult.value.settings?.language ?? 'zh',
-        });
-
-        if (remindersResult.status === 'fulfilled') {
-          if (remindersResult.value.ok) {
-            setReminderLoadError(null);
-            setReminders(
-              remindersResult.value.subscriptions.reduce<ReminderSettings>((acc, item) => {
-                acc[item.reminderType] = item.enabled;
-                return acc;
-              }, { ...DEFAULT_REMINDER_SETTINGS }),
-            );
-          } else {
-            setReminderLoadError(remindersResult.value.error.message || '加载提醒状态失败');
-            setReminders({ ...DEFAULT_REMINDER_SETTINGS });
-          }
-        } else {
-          console.error('加载提醒状态失败:', remindersResult.reason);
-          setReminderLoadError(
-            remindersResult.reason instanceof Error
-              ? remindersResult.reason.message
-              : '加载提醒状态失败',
+      if (remindersResult.status === 'fulfilled') {
+        if (remindersResult.value.ok) {
+          setReminderLoadError(null);
+          setReminders(
+            remindersResult.value.subscriptions.reduce<ReminderSettings>((acc, item) => {
+              acc[item.reminderType] = item.enabled;
+              return acc;
+            }, { ...DEFAULT_REMINDER_SETTINGS }),
           );
+        } else {
+          setReminderLoadError(remindersResult.value.error.message || '加载提醒状态失败');
           setReminders({ ...DEFAULT_REMINDER_SETTINGS });
         }
-      } catch (error) {
-        console.error('加载用户设置失败:', error);
-        setLoadError('加载偏好设置失败');
-      } finally {
-        setLoading(false);
-        setRemindersLoading(false);
+      } else {
+        console.error('加载提醒状态失败:', remindersResult.reason);
+        setReminderLoadError(
+          remindersResult.reason instanceof Error
+            ? remindersResult.reason.message
+            : '加载提醒状态失败',
+        );
+        setReminders({ ...DEFAULT_REMINDER_SETTINGS });
       }
-  }, [sessionLoading, user]);
+    } catch (error) {
+      console.error('加载用户设置失败:', error);
+      setLoadError('加载偏好设置失败');
+    } finally {
+      setLoading(false);
+      setRemindersLoading(false);
+    }
+  }, [sessionLoading, userId]);
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (initializedForUserId === userId) return;
+
+    setInitializedForUserId(userId);
     void load();
-  }, [load]);
+  }, [initializedForUserId, load, sessionLoading, userId]);
 
   const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    if (!user || loadError) return;
+    if (!userId || loadError) return;
 
     const previousSettings = settings;
     const nextSettings = { ...settings, [key]: value };
@@ -244,7 +223,7 @@ export default function GeneralSettingsPanel() {
   };
 
   const updateReminderSetting = async (type: ReminderType) => {
-    if (!user || loadError) return;
+    if (!userId || loadError) return;
 
     const previousEnabled = reminders[type];
     const nextEnabled = !previousEnabled;
@@ -291,39 +270,19 @@ export default function GeneralSettingsPanel() {
         <SectionTitle>基础偏好</SectionTitle>
         <div className="space-y-2">
           <Row
-            icon={
-              themeMode === 'system'
-                ? <Monitor className="h-4 w-4" />
-                : theme === 'dark'
-                  ? <Moon className="h-4 w-4" />
-                  : <Sun className="h-4 w-4" />
-            }
             title="外观界面"
-            description="选择应用显示主题。"
             control={(
-              <div className="flex items-center gap-1 rounded-md border border-border bg-background p-1">
-                {(['light', 'dark', 'system'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setThemeMode(mode)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                      themeMode === mode
-                        ? 'bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
-                        : 'text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
-                    }`}
-                  >
-                    {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '自动'}
-                  </button>
-                ))}
-              </div>
+              <SegmentedChoice
+                ariaLabel="外观界面"
+                value={themeMode}
+                onChange={setThemeMode}
+                options={THEME_MODE_OPTIONS}
+              />
             )}
           />
 
           <Row
-            icon={<Globe className="h-4 w-4" />}
             title="语言设置"
-            description="选择界面显示语言。"
             control={(
               <select
                 value={settings.language}
@@ -355,9 +314,7 @@ export default function GeneralSettingsPanel() {
         ) : null}
         <div className="space-y-2">
           <Row
-            icon={<Bell className="h-4 w-4" />}
             title="推送通知"
-            description="接收每日运势和重要提醒。"
             control={(
               <PreferenceSwitch
                 checked={settings.notifications}
@@ -368,18 +325,10 @@ export default function GeneralSettingsPanel() {
           />
 
           {REMINDER_ITEMS.map((item) => {
-            const reminderIcon = item.type === 'solar_term'
-              ? <CalendarClock className="h-4 w-4" />
-              : item.type === 'fortune'
-                ? <Sparkles className="h-4 w-4" />
-                : <CalendarHeart className="h-4 w-4" />;
-
             return (
               <Row
                 key={item.type}
-                icon={reminderIcon}
                 title={item.label}
-                description={item.description}
                 control={(
                   <PreferenceSwitch
                     checked={reminders[item.type]}
@@ -390,24 +339,6 @@ export default function GeneralSettingsPanel() {
               />
             );
           })}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <SectionTitle>数据隐私</SectionTitle>
-        <div className="rounded-md border border-border bg-background px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-background-secondary text-[#0f7b6c]">
-              <Shield className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">数据安全保护中</p>
-                <Check className="h-3.5 w-3.5 text-[#0f7b6c]" />
-              </div>
-              <p className="text-sm text-foreground-secondary">您的所有数据均已通过 AES-256 加密存储。</p>
-            </div>
-          </div>
         </div>
       </section>
     </div>

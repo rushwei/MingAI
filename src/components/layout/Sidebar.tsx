@@ -13,7 +13,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { LogIn, Megaphone } from 'lucide-react';
+import { Bell, LogIn } from 'lucide-react';
 import { useState, useCallback, useMemo, Suspense } from 'react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { SidebarUserCard } from '@/components/layout/UserMenu';
@@ -160,9 +160,9 @@ function SidebarInner() {
                         className="relative p-1.5 rounded-md flex-shrink-0 transition-all duration-150 text-[#37352f]/60 dark:text-[#f5f3ee]/60 hover:bg-[#efedea] dark:hover:bg-white/8 hover:text-[#37352f] dark:hover:text-[#f5f3ee]"
                         aria-label="打开公告中心"
                     >
-                        <Megaphone className="w-5 h-5" />
+                        <Bell className="w-5 h-5" />
                         {badgeCount > 0 ? (
-                            <span className="absolute -right-1 -top-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#2383e2] text-white text-[10px] font-bold leading-none flex items-center justify-center">
+                            <span className="absolute -right-0.5 -top-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-[#2383e2] text-white text-[10px] font-bold leading-none flex items-center justify-center">
                                 {badgeCount > 99 ? '99+' : badgeCount}
                             </span>
                         ) : null}
@@ -253,7 +253,7 @@ function SidebarInner() {
                     </nav>
                 </div>
 
-                <div className="border-t border-gray-200 dark:border-white/10 p-3 flex-shrink-0">
+                <div className="border-t border-gray-200 dark:border-white/10 p-2 flex-shrink-0">
                     {user ? (
                         <SidebarUserCard user={user} />
                     ) : (

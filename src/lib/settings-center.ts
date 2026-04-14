@@ -1,11 +1,11 @@
 export const SETTINGS_CENTER_NAMESPACE = 'settings';
 
 export const SETTINGS_CENTER_TABS = [
-  'profile',
   'general',
+  'profile',
   'upgrade',
   'personalization',
-  'help',
+  'byok',
   'charts',
   'knowledge-base',
   'mcp-service',
@@ -13,6 +13,7 @@ export const SETTINGS_CENTER_TABS = [
   'admin-features',
   'admin-ai-services',
   'admin-mcp',
+  'help',
 ] as const;
 
 export type SettingsCenterTab = (typeof SETTINGS_CENTER_TABS)[number];
@@ -47,15 +48,16 @@ export const SETTINGS_CENTER_GROUP_LABELS: Record<SettingsCenterTabGroup, string
 };
 
 const SETTINGS_CENTER_TAB_META: Record<SettingsCenterTab, Omit<SettingsCenterTabState, 'disabled'>> = {
-  profile: { id: 'profile', label: '个人资料', group: 'account' },
-  general: { id: 'general', label: '设置', group: 'account' },
-  upgrade: { id: 'upgrade', label: '会员与积分', group: 'account' },
+  profile: { id: 'profile', label: '账户', group: 'account' },
+  general: { id: 'general', label: '常规', group: 'account' },
+  upgrade: { id: 'upgrade', label: '订阅', group: 'account' },
   help: { id: 'help', label: '帮助', group: 'account' },
   personalization: { id: 'personalization', label: '个性化', group: 'extensions' },
+  byok: { id: 'byok', label: 'BYOK', group: 'extensions' },
   charts: { id: 'charts', label: '命盘', group: 'extensions' },
   'knowledge-base': { id: 'knowledge-base', label: '知识库', group: 'extensions' },
-  'mcp-service': { id: 'mcp-service', label: 'MCP OAuth', group: 'extensions' },
-  'admin-announcements': { id: 'admin-announcements', label: '公告管理', group: 'management' },
+  'mcp-service': { id: 'mcp-service', label: 'MCP', group: 'extensions' },
+  'admin-announcements': { id: 'admin-announcements', label: '公告', group: 'management' },
   'admin-features': { id: 'admin-features', label: '功能与激活码', group: 'management' },
   'admin-ai-services': { id: 'admin-ai-services', label: 'AI 服务', group: 'management' },
   'admin-mcp': { id: 'admin-mcp', label: 'MCP 管理', group: 'management' },
@@ -67,12 +69,12 @@ function isSettingsCenterTabDisabled(tab: SettingsCenterTab, flags: SettingsCent
       return !flags.upgradeEnabled;
     case 'personalization':
       return !flags.personalizationEnabled;
+    case 'byok':
+      return !flags.personalizationEnabled;
     case 'charts':
       return !flags.chartsEnabled;
     case 'knowledge-base':
       return !flags.knowledgeBaseEnabled;
-    case 'mcp-service':
-      return !flags.mcpServiceEnabled;
     case 'help':
       return !flags.helpEnabled;
     default:
@@ -101,17 +103,12 @@ export function getSettingsCenterDisabledState(
     case 'upgrade':
       return {
         title: '暂未开放',
-        description: '当前会员与积分不可用。',
+        description: '当前订阅不可用。',
       };
     case 'knowledge-base':
       return {
         title: '暂未开放',
         description: '当前知识库不可用。',
-      };
-    case 'mcp-service':
-      return {
-        title: '暂未开放',
-        description: '当前 MCP OAuth 不可用。',
       };
     case 'charts':
       return {
@@ -122,6 +119,11 @@ export function getSettingsCenterDisabledState(
       return {
         title: '暂未开放',
         description: '当前个性化不可用。',
+      };
+    case 'byok':
+      return {
+        title: '暂未开放',
+        description: '当前 BYOK 不可用。',
       };
     case 'help':
       return {

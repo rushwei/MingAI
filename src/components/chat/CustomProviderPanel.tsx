@@ -24,6 +24,9 @@ interface CustomProviderPanelProps {
     embedded?: boolean;
     onClose?: () => void;
     onChange?: (config: CustomProviderConfig | null) => void;
+    title?: string;
+    description?: string | null;
+    showByokBadge?: boolean;
 }
 
 const EMPTY_DRAFT: CustomProviderDraft = {
@@ -75,6 +78,9 @@ export function CustomProviderPanel({
     embedded = false,
     onClose,
     onChange,
+    title = '自定义模型',
+    description = 'Key不会保存到服务器，不消耗本站积分，关闭页面自动失效',
+    showByokBadge = true,
 }: CustomProviderPanelProps) {
     const { showToast } = useToast();
     const [activeConfig, setActiveConfig] = useState<CustomProviderConfig | null>(() => getCustomProvider());
@@ -192,15 +198,19 @@ export function CustomProviderPanel({
                         <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h3 id={embedded ? undefined : 'custom-provider-panel-title'} className="text-[14px] font-semibold text-[#37352f]">
-                                    自定义模型
+                                    {title}
                                 </h3>
-                                <span className="rounded-full border border-[#e8dcc0] bg-[#f4efe2] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[#8a6b00]">
-                                    BYOK
-                                </span>
+                                {showByokBadge ? (
+                                    <span className="rounded-full border border-[#e8dcc0] bg-[#f4efe2] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[#8a6b00]">
+                                        BYOK
+                                    </span>
+                                ) : null}
                             </div>
-                            <p className="text-[12px] leading-tight text-[#37352f]/60">
-                                浏览器直连，仅当前标签页生效，关闭页面自动失效，不消耗本站积分
-                            </p>
+                            {description ? (
+                                <p className="text-[12px] leading-tight text-[#37352f]/60">
+                                    {description}
+                                </p>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -297,7 +307,7 @@ export function CustomProviderPanel({
                                     value={draft.modelId}
                                     onChange={(event) => handleFieldChange('modelId', event.target.value)}
                                     className="w-full rounded-xl border border-[#e7e2d9] bg-white px-3 py-2 text-[13px] outline-none transition-all duration-150 focus:border-[#cdbb8b] focus:bg-white"
-                                    placeholder="gpt-4"
+                                    placeholder="..."
                                     autoComplete="off"
                                 />
                                 <InputError message={submitted ? errors.modelId : undefined} />
@@ -316,7 +326,7 @@ export function CustomProviderPanel({
                         </div>
 
                         <p className="text-[11px] leading-5 text-[#37352f]/48">
-                            目标服务需要支持浏览器跨域访问（CORS）。地址可填写根地址，系统会自动补成 OpenAI 兼容的 `/v1/chat/completions`。
+                            仅支持OpenAI兼容的API，可填写根地址，系统会自动补全。
                         </p>
 
                         <div className="flex gap-2 pt-1">

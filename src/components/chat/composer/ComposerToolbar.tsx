@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import {
     ArrowUp,
+    Atom,
     AtSign,
     BookOpenText,
     Cpu,
@@ -285,7 +286,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                     />
                 </div>
 
-                <div className="relative ml-0.5 flex items-center gap-1.5">
+                <div className="relative ml-0.5 flex items-center gap-1">
                     <button
                         type="button"
                         onClick={() => setCustomProviderOpen((prev) => !prev)}
@@ -332,7 +333,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                 title="查看或修改自定义模型"
                             >
                                 <span className="flex h-7 w-4.5 flex-shrink-0 items-center justify-center rounded-lg text-foreground-secondary">
-                                    <Cpu className="h-4.5 w-4.5" />
+                                    <Atom className="h-4.5 w-4.5" />
                                 </span>
                                 <span className="min-w-0">
                                     <span className="block max-w-[132px] truncate text-sm font-medium text-[#37352f]">

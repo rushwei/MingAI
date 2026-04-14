@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { KeyRound, MessageCircleHeart, Save, SlidersHorizontal, User, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import {
   ADVANCED_DIMENSIONS,
   CORE_DIMENSIONS,
@@ -19,20 +19,14 @@ import { readLocalVisualizationSettings, type VisualizationChartStyle } from '@/
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useToast } from '@/components/ui/Toast';
+import { SegmentedChoice } from '@/components/settings/SegmentedChoice';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { CustomProviderPanel } from '@/components/chat/CustomProviderPanel';
-import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
+import { getCurrentUserSettings, type UserIdentityProfile, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
 import { CHART_TEXT_DETAIL_OPTIONS, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 type ExpressionStyle = 'direct' | 'gentle';
-type UserProfileDraft = {
-  identity: string;
-  occupation: string;
-  focus: string;
-  answerPreference: string;
-  avoid: string;
-};
+type UserProfileDraft = UserIdentityProfile | null;
 
 type AISettingsDraftSnapshot = {
   expressionStyle: ExpressionStyle;
@@ -49,25 +43,22 @@ const CHART_STYLE_OPTIONS: Array<{ value: VisualizationChartStyle; label: string
   { value: 'classic-chinese', label: '经典中式' },
   { value: 'dark', label: '暗色高对比' },
 ];
+const EXPRESSION_STYLE_OPTIONS: Array<{ value: ExpressionStyle; label: string }> = [
+  { value: 'direct', label: '直接干练' },
+  { value: 'gentle', label: '温和委婉' },
+];
+const CHART_PROMPT_DETAIL_OPTIONS_UI = CHART_TEXT_DETAIL_OPTIONS.map((option) => ({
+  value: option.value,
+  label: option.label,
+}));
 
 const USER_PROFILE_LIMIT = 120;
 const CUSTOM_INSTRUCTIONS_LIMIT = 4000;
-const EMPTY_USER_PROFILE: UserProfileDraft = {
-  identity: '',
-  occupation: '',
-  focus: '',
-  answerPreference: '',
-  avoid: '',
-};
+const EMPTY_USER_PROFILE: UserProfileDraft = null;
 
 function normalizeUserProfileDraft(userProfile: UserProfileDraft): UserProfileDraft {
-  return {
-    identity: userProfile.identity.trim(),
-    occupation: userProfile.occupation.trim(),
-    focus: userProfile.focus.trim(),
-    answerPreference: userProfile.answerPreference.trim(),
-    avoid: userProfile.avoid.trim(),
-  };
+  const identity = userProfile?.identity?.trim() ?? '';
+  return identity ? { identity } : null;
 }
 
 function buildDraftSnapshot(input: {
@@ -90,46 +81,18 @@ function buildDraftSnapshot(input: {
   };
 }
 
-function SectionTitle({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
+function SectionTitle({ title }: { title: string }) {
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md text-foreground/70">
-          {icon}
-        </div>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-      </div>
-      <p className="text-sm text-foreground-secondary">{description}</p>
-    </div>
+    <h2 className="text-sm font-semibold text-foreground">{title}</h2>
   );
+}
+
+function SectionDescription({ children }: { children: ReactNode }) {
+  return <p className="text-sm text-foreground-secondary">{children}</p>;
 }
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label className="text-xs font-medium text-foreground/60">{children}</label>;
-}
-
-function ToggleButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-md border px-3 py-2 text-sm transition-colors duration-150 ${
-        active
-          ? 'border-border bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
-          : 'border-border bg-transparent text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 export default function AISettingsPanel() {
@@ -198,23 +161,9 @@ export default function AISettingsPanel() {
         nextChartStyle = visualizationSettings.chartStyle;
       }
 
-      const profile = settings?.userProfile;
-      let nextUserProfile = EMPTY_USER_PROFILE;
-      if (typeof profile === 'string') {
-        nextUserProfile = {
-          ...EMPTY_USER_PROFILE,
-          focus: profile.slice(0, USER_PROFILE_LIMIT),
-        };
-      } else if (profile && typeof profile === 'object') {
-        const typed = profile as Record<string, unknown>;
-        nextUserProfile = {
-          identity: typeof typed.identity === 'string' ? typed.identity.slice(0, USER_PROFILE_LIMIT) : '',
-          occupation: typeof typed.occupation === 'string' ? typed.occupation.slice(0, USER_PROFILE_LIMIT) : '',
-          focus: typeof typed.focus === 'string' ? typed.focus.slice(0, USER_PROFILE_LIMIT) : '',
-          answerPreference: typeof typed.answerPreference === 'string' ? typed.answerPreference.slice(0, USER_PROFILE_LIMIT) : '',
-          avoid: typeof typed.avoid === 'string' ? typed.avoid.slice(0, USER_PROFILE_LIMIT) : '',
-        };
-      }
+      const nextUserProfile = settings?.userProfile?.identity
+        ? { identity: settings.userProfile.identity.slice(0, USER_PROFILE_LIMIT) }
+        : EMPTY_USER_PROFILE;
 
       const snapshot = buildDraftSnapshot({
         expressionStyle: nextExpressionStyle,
@@ -268,6 +217,10 @@ export default function AISettingsPanel() {
     setSelectedDimensions([...selectedDimensions, key]);
   };
 
+  const handleChartPromptDetailLevelChange = (nextLevel: ChartTextDetailLevel) => {
+    setChartPromptDetailLevel(nextLevel);
+  };
+
   const handleSave = async () => {
     if (!user || settingsLoadFailed) return;
 
@@ -275,8 +228,7 @@ export default function AISettingsPanel() {
     setSaving(true);
 
     const nextSavedSnapshot = draftSnapshot;
-    const profileValue = nextSavedSnapshot.userProfile;
-    const profilePayload = Object.values(profileValue).some((value) => value.length > 0) ? profileValue : null;
+    const profilePayload = nextSavedSnapshot.userProfile?.identity ? nextSavedSnapshot.userProfile : null;
 
     const saved = await updateCurrentUserSettings({
       expressionStyle: nextSavedSnapshot.expressionStyle,
@@ -332,7 +284,7 @@ export default function AISettingsPanel() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
@@ -340,98 +292,44 @@ export default function AISettingsPanel() {
       ) : null}
 
       <section className="space-y-4">
-        <SectionTitle
-          icon={<User className="h-4 w-4" />}
-          title="关于你"
-          description="这些信息会帮助 AI 更准确地理解你的背景和当前关注重点。"
-        />
-
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <FieldLabel>身份</FieldLabel>
             <input
-              value={userProfile.identity}
-              onChange={(event) => setUserProfile((prev) => ({ ...prev, identity: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+              value={userProfile?.identity ?? ''}
+              onChange={(event) => {
+                const identity = event.target.value.slice(0, USER_PROFILE_LIMIT).trim();
+                setUserProfile(identity ? { identity } : null);
+              }}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
               placeholder="例如：创业者"
             />
           </div>
 
           <div className="space-y-2">
-            <FieldLabel>职业</FieldLabel>
-            <input
-              value={userProfile.occupation}
-              onChange={(event) => setUserProfile((prev) => ({ ...prev, occupation: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+            <FieldLabel>表达风格</FieldLabel>
+            <select
+              value={expressionStyle}
+              onChange={(event) => setExpressionStyle(event.target.value as ExpressionStyle)}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
-              placeholder="例如：产品经理"
-            />
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <FieldLabel>当前关注点</FieldLabel>
-            <input
-              value={userProfile.focus}
-              onChange={(event) => setUserProfile((prev) => ({ ...prev, focus: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
-              placeholder="例如：事业发展、人际关系"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel>回答偏好</FieldLabel>
-            <textarea
-              value={userProfile.answerPreference}
-              onChange={(event) => setUserProfile((prev) => ({ ...prev, answerPreference: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-              className="min-h-[96px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
-              placeholder="例如：结论先行、给出明确建议"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel>避讳与禁忌</FieldLabel>
-            <textarea
-              value={userProfile.avoid}
-              onChange={(event) => setUserProfile((prev) => ({ ...prev, avoid: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-              className="min-h-[96px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
-              placeholder="例如：避免过于玄而不实、避免术语堆叠"
-            />
+            >
+              {EXPRESSION_STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
-      </section>
-
-      <section className="space-y-4">
-        <SectionTitle
-          icon={<MessageCircleHeart className="h-4 w-4" />}
-          title="对话偏好"
-          description="设置 AI 的表达风格与系统级自定义指令。"
-        />
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <FieldLabel>表达风格</FieldLabel>
-            <div className="flex flex-wrap gap-2">
-              <ToggleButton active={expressionStyle === 'direct'} onClick={() => setExpressionStyle('direct')}>
-                直接干练
-              </ToggleButton>
-              <ToggleButton active={expressionStyle === 'gentle'} onClick={() => setExpressionStyle('gentle')}>
-                温和委婉
-              </ToggleButton>
-            </div>
-          </div>
-
-          <div className="space-y-2">
             <FieldLabel>命盘注入详细级别</FieldLabel>
-            <div className="flex flex-wrap gap-2">
-              {CHART_TEXT_DETAIL_OPTIONS.map((option) => (
-                <ToggleButton
-                  key={option.value}
-                  active={chartPromptDetailLevel === option.value}
-                  onClick={() => setChartPromptDetailLevel(option.value)}
-                >
-                  {option.label}
-                </ToggleButton>
-              ))}
-            </div>
+            <SegmentedChoice
+              ariaLabel="命盘注入详细级别"
+              value={chartPromptDetailLevel}
+              onChange={handleChartPromptDetailLevelChange}
+              options={CHART_PROMPT_DETAIL_OPTIONS_UI}
+              maxWidth={320}
+            />
             <p className="text-xs text-foreground-secondary">
               用于聊天命盘注入与结果页 AI 解读 prompt。建议保留默认，默认经过微调能降低噪音。
             </p>
@@ -447,28 +345,16 @@ export default function AISettingsPanel() {
             <textarea
               value={customInstructions}
               onChange={(event) => setCustomInstructions(event.target.value.slice(0, CUSTOM_INSTRUCTIONS_LIMIT))}
-              className="min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
-              placeholder="例如：先给结论，再给依据；对职业规划问题优先给可执行建议。"
+              className="min-h-[100px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：先给结论，再给依据；避免空话和术语堆叠。"
             />
           </div>
         </div>
       </section>
 
-      <section className="space-y-4">
-        <SectionTitle
-          icon={<KeyRound className="h-4 w-4" />}
-          title="自定义模型"
-          description="只在当前浏览器标签页内生效，用于临时接入你自己的 OpenAI 兼容服务。"
-        />
-        <CustomProviderPanel embedded />
-      </section>
-
-      <section className="space-y-4">
-        <SectionTitle
-          icon={<SlidersHorizontal className="h-4 w-4" />}
-          title="运势可视化偏好"
-          description="控制 AI 输出时默认关注的维度、图表风格和大运展示数量。"
-        />
+      <section className="space-y-3">
+        <SectionTitle title="运势可视化偏好" />
+        <SectionDescription>控制 AI 输出时默认关注的维度、图表风格和大运展示数量。</SectionDescription>
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -483,7 +369,7 @@ export default function AISettingsPanel() {
                     onClick={() => handleToggleDimension(dimension.key)}
                     className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors duration-150 ${
                       active
-                        ? 'border-border bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
+                        ? 'border-[#cfe3f7] bg-blue-50 text-[#2383e2]'
                         : 'border-border bg-background text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
                     }`}
                   >
@@ -531,10 +417,7 @@ export default function AISettingsPanel() {
       {isDirty ? (
         <div className="sticky bottom-0 z-20 pb-2">
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-background/95 px-4 py-3 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">个性化设置已修改</p>
-              <p className="text-xs text-foreground-secondary">保存后才会影响后续 AI 对话和可视化偏好。</p>
-            </div>
+            <p className="text-sm font-medium text-foreground">个性化设置已修改，保存后生效。</p>
 
             <div className="flex items-center justify-end gap-2">
               <button
@@ -550,7 +433,7 @@ export default function AISettingsPanel() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving || settingsLoadFailed}
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-[#e3e1db] px-3 py-2 text-sm font-medium text-[#37352f] transition-colors duration-150 hover:bg-[#d9d6ce] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-background-tertiary dark:text-foreground dark:hover:bg-background-secondary"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-[#2383e2] bg-[#2383e2] px-3 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#1d74c9] hover:border-[#1d74c9] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? <SoundWaveLoader variant="inline" /> : <Save className="h-4 w-4" />}
                 保存

@@ -1,21 +1,10 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ComponentType, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BookOpenText,
-  Bot,
-  CircleStar,
-  CircleQuestionMark,
-  Key,
-  Megaphone,
-  MessageCircleHeart,
-  Scroll,
-  Settings,
-  User,
-  Wallet,
-  Wrench,
+  LockKeyhole,
   X,
 } from 'lucide-react';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
@@ -23,7 +12,6 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useCurrentUserProfile } from '@/lib/hooks/useCurrentUserProfile';
 import { useActiveSettingsCenterTab } from '@/lib/hooks/useSettingsCenterRouteState';
 import {
-  SETTINGS_CENTER_GROUP_LABELS,
   closeSettingsCenter,
   getSettingsCenterDisabledState,
   getSettingsCenterTabs,
@@ -33,10 +21,16 @@ import {
   type SettingsCenterTab,
 } from '@/lib/settings-center';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
+import {
+  SETTINGS_CENTER_ICON_SIZES,
+  SETTINGS_CENTER_TAB_ICONS,
+  type SettingsCenterIconProps,
+} from '@/components/settings/settings-center-icons';
 
 const LazyGeneralSettingsContent = lazy(() => import('@/components/settings/panels/GeneralSettingsPanel'));
 const LazyUpgradeContent = lazy(() => import('@/components/settings/panels/UpgradePanel'));
 const LazyAISettingsContent = lazy(() => import('@/components/settings/panels/AISettingsPanel'));
+const LazyBYOKContent = lazy(() => import('@/components/settings/panels/BYOKPanel'));
 const LazyChartsContent = lazy(() => import('@/components/settings/panels/ChartsPanel'));
 const LazyKnowledgeBaseManageContent = lazy(() => import('@/components/settings/panels/KnowledgeBasePanel'));
 const LazyMcpPageContent = lazy(() => import('@/components/settings/panels/McpServicePanel'));
@@ -58,24 +52,9 @@ const LazyAdminMcpContent = lazy(async () => ({
 export type SettingsCenterTabItem = {
   id: SettingsCenterTab;
   label: string;
-  group: keyof typeof SETTINGS_CENTER_GROUP_LABELS;
-  icon: ComponentType<{ className?: string }>;
+  group: string;
+  icon: ComponentType<{ className?: string; size?: number | string }>;
   disabled: boolean;
-};
-
-const TAB_ICONS: Record<SettingsCenterTab, ComponentType<{ className?: string }>> = {
-  profile: User,
-  general: Settings,
-  upgrade: CircleStar,
-  personalization: MessageCircleHeart,
-  help: CircleQuestionMark,
-  charts: Scroll,
-  'knowledge-base': BookOpenText,
-  'mcp-service': Key,
-  'admin-announcements': Megaphone,
-  'admin-features': Wallet,
-  'admin-ai-services': Bot,
-  'admin-mcp': Wrench,
 };
 
 function SettingsPanelFallback() {
@@ -91,7 +70,7 @@ function SettingsTabDisabledState({
   title,
   description,
 }: {
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<SettingsCenterIconProps>;
   title: string;
   description: string;
 }) {
@@ -99,7 +78,7 @@ function SettingsTabDisabledState({
     <div className="rounded-lg border border-border bg-background p-5">
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-md text-foreground/60">
-          <Icon className="h-4 w-4" />
+          <Icon size={SETTINGS_CENTER_ICON_SIZES.disabled} className="shrink-0" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -169,8 +148,8 @@ function renderSettingsCenterPanel(
   const disabledState = getSettingsCenterDisabledState(tab, flags);
   if (disabledState) {
     return (
-      <SettingsTabDisabledState
-        icon={TAB_ICONS[tab]}
+        <SettingsTabDisabledState
+        icon={SETTINGS_CENTER_TAB_ICONS[tab]}
         title={disabledState.title}
         description={disabledState.description}
       />
@@ -186,6 +165,8 @@ function renderSettingsCenterPanel(
       return renderLazyPanel(<LazyUpgradeContent />);
     case 'personalization':
       return renderLazyPanel(<LazyAISettingsContent />);
+    case 'byok':
+      return renderLazyPanel(<LazyBYOKContent />);
     case 'help':
       return renderLazyPanel(<LazyHelpContent />);
     case 'charts':
@@ -207,7 +188,7 @@ function renderSettingsCenterPanel(
 
 export function SettingsCenterHost() {
   const activeTab = useActiveSettingsCenterTab();
-  const { isFeatureEnabled } = useFeatureToggles();
+  const { isFeatureEnabled, loaded: featureTogglesLoaded } = useFeatureToggles();
   const { user } = useSessionSafe();
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -231,50 +212,75 @@ export function SettingsCenterHost() {
 
   const flags = useMemo<SettingsCenterFlags>(
     () => ({
-      upgradeEnabled: isFeatureEnabled('upgrade'),
-      chartsEnabled: isFeatureEnabled('charts'),
-      knowledgeBaseEnabled: isFeatureEnabled('knowledge-base'),
-      mcpServiceEnabled: isFeatureEnabled('mcp-service'),
-      personalizationEnabled: isFeatureEnabled('ai-personalization'),
-      helpEnabled: isFeatureEnabled('help'),
+      upgradeEnabled: !featureTogglesLoaded || isFeatureEnabled('upgrade'),
+      chartsEnabled: !featureTogglesLoaded || isFeatureEnabled('charts'),
+      knowledgeBaseEnabled: !featureTogglesLoaded || isFeatureEnabled('knowledge-base'),
+      mcpServiceEnabled: !featureTogglesLoaded || isFeatureEnabled('mcp-service'),
+      personalizationEnabled: !featureTogglesLoaded || isFeatureEnabled('ai-personalization'),
+      helpEnabled: !featureTogglesLoaded || isFeatureEnabled('help'),
       isAdmin,
     }),
-    [isAdmin, isFeatureEnabled],
+    [featureTogglesLoaded, isAdmin, isFeatureEnabled],
   );
 
   const tabs = useMemo<SettingsCenterTabItem[]>(
-    () => getSettingsCenterTabs(flags).map((tab) => ({ ...tab, icon: TAB_ICONS[tab.id] })),
+    () => getSettingsCenterTabs(flags).map((tab) => ({ ...tab, icon: SETTINGS_CENTER_TAB_ICONS[tab.id] })),
     [flags],
   );
+  const activeTabState = tabs.find((tab) => tab.id === activeTab) ?? null;
+  const shouldFallbackToGeneral = !!activeTabState && activeTabState.disabled && activeTabState.id !== 'general';
+  const resolvedActiveTab = shouldFallbackToGeneral ? 'general' : activeTab;
+  const [mountedTabs, setMountedTabs] = useState<SettingsCenterTab[]>([]);
+  const renderedTabs = mountedTabs.length > 0
+    ? mountedTabs
+    : resolvedActiveTab
+      ? [resolvedActiveTab]
+      : [];
 
-  if (!mounted || !activeTab) {
+  useEffect(() => {
+    if (!mounted || !shouldFallbackToGeneral) return;
+    openSettingsCenter('general', { replace: true });
+  }, [mounted, shouldFallbackToGeneral]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (!resolvedActiveTab) {
+        return;
+      }
+
+      setMountedTabs((current) => (
+        current.includes(resolvedActiveTab) ? current : [...current, resolvedActiveTab]
+      ));
+    });
+  }, [resolvedActiveTab]);
+
+  if (!mounted) {
     return null;
   }
 
-  const groupedTabs = (Object.keys(SETTINGS_CENTER_GROUP_LABELS) as Array<keyof typeof SETTINGS_CENTER_GROUP_LABELS>)
-    .map((group) => ({
-      group,
-      tabs: tabs.filter((tab) => tab.group === group),
-    }))
-    .filter((entry) => entry.tabs.length > 0);
-  const activeTabLabel = tabs.find((tab) => tab.id === activeTab)?.label ?? '设置';
+  const displayTab = resolvedActiveTab ?? renderedTabs.at(-1) ?? 'general';
+  const activeTabLabel = tabs.find((tab) => tab.id === displayTab)?.label ?? '设置';
 
   const modal = (
-    <div className="fixed inset-0 z-[90]">
+    <div
+      className="fixed inset-0 z-[90]"
+      hidden={!activeTab}
+      aria-hidden={!activeTab}
+    >
       <div
         className="absolute inset-0 bg-black/20 backdrop-blur-[1px]"
         onClick={() => closeSettingsCenter()}
       />
 
       <div
-        className="absolute inset-x-0 bottom-0 top-0 flex items-stretch justify-center p-0 md:inset-10 md:items-center"
+        className="absolute inset-x-0 bottom-0 top-0 flex items-stretch justify-center p-0 md:inset-x-10 md:inset-y-8 md:items-center"
         onClick={() => closeSettingsCenter()}
       >
         <div
-          className="flex h-full w-full overflow-hidden border border-border bg-[#f7f6f3] text-[#37352f] shadow-md dark:bg-background dark:text-foreground md:h-[min(680px,calc(100vh-80px))] md:max-w-[58rem] md:rounded-lg"
+          className="flex h-full w-full overflow-hidden border border-border bg-[#f7f6f3] text-[#37352f] shadow-md dark:bg-background dark:text-foreground md:h-[min(660px,calc(100vh-64px))] md:max-w-[50rem] md:rounded-2xl"
           onClick={(event) => event.stopPropagation()}
         >
-          <aside className="hidden w-56 flex-shrink-0 border-r border-border bg-[#f7f6f3] p-2 dark:bg-background md:flex md:flex-col">
+          <aside className="hidden w-46 flex-shrink-0 border-r border-border bg-[#f7f6f3] p-2 dark:bg-background md:flex md:flex-col">
             <div className="mb-4 flex items-center justify-between px-2 py-1">
               <h2 className="text-base font-semibold">设置</h2>
               <button
@@ -287,40 +293,36 @@ export function SettingsCenterHost() {
               </button>
             </div>
 
-            <nav className="space-y-4">
-              {groupedTabs.map((entry) => (
-                <div key={entry.group} className="space-y-1">
-                  <div className="px-2 text-[11px] font-semibold uppercase tracking-wider text-foreground/45">
-                    {SETTINGS_CENTER_GROUP_LABELS[entry.group]}
-                  </div>
-                  {entry.tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = tab.id === activeTab;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors duration-150 ${
-                          isActive
-                            ? 'bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
-                            : 'bg-transparent text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
-                        }`}
-                      >
-                        <span className="flex items-center gap-3">
-                          <Icon className="h-4 w-4" />
-                          <span>{tab.label}</span>
-                        </span>
-                        {tab.disabled ? (
-                          <span className="rounded-md border border-border px-1.5 py-0.5 text-[10px] text-foreground/50">
-                            关闭
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+            <nav className="space-y-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = tab.id === resolvedActiveTab;
+                const isDisabled = tab.disabled;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    disabled={tab.disabled}
+                    aria-disabled={tab.disabled}
+                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors duration-150 ${
+                      isDisabled
+                        ? 'cursor-not-allowed border border-border bg-background-secondary/70 text-foreground/45 dark:text-foreground/50'
+                        : isActive
+                        ? 'bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
+                        : 'bg-transparent text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Icon size={SETTINGS_CENTER_ICON_SIZES.sidebar} className="shrink-0" />
+                      <span>{tab.label}</span>
+                    </span>
+                    {tab.disabled ? (
+                      <LockKeyhole className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </nav>
           </aside>
 
@@ -342,20 +344,26 @@ export function SettingsCenterHost() {
                 <div className="flex min-w-max gap-2">
                   {tabs.map((tab) => {
                     const Icon = tab.icon;
-                    const isActive = tab.id === activeTab;
+                    const isActive = tab.id === resolvedActiveTab;
+                    const isDisabled = tab.disabled;
                     return (
                       <button
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
+                        disabled={tab.disabled}
+                        aria-disabled={tab.disabled}
                         className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                          isActive
+                          isDisabled
+                            ? 'cursor-not-allowed border-border bg-background-secondary/70 text-foreground/45 dark:text-foreground/50'
+                            : isActive
                             ? 'border-[#37352f]/10 bg-[#e3e1db] text-[#37352f] dark:border-white/10 dark:bg-background-tertiary dark:text-foreground'
                             : 'border-border bg-background text-foreground-secondary'
                         }`}
                       >
-                        <Icon className="h-3.5 w-3.5" />
+                        <Icon size={SETTINGS_CENTER_ICON_SIZES.mobile} className="shrink-0" />
                         <span>{tab.label}</span>
+                        {tab.disabled ? <LockKeyhole className="h-3 w-3 shrink-0 opacity-80" /> : null}
                       </button>
                     );
                   })}
@@ -363,13 +371,21 @@ export function SettingsCenterHost() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-4 md:py-4">
-              {renderSettingsCenterPanel(activeTab, flags, {
-                isLoggedIn: !!user,
-                isAdmin,
-                profileLoading,
-                profileError: !!profileError,
-              })}
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-6">
+              {renderedTabs.map((tab) => (
+                <div
+                  key={tab}
+                  className={tab === resolvedActiveTab ? 'block' : 'hidden'}
+                  aria-hidden={tab === resolvedActiveTab ? undefined : true}
+                >
+                  {renderSettingsCenterPanel(tab, flags, {
+                    isLoggedIn: !!user,
+                    isAdmin,
+                    profileLoading,
+                    profileError: !!profileError,
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>

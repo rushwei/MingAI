@@ -19,14 +19,14 @@ function Avatar({ src, alt }: { src: string | null; alt: string }) {
 
   if (shouldFallback) {
     return (
-      <div className="flex h-24 w-24 items-center justify-center rounded-full border border-border/60 bg-background-secondary text-foreground/20">
-        <UserIcon className="h-10 w-10" />
+      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border/60 bg-background-secondary text-foreground/20">
+        <UserIcon className="h-8 w-8" />
       </div>
     );
   }
 
   return (
-    <div className="h-24 w-24 overflow-hidden rounded-full border border-border/60 bg-background-secondary">
+    <div className="h-20 w-20 overflow-hidden rounded-full border border-border/60 bg-background-secondary">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
@@ -74,7 +74,7 @@ export default function ProfilePanel() {
 
     setLoading(false);
     if (profileError) {
-      setError(profileError.message || '加载个人资料失败');
+      setError(profileError.message || '加载账户失败');
       return;
     }
     if (!profileResolved) {
@@ -155,7 +155,7 @@ export default function ProfilePanel() {
   }
 
   if (!user) {
-    return <SettingsLoginRequired title="请先登录后查看个人资料" />;
+    return <SettingsLoginRequired title="请先登录后查看账户" />;
   }
 
   const hasNicknameChanges = nickname !== originalNickname;
@@ -166,70 +166,66 @@ export default function ProfilePanel() {
       <StatusBanner error={error} success={success} />
 
       <section className="space-y-3">
-        <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-foreground/50">头像设置</h2>
+        <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-foreground/50">账户信息</h2>
         <div className="rounded-md border border-border bg-background p-6">
-          <div className="flex flex-col items-center gap-4">
-            <div className="group relative">
-              <Avatar src={avatarUrl} alt={nickname || 'avatar'} />
-              <button
-                type="button"
-                onClick={handleAvatarClick}
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-              >
-                <Camera className="h-6 w-6" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarChange}
-              />
-            </div>
-
-            <div className="text-center">
-              <p className="text-xs text-foreground-secondary">推荐使用 256x256px 以上的图片</p>
-              {uploadingAvatar ? <p className="mt-1 text-xs text-accent">上传中...</p> : null}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-foreground/50">基本信息</h2>
-        <div className="overflow-hidden rounded-md border border-border bg-background divide-y divide-border/60">
-          <div className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium text-foreground">显示昵称</p>
-              <p className="text-xs text-foreground-secondary">公开显示的名称</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={nickname}
-                onChange={(event) => setNickname(event.target.value)}
-                className="w-48 rounded-md border border-border bg-background-secondary px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
-              />
-              {hasNicknameChanges ? (
+          <div className="flex flex-col gap-6 md:flex-row md:items-center">
+            <div className="flex flex-col items-center gap-3 md:w-32 md:flex-shrink-0 md:self-center">
+              <div className="group relative">
+                <Avatar src={avatarUrl} alt={nickname || 'avatar'} />
                 <button
                   type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-md border border-border bg-transparent px-3 py-2 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] disabled:opacity-50 dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
+                  onClick={handleAvatarClick}
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-[#2383e2]/85 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                 >
-                  {saving ? '保存中...' : '保存'}
+                  <Camera className="h-5 w-5" />
                 </button>
-              ) : null}
-            </div>
-          </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
 
-          <div className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium text-foreground">电子邮箱</p>
-              <p className="text-xs text-foreground-secondary">用于账户登录与重要通知</p>
+              <div className="text-center">
+                {uploadingAvatar ? <p className="mt-1 text-xs text-accent">上传中...</p> : null}
+              </div>
             </div>
-            <div className="rounded-md bg-background-secondary/50 px-3 py-2 font-mono text-sm text-foreground/50">
-              {displayEmail}
+
+            <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-background divide-y divide-border/60">
+              <div className="flex flex-col justify-between gap-4 p-4 py-2 sm:flex-row sm:items-center">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">显示昵称</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={(event) => setNickname(event.target.value)}
+                    className="w-48 rounded-md border border-border bg-background-secondary px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+                  />
+                  {hasNicknameChanges ? (
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="rounded-md border border-border bg-transparent px-3 py-2 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] disabled:opacity-50 dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
+                    >
+                      {saving ? '保存中...' : '保存'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between gap-4 p-4 py-2 sm:flex-row sm:items-center">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">电子邮箱</p>
+                </div>
+                <div className="rounded-md bg-background-secondary/50 px-3 py-2 font-mono text-sm text-foreground/50">
+                  {displayEmail}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -240,7 +236,6 @@ export default function ProfilePanel() {
         <div className="rounded-md border border-border bg-background p-4">
           <div className="mb-4 space-y-0.5">
             <p className="text-sm font-medium text-foreground">重置密码</p>
-            <p className="text-xs text-foreground-secondary">定期更新密码以保障账户安全</p>
           </div>
           <PasswordSection email={user.email || ''} />
         </div>

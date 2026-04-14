@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Key, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { dispatchApiWriteEvents } from '@/lib/browser-api';
@@ -140,11 +140,8 @@ export function KeyActivationModal({
             {/* 弹窗内容 */}
             <div className="relative w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl animate-fade-in">
                 {/* 头部 */}
-                <div className="flex items-center justify-between p-6 border-b border-border">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-accent/10 text-accent">
-                            <Key className="w-5 h-5" />
-                        </div>
                         <h2 className="text-xl font-bold">
                             {step === 'success' ? '激活成功' : step === 'error' ? '激活失败' : '激活会员'}
                         </h2>
@@ -224,9 +221,6 @@ export function KeyActivationModal({
                                     className="w-full px-4 py-3 rounded-xl border border-border bg-background-secondary focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-all font-mono"
                                     autoFocus
                                 />
-                                <p className="text-xs text-foreground-secondary mt-2">
-                                    请输入您的激活码，格式为 sk-xxxx
-                                </p>
                             </div>
 
                             {/* 激活按钮 */}

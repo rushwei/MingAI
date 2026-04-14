@@ -108,14 +108,14 @@ export function AIAnalysisLock({
                         </div>
                         <h3 className="text-lg font-bold mb-2">积分不足</h3>
                         <p className="text-sm text-foreground-secondary mb-4">
-                            您的积分已用完，请前往会员与积分页面通过签到、激活码或会员权益继续获取积分
+                            您的积分已用完，请前往订阅页面通过签到、激活码或会员权益继续获取积分
                         </p>
                         <button
                             onClick={() => openSettingsCenter('upgrade')}
                             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90 transition-opacity"
                         >
                             <Coins className="w-4 h-4" />
-                            前往会员与积分
+                            前往订阅
                         </button>
                     </div>
                 </div>

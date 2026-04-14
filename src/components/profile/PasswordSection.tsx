@@ -142,9 +142,6 @@ export function PasswordSection({
 
     return (
         <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground-secondary">
-                密码
-            </label>
 
             {/* 初始状态 - 显示修改密码按钮 */}
             {step === 'idle' && (

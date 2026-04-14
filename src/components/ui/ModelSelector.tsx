@@ -180,7 +180,7 @@ export function ModelSelector({
     }
 
     return (
-        <div className={`flex items-center ${toolbarStyle ? 'gap-2' : ''}`}>
+        <div className={`flex items-center ${toolbarStyle ? 'gap-1' : ''}`}>
             {onReasoningChange && toolbarStyle && (
                 <button
                     type="button"

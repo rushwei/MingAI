@@ -30,6 +30,9 @@ test('settings center keeps only the merged membership tab and rejects removed l
     getSettingsCenterRouteTarget('upgrade', { search: '?claim=ok' }),
     '/bazi?claim=ok#settings/upgrade',
   );
+  assert.equal(tabs.findIndex((tab) => tab.id === 'byok'), tabs.findIndex((tab) => tab.id === 'personalization') + 1);
+  assert.equal(tabs.at(-1)?.id, 'help');
+  assert.equal(getSettingsCenterRouteTarget('byok'), '/bazi#settings/byok');
 });
 
 test('settings center exposes disabled state for the merged membership tab', () => {
@@ -45,7 +48,7 @@ test('settings center exposes disabled state for the merged membership tab', () 
 
   assert.deepEqual(getSettingsCenterDisabledState('upgrade', flags), {
     title: '暂未开放',
-    description: '当前会员与积分不可用。',
+    description: '当前订阅不可用。',
   });
 });
 
@@ -71,7 +74,7 @@ test('settings center disables merged membership tab when upgrade is disabled', 
     isAdmin: false,
   }), {
     title: '暂未开放',
-    description: '当前会员与积分不可用。',
+    description: '当前订阅不可用。',
   });
 });
 
@@ -117,9 +120,11 @@ test('personalization navigation uses canonical settings-center route and remove
 
 test('settings center host should load standalone panel modules instead of app route pages', () => {
   const hostSource = readFileSync(resolve(process.cwd(), 'src/components/settings/SettingsCenterHost.tsx'), 'utf8');
+  const upgradePanelSource = readFileSync(resolve(process.cwd(), 'src/components/settings/panels/UpgradePanel.tsx'), 'utf8');
 
   assert.equal(hostSource.includes("@/components/settings/panels/GeneralSettingsPanel"), true);
   assert.equal(hostSource.includes("@/components/settings/panels/AISettingsPanel"), true);
+  assert.equal(hostSource.includes("@/components/settings/panels/BYOKPanel"), true);
   assert.equal(hostSource.includes("@/components/settings/panels/UpgradePanel"), true);
   assert.equal(hostSource.includes("@/components/settings/panels/ProfilePanel"), true);
   assert.equal(hostSource.includes("@/components/settings/panels/ChartsPanel"), true);
@@ -129,6 +134,82 @@ test('settings center host should load standalone panel modules instead of app r
   assert.equal(hostSource.includes("import('@/app/user/settings/page')"), false);
   assert.equal(hostSource.includes("import('@/app/user/profile/page')"), false);
   assert.equal(hostSource.includes("import('@/app/help/page')"), false);
+  assert.equal(hostSource.includes('SETTINGS_CENTER_GROUP_LABELS[entry.group]'), false);
+  assert.equal(upgradePanelSource.includes("const hasLinuxDoLogin = typeof user?.user_metadata?.linuxdo_sub === 'string'"), true);
+  assert.equal(upgradePanelSource.includes('{hasLinuxDoLogin ? ('), true);
+});
+
+test('settings center host renders disabled tabs as locked non-clickable controls and falls back to general', () => {
+  const hostSource = readFileSync(resolve(process.cwd(), 'src/components/settings/SettingsCenterHost.tsx'), 'utf8');
+
+  assert.equal(hostSource.includes('loaded: featureTogglesLoaded'), true);
+  assert.equal(hostSource.includes("openSettingsCenter('general', { replace: true })"), true);
+  assert.equal(hostSource.includes('disabled={tab.disabled}'), true);
+  assert.equal(hostSource.includes('aria-disabled={tab.disabled}'), true);
+  assert.equal(hostSource.includes('cursor-not-allowed'), true);
+  assert.equal(hostSource.includes('LockKeyhole'), true);
+  assert.equal(hostSource.includes('border-amber-400/60'), false);
+  assert.equal(hostSource.includes('bg-amber-500/5'), false);
+  assert.equal(hostSource.includes('rounded-md border border-border px-1.5 py-0.5 text-[10px] text-foreground/50'), false);
+});
+
+test('settings center host keeps mounted panels alive when closed so tabs do not remount on reopen', () => {
+  const hostSource = readFileSync(resolve(process.cwd(), 'src/components/settings/SettingsCenterHost.tsx'), 'utf8');
+
+  assert.equal(hostSource.includes('hidden={!activeTab}'), true);
+  assert.equal(hostSource.includes('setMountedTabs([])'), false);
+  assert.equal(hostSource.includes('if (!mounted || !activeTab) {'), false);
+});
+
+test('general settings panel initializes once per user id instead of refetching on every parent rerender', () => {
+  const panelSource = readFileSync(resolve(process.cwd(), 'src/components/settings/panels/GeneralSettingsPanel.tsx'), 'utf8');
+
+  assert.equal(panelSource.includes('const userId = user?.id ?? null;'), true);
+  assert.equal(panelSource.includes('const [initializedForUserId, setInitializedForUserId] = useState<string | null | undefined>(undefined);'), true);
+  assert.equal(panelSource.includes('if (initializedForUserId === userId) return;'), true);
+  assert.equal(panelSource.includes('}, [load]);'), false);
+});
+
+test('mcp settings tab stays accessible even when the oauth toggle is disabled', () => {
+  const flags = {
+    upgradeEnabled: true,
+    chartsEnabled: true,
+    knowledgeBaseEnabled: true,
+    mcpServiceEnabled: false,
+    personalizationEnabled: true,
+    helpEnabled: true,
+    isAdmin: false,
+  };
+
+  const tabs = getSettingsCenterTabs(flags);
+
+  assert.equal(tabs.some((tab) => tab.id === 'mcp-service' && tab.disabled === false), true);
+  assert.equal(getSettingsCenterDisabledState('mcp-service', flags), null);
+});
+
+test('mcp service panel is stdio-first and no longer exposes api key setup', () => {
+  const panelSource = readFileSync(resolve(process.cwd(), 'src/components/settings/panels/McpServicePanel.tsx'), 'utf8');
+  const registrySource = readFileSync(resolve(process.cwd(), 'src/lib/navigation/registry.ts'), 'utf8');
+  const featureToggleSource = readFileSync(resolve(process.cwd(), 'src/components/admin/FeatureTogglePanel.tsx'), 'utf8');
+
+  assert.equal(panelSource.includes("useState<McpConnectionMode>('stdio')"), true);
+  assert.equal(panelSource.includes('MCP 接入方式'), false);
+  assert.equal(panelSource.includes('可用工具'), true);
+  assert.equal(panelSource.indexOf('可用工具') < panelSource.indexOf('Stdio 本地接入'), true);
+  assert.equal(panelSource.includes('<table className="w-full text-sm">'), true);
+  assert.equal(panelSource.includes('Stdio 本地接入'), true);
+  assert.equal(panelSource.includes('快速开始'), true);
+  assert.equal(panelSource.includes('LockKeyhole'), true);
+  assert.equal(panelSource.includes('disabled={!oauthEnabled}'), true);
+  assert.equal(panelSource.includes('disabled:cursor-not-allowed'), true);
+  assert.equal(panelSource.includes('border-amber-500'), false);
+  assert.equal(panelSource.includes('bg-amber-500/10'), false);
+  assert.equal(panelSource.includes("bg-amber-500/15 px-2 py-0.5 text-[11px]"), false);
+  assert.equal(panelSource.includes('API Key 认证'), false);
+  assert.equal(panelSource.includes('/api/user/mcp-key'), false);
+  assert.equal(panelSource.includes('管理员当前已关闭 OAuth 接入'), true);
+  assert.equal(registrySource.includes("{ id: 'mcp-service', label: 'MCP OAuth' }"), true);
+  assert.equal(featureToggleSource.includes('MCP OAuth 仅影响远程 OAuth 接入'), true);
 });
 
 test('privacy and terms pages link back to canonical settings help route instead of /help shell', () => {
@@ -145,7 +226,7 @@ test('header uses canonical settings labels and legal-page back fallback', () =>
   const headerSource = readFileSync(resolve(process.cwd(), 'src/components/layout/Header.tsx'), 'utf8');
   const announcementHostSource = readFileSync(resolve(process.cwd(), 'src/components/providers/AnnouncementPopupHost.tsx'), 'utf8');
 
-  assert.equal(headerSource.includes("'/checkin': '会员与积分'"), false);
+  assert.equal(headerSource.includes("'/checkin': '订阅'"), false);
   assert.equal(headerSource.includes("'/user/ai-settings': '个性化'"), false);
   assert.equal(headerSource.includes("'/user/settings': '设置'"), false);
   assert.equal(headerSource.includes("'/user/charts': '命盘'"), false);
@@ -154,7 +235,7 @@ test('header uses canonical settings labels and legal-page back fallback', () =>
   assert.equal(headerSource.includes("'/privacy': '隐私政策'"), true);
   assert.equal(headerSource.includes("'/terms': '服务条款'"), true);
   assert.equal(headerSource.includes("'/admin/features': '功能与激活码'"), false);
-  assert.equal(headerSource.includes("'/admin/announcements': '公告管理'"), false);
+  assert.equal(headerSource.includes("'/admin/announcements': '公告'"), false);
   assert.equal(headerSource.includes("'/privacy': getSettingsCenterRouteTarget('help')"), true);
   assert.equal(headerSource.includes("'/terms': getSettingsCenterRouteTarget('help')"), true);
   assert.equal(headerSource.includes("'/user/settings': '偏好设置'"), false);

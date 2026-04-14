@@ -31,13 +31,13 @@ export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
   records: '命理记录',
   community: '社区',
   'knowledge-base': '知识库',
-  'mcp-service': 'MCP 服务',
+  'mcp-service': 'MCP OAuth',
   checkin: '签到',
   credits: '积分流水',
   charts: '我的命盘',
   'ai-personalization': '个性化',
   notifications: '消息通知',
-  upgrade: '会员与积分',
+  upgrade: '订阅',
   help: '帮助',
 };
 

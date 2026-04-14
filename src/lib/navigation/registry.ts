@@ -111,7 +111,7 @@ export const NAV_REGISTRY: readonly NavItemDef[] = [
   // ── User ────────────────────────────────────────────────────────────────
   { id: 'settings-profile', href: getSettingsCenterRouteTarget('profile'), label: '我的', icon: User, category: 'user' },
   { id: 'settings-general', href: getSettingsCenterRouteTarget('general'), label: '设置', icon: Settings, category: 'user' },
-  { id: 'settings-upgrade', href: getSettingsCenterRouteTarget('upgrade'), label: '会员与积分', icon: CircleStar, featureId: 'upgrade', category: 'user' },
+  { id: 'settings-upgrade', href: getSettingsCenterRouteTarget('upgrade'), label: '订阅', icon: CircleStar, featureId: 'upgrade', category: 'user' },
   { id: 'settings-charts', href: getSettingsCenterRouteTarget('charts'), label: '命盘', icon: Scroll, featureId: 'charts', category: 'user' },
   { id: 'notifications', href: '/user/notifications', label: '通知', icon: Bell, featureId: 'notifications', category: 'user' },
   { id: 'settings-personalization', href: getSettingsCenterRouteTarget('personalization'), label: '个性化', icon: MessageCircleHeart, featureId: 'ai-personalization', category: 'user' },
@@ -195,7 +195,7 @@ const adminLabelOverride: Record<string, string> = {
   'knowledge-base': '知识库',
   'ai-personalization': '个性化',
   notifications: '消息通知',
-  upgrade: '会员与积分',
+  upgrade: '订阅',
   help: '帮助',
   charts: '我的命盘',
 };
@@ -203,7 +203,7 @@ const adminLabelOverride: Record<string, string> = {
 /** Features that only appear in the admin toggle panel. */
 const ADMIN_ONLY_FEATURES: { id: string; label: string }[] = [
   { id: 'checkin', label: '签到' },
-  { id: 'mcp-service', label: 'MCP 服务' },
+  { id: 'mcp-service', label: 'MCP OAuth' },
 ];
 
 /** Lookup a single registry entry by id. */

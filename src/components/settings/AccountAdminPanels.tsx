@@ -45,14 +45,14 @@ function Section({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-4">
       <header className="space-y-1">
         <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-        <p className="text-sm text-foreground-secondary">{description}</p>
+        {description ? <p className="text-sm text-foreground-secondary">{description}</p> : null}
       </header>
       {children}
     </div>
@@ -88,13 +88,11 @@ function SubtabButton({
 
 export function AdminAnnouncementsContent() {
   return (
-    <Section title="公告管理" description="管理系统公告；发布即生效，历史公告可随时编辑或删除。">
-      <Suspense fallback={<PanelFallback />}>
-        <div className="min-h-0 rounded-lg bg-background">
-          <LazyAnnouncementManagementPanel />
-        </div>
-      </Suspense>
-    </Section>
+    <Suspense fallback={<PanelFallback />}>
+      <div className="min-h-0 bg-background">
+        <LazyAnnouncementManagementPanel />
+      </div>
+    </Suspense>
   );
 }
 
