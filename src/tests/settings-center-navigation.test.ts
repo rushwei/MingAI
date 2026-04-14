@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
+  getCurrentSettingsCenterRouteTarget,
   getSettingsCenterDisabledState,
   getSettingsCenterRouteTarget,
+  getSettingsCenterRouteTargetForPath,
   getSettingsCenterTabs,
   parseSettingsCenterHash,
 } from '../lib/settings-center';
@@ -30,9 +32,38 @@ test('settings center keeps only the merged membership tab and rejects removed l
     getSettingsCenterRouteTarget('upgrade', { search: '?claim=ok' }),
     '/bazi?claim=ok#settings/upgrade',
   );
+  assert.equal(
+    getSettingsCenterRouteTargetForPath('/daliuren', 'upgrade', { search: '?foo=bar' }),
+    '/daliuren?foo=bar#settings/upgrade',
+  );
+  assert.equal(
+    getSettingsCenterRouteTargetForPath('/', 'general'),
+    '/#settings/general',
+  );
   assert.equal(tabs.findIndex((tab) => tab.id === 'byok'), tabs.findIndex((tab) => tab.id === 'personalization') + 1);
   assert.equal(tabs.at(-1)?.id, 'help');
   assert.equal(getSettingsCenterRouteTarget('byok'), '/bazi#settings/byok');
+});
+
+test('current-page settings targets preserve the active pathname in the browser', () => {
+  const originalWindow = globalThis.window;
+
+  const mockWindow = {
+    location: {
+      pathname: '/daliuren',
+      search: '?step=2',
+    },
+  } as Window;
+
+  // @ts-expect-error test-only window shim
+  globalThis.window = mockWindow;
+
+  assert.equal(
+    getCurrentSettingsCenterRouteTarget('general'),
+    '/daliuren?step=2#settings/general',
+  );
+
+  globalThis.window = originalWindow;
 });
 
 test('settings center exposes disabled state for the merged membership tab', () => {
@@ -115,12 +146,13 @@ test('personalization navigation uses canonical settings-center route and remove
   assert.equal(registrySource.includes("href: '/user/ai-settings'"), false);
   assert.equal(registrySource.includes("id: 'user/settings/ai'"), false);
   assert.equal(settingsLinkSource.includes('getSettingsCenterRouteTarget(tab)'), true);
-  assert.equal(settingsCenterSource.includes("window.history[method](nextState, '', getSettingsCenterRouteTarget(tab,"), true);
+  assert.equal(settingsCenterSource.includes("window.history[method](nextState, '', getCurrentSettingsCenterRouteTarget(tab,"), true);
 });
 
 test('settings center host should load standalone panel modules instead of app route pages', () => {
   const hostSource = readFileSync(resolve(process.cwd(), 'src/components/settings/SettingsCenterHost.tsx'), 'utf8');
   const upgradePanelSource = readFileSync(resolve(process.cwd(), 'src/components/settings/panels/UpgradePanel.tsx'), 'utf8');
+  const userMenuSource = readFileSync(resolve(process.cwd(), 'src/components/layout/UserMenu.tsx'), 'utf8');
 
   assert.equal(hostSource.includes("@/components/settings/panels/GeneralSettingsPanel"), true);
   assert.equal(hostSource.includes("@/components/settings/panels/AISettingsPanel"), true);
@@ -137,6 +169,14 @@ test('settings center host should load standalone panel modules instead of app r
   assert.equal(hostSource.includes('SETTINGS_CENTER_GROUP_LABELS[entry.group]'), false);
   assert.equal(upgradePanelSource.includes("const hasLinuxDoLogin = typeof user?.user_metadata?.linuxdo_sub === 'string'"), true);
   assert.equal(upgradePanelSource.includes('{hasLinuxDoLogin ? ('), true);
+  assert.equal(upgradePanelSource.includes("showToast('success', 'Linux.do 月度会员已领取')"), false);
+  assert.equal(upgradePanelSource.includes("showToast('success', `恭喜领取 ${planName ?? '会员'} 会员`)"), true);
+  assert.equal(upgradePanelSource.includes('const linuxDoClaimDisabled = hasLinuxDoLogin'), true);
+  assert.equal(upgradePanelSource.includes("returnTo: getSettingsCenterRouteTargetForPath(pathname, 'upgrade'"), true);
+  assert.equal(userMenuSource.includes("`${membershipLabels[membership?.type || 'free']} Plan`"), false);
+  assert.equal(userMenuSource.includes("import { getUserEmailDisplay } from '@/lib/user-email';"), true);
+  assert.equal(userMenuSource.includes('const displayEmail = getUserEmailDisplay(user);'), true);
+  assert.equal(userMenuSource.includes('{user.email}'), false);
 });
 
 test('settings center host renders disabled tabs as locked non-clickable controls and falls back to general', () => {

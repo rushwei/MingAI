@@ -20,11 +20,13 @@ import {
 } from 'react';
 import type { ConversationListItem } from '@/types';
 import {
+  CONVERSATION_PAGE_SIZE,
   loadConversations,
   loadConversationWindow,
   deleteConversation,
   renameConversation,
 } from '@/lib/chat/conversation';
+import { normalizeConversationWindowTargetCount } from '@/lib/chat/conversation-list-window';
 import {
   HISTORY_SUMMARY_DELETED_EVENT,
   KNOWLEDGE_BASE_SYNC_EVENT,
@@ -44,9 +46,12 @@ interface ConversationListContextType {
   setHasLoadedConversations: React.Dispatch<React.SetStateAction<boolean>>;
   pendingSidebarTitle: string | null;
   setPendingSidebarTitle: React.Dispatch<React.SetStateAction<string | null>>;
-  refreshConversationList: (targetUserId?: string | null) => Promise<void>;
+  refreshConversationList: (
+    targetUserId?: string | null,
+    options?: { targetCount?: number },
+  ) => Promise<void>;
   retryConversationListLoad: () => Promise<void>;
-  triggerConversationListLoad: () => void;
+  triggerConversationListLoad: (targetCount?: number) => void;
   loadMoreConversations: () => Promise<void>;
   removeConversationFromList: (id: string) => boolean;
   handleDeleteConversation: (id: string) => Promise<boolean>;
@@ -57,7 +62,6 @@ interface ConversationListContextType {
 }
 
 const ConversationListContext = createContext<ConversationListContextType | undefined>(undefined);
-const INITIAL_CONVERSATION_LOAD_LIMIT = 7;
 
 function mergeConversations(current: ConversationListItem[], incoming: ConversationListItem[]) {
   if (incoming.length === 0) {
@@ -210,7 +214,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
 
     try {
       const payload = await loadConversations({
-        limit: INITIAL_CONVERSATION_LOAD_LIMIT,
+        limit: CONVERSATION_PAGE_SIZE,
         offset,
         signal: controller.signal,
       });
@@ -256,7 +260,10 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     }
   }, []);
 
-  const refreshConversationList = useCallback(async (targetUserId?: string | null) => {
+  const refreshConversationList = useCallback(async (
+    targetUserId?: string | null,
+    options: { targetCount?: number } = {},
+  ) => {
     const id = targetUserId ?? userId;
     if (!id) return;
 
@@ -275,10 +282,15 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     try {
       const loadedCount = conversationsRef.current.length;
       const loadedConversationIds = conversationsRef.current.map((conversation) => conversation.id);
+      const requestedWindowCount = normalizeConversationWindowTargetCount({
+        loadedCount,
+        requestedCount: options.targetCount,
+        fallbackCount: CONVERSATION_PAGE_SIZE,
+      });
       const payload = await loadConversationWindow({
-        targetCount: loadedCount > 0 ? loadedCount : INITIAL_CONVERSATION_LOAD_LIMIT,
+        targetCount: requestedWindowCount,
         preserveIds: loadedConversationIds,
-        pageSize: INITIAL_CONVERSATION_LOAD_LIMIT,
+        pageSize: CONVERSATION_PAGE_SIZE,
         signal: controller.signal,
       });
 
@@ -320,10 +332,26 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     }
   }, [userId]);
 
-  const triggerConversationListLoad = useCallback(() => {
-    if (hasLoadedRef.current || !userId || loadingRef.current || loadingMoreRef.current) return;
-    void refreshConversationList(userId);
-  }, [refreshConversationList, userId]);
+  const triggerConversationListLoad = useCallback((targetCount?: number) => {
+    if (!userId || loadingRef.current || loadingMoreRef.current) {
+      return;
+    }
+
+    if (hasLoadedRef.current) {
+      const currentWindowCount = conversationsRef.current.length;
+      const requestedWindowCount = normalizeConversationWindowTargetCount({
+        loadedCount: currentWindowCount,
+        requestedCount: targetCount,
+        fallbackCount: CONVERSATION_PAGE_SIZE,
+      });
+
+      if (currentWindowCount >= requestedWindowCount || !hasMoreConversations) {
+        return;
+      }
+    }
+
+    void refreshConversationList(userId, { targetCount });
+  }, [hasMoreConversations, refreshConversationList, userId]);
 
   const retryConversationListLoad = useCallback(async () => {
     if (!userId) return;

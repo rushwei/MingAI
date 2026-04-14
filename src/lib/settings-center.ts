@@ -247,6 +247,43 @@ function buildCurrentUrlWithoutHash() {
   return `${url.pathname}${url.search}`;
 }
 
+function normalizeSettingsCenterBasePath(pathname?: string | null): string {
+  const normalized = pathname?.trim();
+  if (!normalized) {
+    return '/bazi';
+  }
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+export function getSettingsCenterRouteTargetForPath(
+  pathname: string | null | undefined,
+  tab: SettingsCenterTab,
+  options?: {
+    subpath?: string | null;
+    search?: string | null;
+  },
+): string {
+  const search = options?.search?.trim() || '';
+  return `${normalizeSettingsCenterBasePath(pathname)}${search}${buildSettingsCenterHash(tab, options)}`;
+}
+
+export function getCurrentSettingsCenterRouteTarget(
+  tab: SettingsCenterTab,
+  options?: {
+    subpath?: string | null;
+    search?: string | null;
+  },
+): string {
+  if (typeof window === 'undefined') {
+    return getSettingsCenterRouteTarget(tab, options);
+  }
+
+  return getSettingsCenterRouteTargetForPath(window.location.pathname, tab, {
+    subpath: options?.subpath,
+    search: options?.search ?? window.location.search,
+  });
+}
+
 export function openSettingsCenter(
   tab: SettingsCenterTab,
   options?: {
@@ -261,7 +298,7 @@ export function openSettingsCenter(
     [SETTINGS_CENTER_STATE_KEY]: true,
   };
   const method = options?.replace ? 'replaceState' : 'pushState';
-  window.history[method](nextState, '', getSettingsCenterRouteTarget(tab, {
+  window.history[method](nextState, '', getCurrentSettingsCenterRouteTarget(tab, {
     subpath: options?.subpath,
   }));
   emitSettingsCenterChange();
@@ -297,8 +334,7 @@ export function getSettingsCenterRouteTarget(
     search?: string | null;
   },
 ): string {
-  const search = options?.search?.trim() || '';
-  return `/bazi${search}${buildSettingsCenterHash(tab, options)}`;
+  return getSettingsCenterRouteTargetForPath('/bazi', tab, options);
 }
 
 export function getSettingsCenterTabFromRouteTarget(href: string): SettingsCenterTab | null {

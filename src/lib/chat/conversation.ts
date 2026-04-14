@@ -54,7 +54,7 @@ type ConversationLoadResult =
     | { ok: false; notFound: false; error: string };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
-const CONVERSATION_PAGE_SIZE = 7;
+export const CONVERSATION_PAGE_SIZE = 7;
 const CONVERSATION_MAX_PAGES = 50;
 export const DEFAULT_CONVERSATION_TITLE = '新对话';
 

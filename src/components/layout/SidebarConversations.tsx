@@ -22,6 +22,7 @@ import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useK
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-groups';
+import { resolveConversationViewportTargetCount } from '@/lib/chat/conversation-list-window';
 import { formatConversationMenuTitle as formatMenuTitle } from '@/lib/chat/conversation-title-display';
 
 export function SidebarConversations() {
@@ -54,7 +55,10 @@ export function SidebarConversations() {
     const [editTitle, setEditTitle] = useState('');
     const [archiveTarget, setArchiveTarget] = useState<ConversationListItem | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [viewportTargetCount, setViewportTargetCount] = useState<number | null>(null);
+    const listViewportRef = useRef<HTMLDivElement | null>(null);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+    const scrollContainerRef = useRef<HTMLElement | null>(null);
 
     // Determine active conversation from URL search params
     const activeId = useMemo(() => {
@@ -156,10 +160,89 @@ export function SidebarConversations() {
         closeActionSheet();
     }, [actionConv, closeActionSheet]);
 
+    const measureViewportTargetCount = useCallback(() => {
+        const listViewport = listViewportRef.current;
+        if (!listViewport) {
+            scrollContainerRef.current = null;
+            return null;
+        }
+
+        const scrollContainer = listViewport.closest('nav');
+        if (!(scrollContainer instanceof HTMLElement)) {
+            scrollContainerRef.current = null;
+            return null;
+        }
+
+        const scrollRect = scrollContainer.getBoundingClientRect();
+        const listRect = listViewport.getBoundingClientRect();
+        const visibleTop = Math.max(listRect.top, scrollRect.top);
+        const viewportHeight = Math.max(scrollRect.bottom - visibleTop, 0);
+
+        if (viewportHeight <= 0) {
+            scrollContainerRef.current = scrollContainer;
+            return null;
+        }
+
+        scrollContainerRef.current = scrollContainer;
+        return resolveConversationViewportTargetCount({ viewportHeight });
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const listViewport = listViewportRef.current;
+        if (!listViewport) {
+            return;
+        }
+
+        const updateViewportTargetCount = () => {
+            const nextTargetCount = measureViewportTargetCount();
+            setViewportTargetCount((current) => (current === nextTargetCount ? current : nextTargetCount));
+        };
+
+        updateViewportTargetCount();
+
+        const handleResize = () => {
+            updateViewportTargetCount();
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        if (typeof ResizeObserver === 'undefined') {
+            return () => {
+                window.removeEventListener('resize', handleResize);
+            };
+        }
+
+        const observer = new ResizeObserver(() => {
+            updateViewportTargetCount();
+        });
+
+        observer.observe(listViewport);
+        if (scrollContainerRef.current) {
+            observer.observe(scrollContainerRef.current);
+        }
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [measureViewportTargetCount]);
+
+    useEffect(() => {
+        if (viewportTargetCount == null) {
+            return;
+        }
+
+        triggerConversationListLoad(viewportTargetCount);
+    }, [triggerConversationListLoad, viewportTargetCount]);
+
     // Trigger load on first interaction
     const handleInteraction = useCallback(() => {
-        triggerConversationListLoad();
-    }, [triggerConversationListLoad]);
+        triggerConversationListLoad(measureViewportTargetCount() ?? viewportTargetCount ?? undefined);
+    }, [measureViewportTargetCount, triggerConversationListLoad, viewportTargetCount]);
 
     useEffect(() => {
         if (
@@ -167,6 +250,7 @@ export function SidebarConversations() {
             || !hasMoreConversations
             || loadingMoreConversations
             || !loadMoreSentinelRef.current
+            || !scrollContainerRef.current
         ) {
             return;
         }
@@ -176,12 +260,19 @@ export function SidebarConversations() {
                 void loadMoreConversations();
             }
         }, {
+            root: scrollContainerRef.current,
             rootMargin: '120px 0px',
         });
 
         observer.observe(loadMoreSentinelRef.current);
         return () => observer.disconnect();
-    }, [hasLoadedConversations, hasMoreConversations, loadMoreConversations, loadingMoreConversations]);
+    }, [
+        hasLoadedConversations,
+        hasMoreConversations,
+        loadMoreConversations,
+        loadingMoreConversations,
+        viewportTargetCount,
+    ]);
 
     return (
         <>
@@ -236,7 +327,7 @@ export function SidebarConversations() {
                 </div>
 
                 {/* 分组对话列表 */}
-                <div className="space-y-0.5">
+                <div ref={listViewportRef} className="space-y-0.5">
                     {conversationListError && !hasLoadedConversations && !conversationsLoading ? (
                         <div className="rounded-md border border-[#ead9bf] bg-[#fcf8ee] px-3 py-3 text-xs text-[#946c21]">
                             <div>{conversationListError}</div>

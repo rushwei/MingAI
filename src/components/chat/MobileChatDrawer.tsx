@@ -22,6 +22,7 @@ import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useK
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-groups';
+import { resolveConversationViewportTargetCount } from '@/lib/chat/conversation-list-window';
 import { formatConversationMenuTitle as formatMenuTitle } from '@/lib/chat/conversation-title-display';
 
 export function MobileChatDrawer() {
@@ -54,6 +55,8 @@ export function MobileChatDrawer() {
     const [editTitle, setEditTitle] = useState('');
     const [archiveTarget, setArchiveTarget] = useState<ConversationListItem | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [viewportTargetCount, setViewportTargetCount] = useState<number | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
     // Determine active conversation from URL
@@ -106,12 +109,8 @@ export function MobileChatDrawer() {
     }, [handleNewChat, router]);
 
     const handleToggle = useCallback(() => {
-        const nextOpen = !isOpen;
-        setIsOpen(nextOpen);
-        if (nextOpen) {
-            triggerConversationListLoad();
-        }
-    }, [isOpen, triggerConversationListLoad]);
+        setIsOpen((current) => !current);
+    }, []);
 
     // Action menu helpers
     const closeActionSheet = useCallback(() => {
@@ -163,6 +162,69 @@ export function MobileChatDrawer() {
         closeActionSheet();
     }, [actionConv, closeActionSheet]);
 
+    const measureViewportTargetCount = useCallback(() => {
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) {
+            return null;
+        }
+
+        const viewportHeight = scrollContainer.clientHeight;
+        if (viewportHeight <= 0) {
+            return null;
+        }
+
+        return resolveConversationViewportTargetCount({ viewportHeight });
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) {
+            return;
+        }
+
+        const updateViewportTargetCount = () => {
+            const nextTargetCount = measureViewportTargetCount();
+            setViewportTargetCount((current) => (current === nextTargetCount ? current : nextTargetCount));
+        };
+
+        updateViewportTargetCount();
+
+        const handleResize = () => {
+            updateViewportTargetCount();
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        if (typeof ResizeObserver === 'undefined') {
+            return () => {
+                window.removeEventListener('resize', handleResize);
+            };
+        }
+
+        const observer = new ResizeObserver(() => {
+            updateViewportTargetCount();
+        });
+
+        observer.observe(scrollContainer);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [measureViewportTargetCount]);
+
+    useEffect(() => {
+        if (!isOpen || viewportTargetCount == null) {
+            return;
+        }
+
+        triggerConversationListLoad(viewportTargetCount);
+    }, [isOpen, triggerConversationListLoad, viewportTargetCount]);
+
     useEffect(() => {
         if (
             !isOpen
@@ -170,6 +232,7 @@ export function MobileChatDrawer() {
             || !hasMoreConversations
             || loadingMoreConversations
             || !loadMoreSentinelRef.current
+            || !scrollContainerRef.current
         ) {
             return;
         }
@@ -179,12 +242,20 @@ export function MobileChatDrawer() {
                 void loadMoreConversations();
             }
         }, {
+            root: scrollContainerRef.current,
             rootMargin: '120px 0px',
         });
 
         observer.observe(loadMoreSentinelRef.current);
         return () => observer.disconnect();
-    }, [hasLoadedConversations, hasMoreConversations, isOpen, loadMoreConversations, loadingMoreConversations]);
+    }, [
+        hasLoadedConversations,
+        hasMoreConversations,
+        isOpen,
+        loadMoreConversations,
+        loadingMoreConversations,
+        viewportTargetCount,
+    ]);
 
     return (
         <>
@@ -245,7 +316,7 @@ export function MobileChatDrawer() {
                     )}
 
                     {/* 分组对话列表 */}
-                    <div className="flex-1 overflow-y-auto px-2 pb-2">
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">
                         {conversationListError && !hasLoadedConversations && !conversationsLoading ? (
                             <div className="rounded-lg border border-[#ead9bf] bg-[#fcf8ee] px-4 py-4 text-sm text-[#946c21]">
                                 <div>{conversationListError}</div>
