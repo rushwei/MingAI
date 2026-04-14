@@ -13,6 +13,7 @@ import {
   UserStateResolutionError,
 } from '@/lib/user/credits';
 import type { MembershipType } from '@/lib/user/membership';
+import { normalizeIdentityUserProfile, type UserIdentityProfile } from '@/lib/user/settings';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -40,7 +41,7 @@ export interface ChatRequestBody {
   dreamMode?: boolean;
   expressionStyle?: 'direct' | 'gentle';
   customInstructions?: string | null;
-  userProfile?: unknown;
+  userProfile?: UserIdentityProfile | null;
   visualizationSettings?: VisualizationSettings;
 }
 
@@ -70,6 +71,7 @@ export async function parseChatRequestBody(request: NextRequest): Promise<ChatRe
     return jsonError('无效的消息格式', 400);
   }
   console.log(`[chat-parse] mentions=${JSON.stringify(body.mentions)} msgCount=${body.messages.length}`);
+  body.userProfile = normalizeIdentityUserProfile(body.userProfile);
   body.visualizationSettings = normalizeVisualizationSettings(body.visualizationSettings);
   return body;
 }

@@ -22,7 +22,7 @@ export const PROMPT_LAYER_LABELS: Record<string, string> = {
     personality_role: '专业分析师',
     chart_context: '命盘',
     expression_style: '表达风格',
-    user_profile: '用户画像',
+    user_profile: '用户身份',
     custom_instructions: '自定义指令',
     mangpai_data: '盲派口诀',
     dream_bazi: '解梦·命盘信息',

@@ -66,6 +66,24 @@ test('buildPromptWithSources includes base rules and dify prefix', async () => {
     assert.ok(!res.systemPrompt.includes('【用户上传的文件内容如下】'));
 });
 
+test('buildPromptWithSources injects identity as semantic text instead of raw json', async () => {
+    const pb = require('../lib/ai/prompt-builder') as any;
+    const res = await pb.buildPromptWithSources({
+        modelId: 'deepseek-chat',
+        userMessage: '请结合我的身份来回答',
+        mentions: [],
+        knowledgeHits: [],
+        userSettings: {
+            expressionStyle: 'direct',
+            userProfile: { identity: '创业者' },
+            customInstructions: '',
+        },
+    });
+
+    assert.ok(res.systemPrompt.includes('用户身份：创业者'));
+    assert.ok(!res.systemPrompt.includes('"identity"'));
+});
+
 test('buildPromptWithSources injects dream and mangpai layers', async () => {
     const pb = require('../lib/ai/prompt-builder') as any;
     const res = await pb.buildPromptWithSources({

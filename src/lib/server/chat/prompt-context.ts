@@ -10,7 +10,7 @@ import { buildDreamContextPayload } from '@/lib/chat/chat-context';
 import { extractUserQuestion } from '@/lib/chat/message-utils';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import { isFeatureModuleEnabled } from '@/lib/app-settings';
-import { normalizeUserSettings, USER_SETTINGS_SELECT } from '@/lib/user/settings';
+import { normalizeUserSettings, type UserIdentityProfile, USER_SETTINGS_SELECT } from '@/lib/user/settings';
 import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
 import { DEFAULT_DIMENSIONS } from '@/lib/visualization/dimensions';
 
@@ -34,7 +34,7 @@ function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatM
 type UserSettingsContext = {
   expressionStyle: 'direct' | 'gentle';
   chartPromptDetailLevel: 'default' | 'more' | 'full';
-  userProfile: unknown;
+  userProfile: UserIdentityProfile | null;
   customInstructions: string;
   promptKbIds: string[];
   visualizationSettings?: VisualizationSettings;
@@ -158,7 +158,7 @@ export async function buildChatPromptContext(
   const userSettings = userId ? await loadUserSettingsContext(supabase, userId) : {
     expressionStyle: 'direct' as const,
     chartPromptDetailLevel: 'default' as const,
-    userProfile: {},
+    userProfile: null,
     customInstructions: '',
     promptKbIds: [] as string[],
   };

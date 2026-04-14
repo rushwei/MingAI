@@ -11,6 +11,7 @@ import { formatBaziPromptText, resolveBaziPromptData, type BaziPromptInput } fro
 import { formatZiweiPromptText, type ZiweiPromptInput } from '@/lib/ziwei-chart-prompt';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/divination/mangpai';
 import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
+import type { UserIdentityProfile } from '@/lib/user/settings';
 import {
     type VisualizationSettings,
 } from '@/lib/visualization/settings';
@@ -41,7 +42,7 @@ export interface PromptContext {
     userSettings: {
         expressionStyle?: 'direct' | 'gentle';
         chartPromptDetailLevel?: ChartTextDetailLevel;
-        userProfile?: unknown;
+        userProfile?: UserIdentityProfile | null;
         customInstructions?: string | null;
         visualizationSettings?: VisualizationSettings;
     };
@@ -287,15 +288,11 @@ function formatExpressionStyle(style?: 'direct' | 'gentle'): string {
     return '表达风格：直说、一针见血，但保持尊重。';
 }
 
-// 用户画像注入：限制长度，避免过长 JSON 占用预算
-function formatUserProfile(profile?: unknown): string {
-    if (!profile) return '';
-    if (typeof profile === 'string') return profile.slice(0, 600);
-    try {
-        return JSON.stringify(profile).slice(0, 600);
-    } catch {
-        return '';
-    }
+// 用户身份注入：使用语义化文本，避免把整段 JSON 直接塞进 prompt
+function formatUserProfile(profile?: UserIdentityProfile | null): string {
+    const identity = profile?.identity?.trim();
+    if (!identity) return '';
+    return `用户身份：${identity.slice(0, 120)}`;
 }
 
 function formatZiweiFallback(chart: ZiweiPromptInput): string {

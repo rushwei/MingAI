@@ -51,6 +51,7 @@ test('user settings route should return normalized settings bundle for the curre
   assert.equal(response.status, 200);
   assert.equal(payload.settings.expressionStyle, 'gentle');
   assert.equal(payload.settings.chartPromptDetailLevel, 'more');
+  assert.equal(payload.settings.userProfile, null);
   assert.deepEqual(payload.settings.promptKbIds, ['kb-2', 'kb-1']);
   assert.deepEqual(payload.settings.visualizationSettings, {
     selectedDimensions: ['career', 'wealth'],
@@ -64,6 +65,7 @@ test('user settings route PATCH should update only user_settings without touchin
   type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
   const originalRequireUserContext = apiUtilsModule.requireUserContext;
   const touchedTables: string[] = [];
+  let upsertPayload: Record<string, unknown> | null = null;
 
   apiUtilsModule.requireUserContext = async () => ({
     user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
@@ -72,7 +74,10 @@ test('user settings route PATCH should update only user_settings without touchin
         touchedTables.push(table);
         assert.equal(table, 'user_settings');
         return {
-          upsert: () => ({ error: null }),
+          upsert: (payload: Record<string, unknown>) => {
+            upsertPayload = payload;
+            return { error: null };
+          },
           select: () => ({
             eq: () => ({
               maybeSingle: async () => ({
@@ -81,6 +86,7 @@ test('user settings route PATCH should update only user_settings without touchin
                   notify_email: false,
                   notify_site: false,
                   chart_prompt_detail_level: 'full',
+                  user_profile: { identity: '创业者' },
                   visualization_settings: {
                     selectedDimensions: ['career', 'health'],
                     dayunDisplayCount: 4,
@@ -107,6 +113,10 @@ test('user settings route PATCH should update only user_settings without touchin
     body: JSON.stringify({
       notificationsEnabled: false,
       chartPromptDetailLevel: 'full',
+      userProfile: {
+        identity: '创业者',
+        occupation: '产品经理',
+      },
       visualizationSettings: {
         selectedDimensions: ['career', 'health'],
         dayunDisplayCount: 4,
@@ -119,6 +129,8 @@ test('user settings route PATCH should update only user_settings without touchin
   assert.equal(response.status, 200);
   assert.equal(payload.settings.notificationsEnabled, false);
   assert.equal(payload.settings.chartPromptDetailLevel, 'full');
+  assert.deepEqual(payload.settings.userProfile, { identity: '创业者' });
+  assert.deepEqual(upsertPayload?.user_profile, { identity: '创业者' });
   assert.deepEqual(payload.settings.visualizationSettings, {
     selectedDimensions: ['career', 'health'],
     dayunDisplayCount: 4,

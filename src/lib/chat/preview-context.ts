@@ -3,6 +3,7 @@ import 'server-only';
 import { resolveModelContextConfig } from '@/lib/ai/prompt-builder';
 import { countMessageTokens } from '@/lib/token-utils';
 import { normalizeVisualizationSettings } from '@/lib/visualization/settings';
+import { normalizeIdentityUserProfile } from '@/lib/user/settings';
 import type { requireUserContext } from '@/lib/api-utils';
 import type { ChatRequestBody } from '@/lib/server/chat/request';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
@@ -116,7 +117,7 @@ function buildPreviewChatBody(
             : typeof body.customInstructions === 'string'
                 ? body.customInstructions
                 : undefined,
-        userProfile: body.userProfile,
+        userProfile: normalizeIdentityUserProfile(body.userProfile),
         visualizationSettings: normalizeVisualizationSettings(body.visualizationSettings),
     };
 }

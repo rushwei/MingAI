@@ -30,7 +30,7 @@ test('buildPreviewPromptContext reuses shared prompt builder even with preview-o
             userMessage: '新的提问',
             expressionStyle: 'gentle',
             customInstructions: null,
-            userProfile: { focus: 'career' },
+            userProfile: { identity: '创业者' },
         },
         requestedModelId: 'deepseek-chat',
         reasoningEnabled: false,
@@ -65,6 +65,7 @@ test('buildPreviewPromptContext reuses shared prompt builder even with preview-o
     assert.equal(capturedRequest?.accessTokenForKB, 'token-1');
     assert.equal((capturedRequest?.body as Record<string, unknown>).expressionStyle, 'gentle');
     assert.equal((capturedRequest?.body as Record<string, unknown>).customInstructions, null);
+    assert.deepEqual((capturedRequest?.body as Record<string, unknown>).userProfile, { identity: '创业者' });
     const messages = (capturedRequest?.body as { messages: Array<{ id: string; role: string; content: string; createdAt: string }> }).messages;
     assert.equal(messages.length, 2);
     assert.equal(messages[0]?.id, 'a1');

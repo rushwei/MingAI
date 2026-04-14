@@ -8,6 +8,9 @@ import {
 export type ExpressionStyle = 'direct' | 'gentle';
 export type AppLanguage = 'zh' | 'en';
 export type ChartPromptDetailLevel = 'default' | 'more' | 'full';
+export type UserIdentityProfile = {
+  identity: string;
+};
 
 export const DEFAULT_NAV_ORDER = [
   'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti', 'daily', 'monthly',
@@ -63,7 +66,7 @@ export type UserSettingsSnapshot = {
   expressionStyle: ExpressionStyle;
   customInstructions: string;
   chartPromptDetailLevel: ChartPromptDetailLevel;
-  userProfile: unknown;
+  userProfile: UserIdentityProfile | null;
   promptKbIds: string[];
   visualizationSettings: VisualizationSettings | undefined;
   notificationsEnabled: boolean;
@@ -88,7 +91,7 @@ export type UserSettingsUpdateInput = Partial<{
   expressionStyle: ExpressionStyle;
   customInstructions: string | null;
   chartPromptDetailLevel: ChartPromptDetailLevel;
-  userProfile: unknown;
+  userProfile: UserIdentityProfile | null;
   promptKbIds: string[];
   visualizationSettings: VisualizationSettings | null;
   notificationsEnabled: boolean;
@@ -112,6 +115,18 @@ export const USER_SETTINGS_SELECT = `
   default_ziwei_chart_id
 `;
 
+export function normalizeIdentityUserProfile(raw: unknown): UserIdentityProfile | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const identity = typeof (raw as { identity?: unknown }).identity === 'string'
+    ? (raw as { identity: string }).identity.trim()
+    : '';
+
+  return identity ? { identity } : null;
+}
+
 export function normalizeUserSettings(row: UserSettingsRow | null | undefined): UserSettingsSnapshot {
   return {
     expressionStyle: row?.expression_style === 'gentle' ? 'gentle' : 'direct',
@@ -121,7 +136,7 @@ export function normalizeUserSettings(row: UserSettingsRow | null | undefined): 
       : row?.chart_prompt_detail_level === 'more'
         ? 'more'
         : 'default',
-    userProfile: row?.user_profile ?? {},
+    userProfile: normalizeIdentityUserProfile(row?.user_profile),
     promptKbIds: Array.isArray(row?.prompt_kb_ids)
       ? row.prompt_kb_ids.filter((value): value is string => typeof value === 'string' && value.length > 0)
       : [],
@@ -215,7 +230,7 @@ export function buildUserSettingsUpdatePayload(
     payload.chart_prompt_detail_level = body.chartPromptDetailLevel;
   }
   if (body.userProfile !== undefined) {
-    payload.user_profile = body.userProfile;
+    payload.user_profile = normalizeIdentityUserProfile(body.userProfile);
   }
   if (Array.isArray(body.promptKbIds)) {
     payload.prompt_kb_ids = body.promptKbIds.filter(
