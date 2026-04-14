@@ -38,8 +38,8 @@ export function useAppBootstrap(options?: { enabled?: boolean }) {
     if (cachedData) {
       return cachedData;
     }
-    return user ? null : EMPTY_APP_BOOTSTRAP;
-  }, [cachedData, query.data, user]);
+    return null;
+  }, [cachedData, query.data]);
 
   const hasBootstrapData = data !== null;
   const rawViewerState = useMemo(() => deriveAppBootstrapViewerState({

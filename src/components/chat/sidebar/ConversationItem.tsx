@@ -59,6 +59,7 @@ export const ConversationItem = memo(function ConversationItem({
         if (isEditing) {
             return (
                 <div
+                    data-conversation-row="true"
                     className="flex items-center gap-1.5 px-0.5 py-0.5 rounded-md bg-background-secondary border border-border"
                     onClick={(e) => e.stopPropagation()}
                 >
@@ -103,6 +104,7 @@ export const ConversationItem = memo(function ConversationItem({
 
         return (
             <div
+                data-conversation-row="true"
                 className={`
                     group flex items-center gap-2 px-3 py-1 rounded-md cursor-pointer
                     transition-colors duration-150 text-[14px]
@@ -149,6 +151,7 @@ export const ConversationItem = memo(function ConversationItem({
     if (isEditing) {
         return (
             <div
+                data-conversation-row="true"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background-secondary border border-border"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -193,6 +196,7 @@ export const ConversationItem = memo(function ConversationItem({
 
     return (
         <div
+            data-conversation-row="true"
             className={`
                 group flex ${subTitle ? 'items-start' : 'items-center'} gap-3 px-4 py-2 rounded-lg cursor-pointer
                 transition-colors text-sm

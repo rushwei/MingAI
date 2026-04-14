@@ -1,8 +1,5 @@
 import { CONVERSATION_PAGE_SIZE } from '@/lib/chat/conversation';
 
-export const CONVERSATION_LIST_ESTIMATED_ROW_HEIGHT_PX = 52;
-export const CONVERSATION_LIST_BUFFER_ROWS = 2;
-
 function normalizePositiveInteger(value: number | null | undefined): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return 0;
@@ -20,43 +17,51 @@ export function normalizeConversationWindowTargetCount({
   requestedCount?: number | null;
   fallbackCount?: number;
 }): number {
+  const normalizedLoadedCount = normalizePositiveInteger(loadedCount);
+  const normalizedRequestedCount = normalizePositiveInteger(requestedCount);
+
+  if (normalizedRequestedCount > 0) {
+    return Math.max(normalizedLoadedCount, normalizedRequestedCount);
+  }
+
   return Math.max(
-    normalizePositiveInteger(loadedCount),
-    normalizePositiveInteger(requestedCount),
+    normalizedLoadedCount,
     normalizePositiveInteger(fallbackCount),
   );
 }
 
-export function resolveConversationViewportTargetCount({
-  viewportHeight,
-  estimatedRowHeight = CONVERSATION_LIST_ESTIMATED_ROW_HEIGHT_PX,
-  bufferRows = CONVERSATION_LIST_BUFFER_ROWS,
-  minimumCount = CONVERSATION_PAGE_SIZE,
-  pageSize = CONVERSATION_PAGE_SIZE,
+export function resolveConversationRemainingTargetCount({
+  loadedCount,
+  availableHeight,
+  contentHeight,
+  rowHeights,
+  minimumCount = 0,
 }: {
-  viewportHeight: number;
-  estimatedRowHeight?: number;
-  bufferRows?: number;
+  loadedCount: number;
+  availableHeight: number;
+  contentHeight: number;
+  rowHeights: number[];
   minimumCount?: number;
-  pageSize?: number;
 }): number {
-  const normalizedViewportHeight = normalizePositiveInteger(viewportHeight);
-  const normalizedRowHeight = Math.max(normalizePositiveInteger(estimatedRowHeight), 1);
-  const normalizedPageSize = Math.max(normalizePositiveInteger(pageSize), 1);
-  const normalizedMinimumCount = Math.max(
-    normalizePositiveInteger(minimumCount),
-    normalizedPageSize,
-  );
+  const normalizedLoadedCount = normalizePositiveInteger(loadedCount);
+  const normalizedMinimumCount = normalizePositiveInteger(minimumCount);
+  const baseTargetCount = Math.max(normalizedLoadedCount, normalizedMinimumCount);
+  const normalizedAvailableHeight = normalizePositiveInteger(availableHeight);
+  const normalizedContentHeight = normalizePositiveInteger(contentHeight);
+  const validRowHeights = rowHeights
+    .map((height) => normalizePositiveInteger(height))
+    .filter((height) => height > 0);
 
-  if (normalizedViewportHeight === 0) {
-    return normalizedMinimumCount;
+  if (
+    normalizedAvailableHeight <= normalizedContentHeight
+    || validRowHeights.length === 0
+  ) {
+    return baseTargetCount;
   }
 
-  const visibleRows = Math.ceil(normalizedViewportHeight / normalizedRowHeight);
-  const desiredRows = visibleRows + normalizePositiveInteger(bufferRows);
+  const averageRowHeight = validRowHeights.reduce((sum, height) => sum + height, 0) / validRowHeights.length;
+  const remainingHeight = normalizedAvailableHeight - normalizedContentHeight;
+  const additionalCount = Math.ceil(remainingHeight / averageRowHeight);
 
-  return Math.max(
-    normalizedMinimumCount,
-    Math.ceil(desiredRows / normalizedPageSize) * normalizedPageSize,
-  );
+  return baseTargetCount + Math.max(additionalCount, 0);
 }

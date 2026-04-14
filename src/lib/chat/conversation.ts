@@ -139,10 +139,15 @@ export async function loadConversations(
     } = {},
 ): Promise<PaginatedConversations> {
     const { limit = CONVERSATION_PAGE_SIZE, offset = 0, signal } = options;
+    const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+    });
+
     const payload = await requestBrowserData<{
         conversations?: ConversationListApiRow[];
         pagination?: { hasMore?: boolean; nextOffset?: number | null };
-    }>(`/api/conversations?limit=${limit}&offset=${offset}`, {
+    }>(`/api/conversations?${params.toString()}`, {
         signal,
     }, {
         fallbackMessage: '加载对话列表失败',
@@ -166,7 +171,7 @@ export async function loadConversationWindow(
     }
 ): Promise<PaginatedConversations> {
     const { targetCount, preserveIds = [], pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
-    const minimumCount = Math.max(targetCount, pageSize);
+    const minimumCount = Math.max(targetCount, 1);
     const remainingIds = new Set(preserveIds);
     const rows: ConversationListItem[] = [];
     let offset = 0;
@@ -174,8 +179,11 @@ export async function loadConversationWindow(
     let nextOffset: number | null = null;
 
     for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
+        const remainingTargetCount = Math.max(minimumCount - rows.length, 0);
         const payload = await loadConversations({
-            limit: pageSize,
+            limit: remainingIds.size > 0
+                ? pageSize
+                : Math.min(pageSize, Math.max(remainingTargetCount, 1)),
             offset,
             signal,
         });
@@ -188,7 +196,8 @@ export async function loadConversationWindow(
         nextOffset = payload.pagination.nextOffset;
 
         if (
-            (rows.length >= minimumCount && remainingIds.size === 0)
+            payload.conversations.length === 0
+            || (rows.length >= minimumCount && remainingIds.size === 0)
             || !hasMore
             || nextOffset == null
         ) {

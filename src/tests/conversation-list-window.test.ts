@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeConversationWindowTargetCount,
-  resolveConversationViewportTargetCount,
+  resolveConversationRemainingTargetCount,
 } from '../lib/chat/conversation-list-window';
 
 test('normalizeConversationWindowTargetCount keeps the larger loaded or requested window', () => {
@@ -22,20 +22,25 @@ test('normalizeConversationWindowTargetCount keeps the larger loaded or requeste
   }), 7);
 });
 
-test('resolveConversationViewportTargetCount rounds visible rows up to a page-sized target', () => {
-  assert.equal(resolveConversationViewportTargetCount({
-    viewportHeight: 360,
-    estimatedRowHeight: 48,
-    bufferRows: 2,
-    minimumCount: 7,
-    pageSize: 7,
-  }), 14);
+test('resolveConversationRemainingTargetCount uses real remaining height to top up the sidebar list', () => {
+  assert.equal(resolveConversationRemainingTargetCount({
+    loadedCount: 7,
+    availableHeight: 520,
+    contentHeight: 404,
+    rowHeights: Array.from({ length: 7 }, () => 40),
+  }), 10);
 
-  assert.equal(resolveConversationViewportTargetCount({
-    viewportHeight: 720,
-    estimatedRowHeight: 48,
-    bufferRows: 2,
-    minimumCount: 7,
-    pageSize: 7,
-  }), 21);
+  assert.equal(resolveConversationRemainingTargetCount({
+    loadedCount: 0,
+    availableHeight: 156,
+    contentHeight: 0,
+    rowHeights: [36],
+  }), 5);
+
+  assert.equal(resolveConversationRemainingTargetCount({
+    loadedCount: 10,
+    availableHeight: 520,
+    contentHeight: 520,
+    rowHeights: Array.from({ length: 10 }, () => 40),
+  }), 10);
 });

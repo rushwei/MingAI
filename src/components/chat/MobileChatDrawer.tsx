@@ -22,7 +22,6 @@ import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useK
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-groups';
-import { resolveConversationViewportTargetCount } from '@/lib/chat/conversation-list-window';
 import { formatConversationMenuTitle as formatMenuTitle } from '@/lib/chat/conversation-title-display';
 
 export function MobileChatDrawer() {
@@ -55,7 +54,7 @@ export function MobileChatDrawer() {
     const [editTitle, setEditTitle] = useState('');
     const [archiveTarget, setArchiveTarget] = useState<ConversationListItem | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
-    const [viewportTargetCount, setViewportTargetCount] = useState<number | null>(null);
+    const [hasUserScrolled, setHasUserScrolled] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -100,17 +99,30 @@ export function MobileChatDrawer() {
     const handleSelect = useCallback((id: string) => {
         router.push(`/chat?id=${id}`);
         setIsOpen(false);
+        setHasUserScrolled(false);
     }, [router]);
 
     const handleNew = useCallback(async () => {
         await handleNewChat();
         router.push('/chat');
         setIsOpen(false);
+        setHasUserScrolled(false);
     }, [handleNewChat, router]);
 
-    const handleToggle = useCallback(() => {
-        setIsOpen((current) => !current);
+    const closeDrawer = useCallback(() => {
+        setIsOpen(false);
+        setHasUserScrolled(false);
     }, []);
+
+    const handleToggle = useCallback(() => {
+        if (isOpen) {
+            closeDrawer();
+            return;
+        }
+
+        setIsOpen(true);
+        triggerConversationListLoad();
+    }, [closeDrawer, isOpen, triggerConversationListLoad]);
 
     // Action menu helpers
     const closeActionSheet = useCallback(() => {
@@ -162,73 +174,27 @@ export function MobileChatDrawer() {
         closeActionSheet();
     }, [actionConv, closeActionSheet]);
 
-    const measureViewportTargetCount = useCallback(() => {
-        const scrollContainer = scrollContainerRef.current;
-        if (!scrollContainer) {
-            return null;
-        }
-
-        const viewportHeight = scrollContainer.clientHeight;
-        if (viewportHeight <= 0) {
-            return null;
-        }
-
-        return resolveConversationViewportTargetCount({ viewportHeight });
-    }, []);
-
     useEffect(() => {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
         const scrollContainer = scrollContainerRef.current;
         if (!scrollContainer) {
             return;
         }
 
-        const updateViewportTargetCount = () => {
-            const nextTargetCount = measureViewportTargetCount();
-            setViewportTargetCount((current) => (current === nextTargetCount ? current : nextTargetCount));
+        const handleScroll = () => {
+            setHasUserScrolled(scrollContainer.scrollTop > 0);
         };
 
-        updateViewportTargetCount();
-
-        const handleResize = () => {
-            updateViewportTargetCount();
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        if (typeof ResizeObserver === 'undefined') {
-            return () => {
-                window.removeEventListener('resize', handleResize);
-            };
-        }
-
-        const observer = new ResizeObserver(() => {
-            updateViewportTargetCount();
-        });
-
-        observer.observe(scrollContainer);
-
+        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
         return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', handleResize);
+            scrollContainer.removeEventListener('scroll', handleScroll);
         };
-    }, [measureViewportTargetCount]);
-
-    useEffect(() => {
-        if (!isOpen || viewportTargetCount == null) {
-            return;
-        }
-
-        triggerConversationListLoad(viewportTargetCount);
-    }, [isOpen, triggerConversationListLoad, viewportTargetCount]);
+    }, []);
 
     useEffect(() => {
         if (
             !isOpen
             || !hasLoadedConversations
+            || !hasUserScrolled
             || !hasMoreConversations
             || loadingMoreConversations
             || !loadMoreSentinelRef.current
@@ -250,11 +216,11 @@ export function MobileChatDrawer() {
         return () => observer.disconnect();
     }, [
         hasLoadedConversations,
+        hasUserScrolled,
         hasMoreConversations,
         isOpen,
         loadMoreConversations,
         loadingMoreConversations,
-        viewportTargetCount,
     ]);
 
     return (
@@ -263,7 +229,7 @@ export function MobileChatDrawer() {
             {isOpen && (
                 <div
                     className="lg:hidden fixed inset-0 bg-black/50 z-40"
-                    onClick={() => setIsOpen(false)}
+                    onClick={closeDrawer}
                 />
             )}
 

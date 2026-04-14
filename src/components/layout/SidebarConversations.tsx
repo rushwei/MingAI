@@ -2,7 +2,7 @@
  * 侧边栏对话列表（内嵌在 Chat 项下方）
  *
  * 直接渲染在 AI > Chat 导航项下方，与导航共用滚动区域。
- * 初始仅显示少量对话，向下滚动/点击"加载更多"展示全部。
+ * 初始仅显示少量对话，向下滚动后按需继续加载。
  *
  * 'use client' 标记说明：
  * - 使用 React hooks 和交互状态
@@ -22,7 +22,7 @@ import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useK
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-groups';
-import { resolveConversationViewportTargetCount } from '@/lib/chat/conversation-list-window';
+import { resolveConversationRemainingTargetCount } from '@/lib/chat/conversation-list-window';
 import { formatConversationMenuTitle as formatMenuTitle } from '@/lib/chat/conversation-title-display';
 
 export function SidebarConversations() {
@@ -55,10 +55,10 @@ export function SidebarConversations() {
     const [editTitle, setEditTitle] = useState('');
     const [archiveTarget, setArchiveTarget] = useState<ConversationListItem | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
-    const [viewportTargetCount, setViewportTargetCount] = useState<number | null>(null);
+    const [sidebarTargetCount, setSidebarTargetCount] = useState<number | null>(null);
+    const [hasUserScrolled, setHasUserScrolled] = useState(false);
     const listViewportRef = useRef<HTMLDivElement | null>(null);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-    const scrollContainerRef = useRef<HTMLElement | null>(null);
 
     // Determine active conversation from URL search params
     const activeId = useMemo(() => {
@@ -160,52 +160,78 @@ export function SidebarConversations() {
         closeActionSheet();
     }, [actionConv, closeActionSheet]);
 
-    const measureViewportTargetCount = useCallback(() => {
+    const getScrollContainer = useCallback(() => {
         const listViewport = listViewportRef.current;
         if (!listViewport) {
-            scrollContainerRef.current = null;
             return null;
         }
 
         const scrollContainer = listViewport.closest('nav');
         if (!(scrollContainer instanceof HTMLElement)) {
-            scrollContainerRef.current = null;
+            return null;
+        }
+
+        return scrollContainer;
+    }, []);
+
+    const getSidebarConversationTargetCount = useCallback(() => {
+        const listViewport = listViewportRef.current;
+        if (!listViewport) {
+            return null;
+        }
+
+        const scrollContainer = getScrollContainer();
+        if (!scrollContainer) {
             return null;
         }
 
         const scrollRect = scrollContainer.getBoundingClientRect();
         const listRect = listViewport.getBoundingClientRect();
-        const visibleTop = Math.max(listRect.top, scrollRect.top);
-        const viewportHeight = Math.max(scrollRect.bottom - visibleTop, 0);
+        const listItem = listViewport.closest('li');
+        let reservedBottomHeight = 0;
 
-        if (viewportHeight <= 0) {
-            scrollContainerRef.current = scrollContainer;
+        if (listItem instanceof HTMLElement) {
+            let sibling = listItem.nextElementSibling;
+            while (sibling instanceof HTMLElement) {
+                reservedBottomHeight += sibling.getBoundingClientRect().height;
+                sibling = sibling.nextElementSibling;
+            }
+        }
+
+        const visibleTop = Math.max(listRect.top, scrollRect.top);
+        const availableHeight = Math.max(scrollRect.bottom - visibleTop - reservedBottomHeight, 0);
+        const rowElements = Array.from(
+            listViewport.querySelectorAll<HTMLElement>('[data-conversation-row="true"]'),
+        );
+
+        if (availableHeight <= 0 || rowElements.length === 0) {
             return null;
         }
 
-        scrollContainerRef.current = scrollContainer;
-        return resolveConversationViewportTargetCount({ viewportHeight });
-    }, []);
+        return resolveConversationRemainingTargetCount({
+            loadedCount: conversations.length,
+            availableHeight,
+            contentHeight: listViewport.getBoundingClientRect().height,
+            rowHeights: rowElements.map((element) => element.getBoundingClientRect().height),
+        });
+    }, [conversations.length, getScrollContainer]);
+
+    const shouldAutoTopUp = !isSearching && searchQuery.trim().length === 0 && collapsedGroups.size === 0;
 
     useEffect(() => {
-        if (typeof window === 'undefined') {
+        if (typeof window === 'undefined' || !shouldAutoTopUp) {
             return;
         }
 
-        const listViewport = listViewportRef.current;
-        if (!listViewport) {
-            return;
-        }
-
-        const updateViewportTargetCount = () => {
-            const nextTargetCount = measureViewportTargetCount();
-            setViewportTargetCount((current) => (current === nextTargetCount ? current : nextTargetCount));
+        const updateTargetCount = () => {
+            const nextTargetCount = getSidebarConversationTargetCount();
+            setSidebarTargetCount((current) => (current === nextTargetCount ? current : nextTargetCount));
         };
 
-        updateViewportTargetCount();
+        updateTargetCount();
 
         const handleResize = () => {
-            updateViewportTargetCount();
+            updateTargetCount();
         };
 
         window.addEventListener('resize', handleResize);
@@ -217,40 +243,56 @@ export function SidebarConversations() {
         }
 
         const observer = new ResizeObserver(() => {
-            updateViewportTargetCount();
+            updateTargetCount();
         });
 
-        observer.observe(listViewport);
-        if (scrollContainerRef.current) {
-            observer.observe(scrollContainerRef.current);
+        if (listViewportRef.current) {
+            observer.observe(listViewportRef.current);
+        }
+        const scrollContainer = getScrollContainer();
+        if (scrollContainer) {
+            observer.observe(scrollContainer);
         }
 
         return () => {
             observer.disconnect();
             window.removeEventListener('resize', handleResize);
         };
-    }, [measureViewportTargetCount]);
+    }, [getScrollContainer, getSidebarConversationTargetCount, shouldAutoTopUp]);
 
     useEffect(() => {
-        if (viewportTargetCount == null) {
+        if (!hasLoadedConversations || !shouldAutoTopUp || sidebarTargetCount == null) {
             return;
         }
 
-        triggerConversationListLoad(viewportTargetCount);
-    }, [triggerConversationListLoad, viewportTargetCount]);
-
-    // Trigger load on first interaction
-    const handleInteraction = useCallback(() => {
-        triggerConversationListLoad(measureViewportTargetCount() ?? viewportTargetCount ?? undefined);
-    }, [measureViewportTargetCount, triggerConversationListLoad, viewportTargetCount]);
+        triggerConversationListLoad(sidebarTargetCount);
+    }, [hasLoadedConversations, shouldAutoTopUp, sidebarTargetCount, triggerConversationListLoad]);
 
     useEffect(() => {
+        const scrollContainer = getScrollContainer();
+        if (!scrollContainer) {
+            return;
+        }
+
+        const handleScroll = () => {
+            setHasUserScrolled(scrollContainer.scrollTop > 0);
+        };
+
+        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            scrollContainer.removeEventListener('scroll', handleScroll);
+        };
+    }, [getScrollContainer]);
+
+    useEffect(() => {
+        const scrollContainer = getScrollContainer();
         if (
             !hasLoadedConversations
+            || !hasUserScrolled
             || !hasMoreConversations
             || loadingMoreConversations
             || !loadMoreSentinelRef.current
-            || !scrollContainerRef.current
+            || !scrollContainer
         ) {
             return;
         }
@@ -260,7 +302,7 @@ export function SidebarConversations() {
                 void loadMoreConversations();
             }
         }, {
-            root: scrollContainerRef.current,
+            root: scrollContainer,
             rootMargin: '120px 0px',
         });
 
@@ -268,16 +310,17 @@ export function SidebarConversations() {
         return () => observer.disconnect();
     }, [
         hasLoadedConversations,
+        hasUserScrolled,
         hasMoreConversations,
+        getScrollContainer,
         loadMoreConversations,
         loadingMoreConversations,
-        viewportTargetCount,
     ]);
 
     return (
         <>
             {/* 对话区域 — 紧凑内嵌在 Chat 项下方 */}
-            <div className="mt-1" onClick={handleInteraction}>
+            <div className="mt-1">
                 {/* 搜索区域 — 符合 Notion 风格，搜索时替换按钮 */}
                 <div className="mb-1">
                     {isSearching ? (
@@ -327,7 +370,7 @@ export function SidebarConversations() {
                 </div>
 
                 {/* 分组对话列表 */}
-                <div ref={listViewportRef} className="space-y-0.5">
+                <div ref={listViewportRef} className="relative space-y-0.5">
                     {conversationListError && !hasLoadedConversations && !conversationsLoading ? (
                         <div className="rounded-md border border-[#ead9bf] bg-[#fcf8ee] px-3 py-3 text-xs text-[#946c21]">
                             <div>{conversationListError}</div>

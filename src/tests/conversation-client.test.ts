@@ -196,3 +196,60 @@ test('chat state no longer caches running task snapshots as canonical conversati
     /mingai:knowledge-base:ingested/u,
   );
 });
+
+test('sidebar conversation viewport top-up waits for the first page to finish loading', () => {
+  const sidebarSource = readFileSync(resolve(process.cwd(), 'src/components/layout/SidebarConversations.tsx'), 'utf8');
+  const mobileDrawerSource = readFileSync(resolve(process.cwd(), 'src/components/chat/MobileChatDrawer.tsx'), 'utf8');
+  const conversationItemSource = readFileSync(resolve(process.cwd(), 'src/components/chat/sidebar/ConversationItem.tsx'), 'utf8');
+  const conversationSource = readFileSync(resolve(process.cwd(), 'src/lib/chat/conversation.ts'), 'utf8');
+  const routeSource = readFileSync(resolve(process.cwd(), 'src/app/api/conversations/route.ts'), 'utf8');
+
+  assert.match(
+    sidebarSource,
+    /const shouldAutoTopUp = !isSearching && searchQuery\.trim\(\)\.length === 0 && collapsedGroups\.size === 0;/u,
+  );
+  assert.match(
+    sidebarSource,
+    /if \(availableHeight <= 0 \|\| rowElements\.length === 0\) \{\s*return null;\s*\}/u,
+  );
+  assert.match(
+    sidebarSource,
+    /let reservedBottomHeight = 0;[\s\S]*reservedBottomHeight \+= sibling\.getBoundingClientRect\(\)\.height;/u,
+  );
+  assert.match(
+    sidebarSource,
+    /if \(!hasLoadedConversations \|\| !shouldAutoTopUp \|\| sidebarTargetCount == null\) \{\s*return;\s*\}[\s\S]*triggerConversationListLoad\(sidebarTargetCount\);/u,
+  );
+  assert.doesNotMatch(
+    sidebarSource,
+    /onClick=\{handleInteraction\}/u,
+  );
+  assert.match(
+    sidebarSource,
+    /setHasUserScrolled\(scrollContainer\.scrollTop > 0\);/u,
+  );
+  assert.match(
+    sidebarSource,
+    /!hasUserScrolled[\s\S]*void loadMoreConversations\(\);/u,
+  );
+  assert.match(
+    mobileDrawerSource,
+    /setHasUserScrolled\(scrollContainer\.scrollTop > 0\);/u,
+  );
+  assert.match(
+    mobileDrawerSource,
+    /const closeDrawer = useCallback\(\(\) => \{\s*setIsOpen\(false\);\s*setHasUserScrolled\(false\);\s*\}, \[\]\);/u,
+  );
+  assert.doesNotMatch(
+    conversationSource,
+    /debugReason/u,
+  );
+  assert.doesNotMatch(
+    routeSource,
+    /conversation-debug/u,
+  );
+  assert.match(
+    conversationItemSource,
+    /data-conversation-row="true"/u,
+  );
+});

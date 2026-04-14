@@ -213,6 +213,64 @@ test('useSessionMembership should keep viewer failures in loading state until bo
   }
 });
 
+test('useFeatureToggles should keep the app in loading state while bootstrap is still pending', () => {
+  const appBootstrapModule = require('../lib/hooks/useAppBootstrap') as typeof import('../lib/hooks/useAppBootstrap');
+  const hookPath = require.resolve('../lib/hooks/useFeatureToggles');
+
+  const originalUseAppBootstrap = appBootstrapModule.useAppBootstrap;
+
+  (appBootstrapModule as { useAppBootstrap: typeof import('../lib/hooks/useAppBootstrap').useAppBootstrap }).useAppBootstrap = () => ({
+    data: {
+      viewerLoaded: false,
+      viewerSummary: null,
+      viewerErrorMessage: null,
+      membership: null,
+      featureToggles: {},
+      featureTogglesLoaded: false,
+      featureTogglesErrorMessage: null,
+      unreadCount: 0,
+      unreadCountLoaded: false,
+    },
+    error: null,
+    isLoading: false,
+    hasBootstrapData: false,
+    refresh: async () => ({
+      viewerLoaded: true,
+      viewerSummary: null,
+      viewerErrorMessage: null,
+      membership: null,
+      featureToggles: {},
+      featureTogglesLoaded: true,
+      featureTogglesErrorMessage: null,
+      unreadCount: 0,
+      unreadCountLoaded: true,
+    }),
+    markCreditsExhausted() {},
+  } as ReturnType<typeof import('../lib/hooks/useAppBootstrap').useAppBootstrap>);
+
+  try {
+    delete require.cache[hookPath];
+    const { useFeatureToggles } = require('../lib/hooks/useFeatureToggles') as typeof import('../lib/hooks/useFeatureToggles');
+
+    function Probe() {
+      const featureToggles = useFeatureToggles();
+      return React.createElement('div', {
+        'data-loading': String(featureToggles.isLoading),
+        'data-loaded': String(featureToggles.loaded),
+        'data-has-error': String(featureToggles.error instanceof Error),
+      });
+    }
+
+    const html = renderToStaticMarkup(React.createElement(Probe));
+    assert.match(html, /data-loading="true"/u);
+    assert.match(html, /data-loaded="false"/u);
+    assert.match(html, /data-has-error="false"/u);
+  } finally {
+    (appBootstrapModule as { useAppBootstrap: typeof import('../lib/hooks/useAppBootstrap').useAppBootstrap }).useAppBootstrap = originalUseAppBootstrap;
+    delete require.cache[hookPath];
+  }
+});
+
 test('ClientProviders should revalidate auth state and invalidate auth-bound queries after auth changes', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/components/providers/ClientProviders.tsx'), 'utf8');
 

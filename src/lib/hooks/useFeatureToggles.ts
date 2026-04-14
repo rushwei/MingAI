@@ -25,7 +25,11 @@ export function useFeatureToggles(options: UseFeatureTogglesOptions = {}): Featu
   const bootstrap = useAppBootstrap({ enabled });
   const toggles = bootstrap.data.featureToggles;
   const togglesLoaded = bootstrap.data.featureTogglesLoaded;
-  const toggleError = !togglesLoaded
+  const bootstrapPending = enabled
+    && !togglesLoaded
+    && !bootstrap.hasBootstrapData
+    && !(bootstrap.error instanceof Error);
+  const toggleError = !togglesLoaded && !bootstrapPending
     ? (
       bootstrap.error instanceof Error && !bootstrap.hasBootstrapData
         ? bootstrap.error
@@ -43,7 +47,7 @@ export function useFeatureToggles(options: UseFeatureTogglesOptions = {}): Featu
   );
 
   return {
-    isLoading: enabled ? bootstrap.isLoading : false,
+    isLoading: enabled ? (bootstrapPending || bootstrap.isLoading) : false,
     loaded: enabled ? togglesLoaded : true,
     error: enabled ? toggleError : null,
     isFeatureEnabled,

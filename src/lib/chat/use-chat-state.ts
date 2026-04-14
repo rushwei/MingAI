@@ -106,8 +106,8 @@ export interface ChatStateReturn {
     setShowCreditsModal: React.Dispatch<React.SetStateAction<boolean>>;
 
     // Actions
-  refreshConversationList: (targetUserId?: string | null) => Promise<void>;
-  triggerConversationListLoad: () => void;
+  refreshConversationList: (targetUserId?: string | null, options?: { targetCount?: number }) => Promise<void>;
+  triggerConversationListLoad: (targetCount?: number) => void;
   handleSelectConversation: (id: string, options?: { updateUrl?: boolean; forceReload?: boolean }) => Promise<void>;
   retryConversationLoad: () => Promise<void>;
   handleNewChat: () => Promise<void>;
