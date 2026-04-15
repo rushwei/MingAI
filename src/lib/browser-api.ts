@@ -1,9 +1,9 @@
 import { invalidateLocalCaches, type LocalCacheScope } from '@/lib/cache/local-storage';
 import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 
-export const DATA_INDEX_INVALIDATED_EVENT = 'mingai:data-index:invalidate';
-export const HISTORY_SUMMARY_DELETED_EVENT = 'mingai:history-summary:deleted';
-export const KNOWLEDGE_BASE_SYNC_EVENT = 'mingai:knowledge-base:sync';
+export const DATA_INDEX_INVALIDATED_EVENT = 'taibu:data-index:invalidate';
+export const HISTORY_SUMMARY_DELETED_EVENT = 'taibu:history-summary:deleted';
+export const KNOWLEDGE_BASE_SYNC_EVENT = 'taibu:knowledge-base:sync';
 
 export type BrowserApiError = {
   message: string;

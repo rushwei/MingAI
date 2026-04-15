@@ -28,17 +28,17 @@ test('prepare-github-package rewrites core metadata for GitHub Packages', async 
   const sourceCoreManifest = JSON.parse(await readFile(coreManifestPath, 'utf8'));
   const manifest = await runPrintManifest('core');
 
-  assert.equal(manifest.name, '@hhszzzz/mingai-core');
+  assert.equal(manifest.name, '@hhszzzz/taibu-core');
   assert.equal(manifest.version, sourceCoreManifest.version);
   assert.equal(manifest.publishConfig.registry, 'https://npm.pkg.github.com');
   assert.deepEqual(manifest.repository, {
     type: 'git',
-    url: 'https://github.com/hhszzzz/MingAI.git',
+    url: 'https://github.com/hhszzzz/taibu.git',
   });
 });
 
 test('prepare-github-package copies the package-local LICENSE when available', async () => {
-  const tempRoot = await mkdtemp(path.join(tmpdir(), 'mingai-license-check-'));
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'taibu-license-check-'));
 
   try {
     await execFileAsync(process.execPath, [
@@ -64,12 +64,12 @@ test('prepare-github-package rewrites workspace dependencies for GitHub Packages
   const sourceCoreManifest = JSON.parse(await readFile(coreManifestPath, 'utf8'));
   const manifest = await runPrintManifest('mcp');
 
-  assert.equal(manifest.name, '@hhszzzz/mingai-mcp');
-  assert.equal(manifest.dependencies['@hhszzzz/mingai-core'], sourceCoreManifest.version);
-  assert.equal(manifest.dependencies['@mingai/core'], undefined);
+  assert.equal(manifest.name, '@hhszzzz/taibu-mcp');
+  assert.equal(manifest.dependencies['@hhszzzz/taibu-core'], sourceCoreManifest.version);
+  assert.equal(manifest.dependencies['taibu-core'], undefined);
   assert.equal(manifest.publishConfig.registry, 'https://npm.pkg.github.com');
   assert.deepEqual(manifest.repository, {
     type: 'git',
-    url: 'https://github.com/hhszzzz/MingAI.git',
+    url: 'https://github.com/hhszzzz/taibu.git',
   });
 });

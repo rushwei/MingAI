@@ -1,6 +1,6 @@
 import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune, calculateGenericMonthlyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
-import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import type { BaziOutput as CoreBaziOutput } from 'taibu-core/bazi';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';

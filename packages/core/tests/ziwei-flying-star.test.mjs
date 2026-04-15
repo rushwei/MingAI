@@ -5,7 +5,7 @@ import {
   calculateZiweiFlyingStar,
   toZiweiFlyingStarJson,
   toZiweiFlyingStarText,
-} from '@mingai/core';
+} from 'taibu-core';
 
 const BASE_BIRTH = {
   gender: 'male',

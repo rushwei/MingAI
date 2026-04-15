@@ -1,4 +1,4 @@
-import type { ZiweiStarJSON } from '@mingai/core/ziwei';
+import type { ZiweiStarJSON } from 'taibu-core/ziwei';
 import { getBrightnessColor, getMutagenColor } from '@/lib/divination/display-helpers';
 
 type StarBadgeStar = ZiweiStarJSON & {

@@ -13,15 +13,15 @@ import {
 
 test('stdio config snippets match the documented local MCP usage', () => {
   const npxConfig = JSON.parse(buildMcpStdioNpxConfig()) as {
-    mcpServers: { mingai: { command: string; args: string[] } };
+    mcpServers: { taibu: { command: string; args: string[] } };
   };
   const globalConfig = JSON.parse(buildMcpStdioGlobalConfig()) as {
-    mcpServers: { mingai: { command: string } };
+    mcpServers: { taibu: { command: string } };
   };
 
   assert.deepEqual(npxConfig, {
     mcpServers: {
-      mingai: {
+      taibu: {
         command: 'npx',
         args: ['-y', MCP_STDIO_PACKAGE_NAME],
       },
@@ -29,7 +29,7 @@ test('stdio config snippets match the documented local MCP usage', () => {
   });
   assert.deepEqual(globalConfig, {
     mcpServers: {
-      mingai: {
+      taibu: {
         command: MCP_STDIO_GLOBAL_COMMAND,
       },
     },
@@ -38,12 +38,12 @@ test('stdio config snippets match the documented local MCP usage', () => {
 
 test('oauth config snippet keeps the remote streamable-http entry', () => {
   const oauthConfig = JSON.parse(buildMcpOAuthConfig()) as {
-    mcpServers: { mingai: { type: string; url: string } };
+    mcpServers: { taibu: { type: string; url: string } };
   };
 
   assert.deepEqual(oauthConfig, {
     mcpServers: {
-      mingai: {
+      taibu: {
         type: 'streamable-http',
         url: MCP_OAUTH_URL,
       },

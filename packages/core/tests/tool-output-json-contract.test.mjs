@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildToolSuccessPayload, executeTool } from '@mingai/core/mcp';
+import { buildToolSuccessPayload, executeTool } from 'taibu-core/mcp';
 
 function createBaziResult() {
   return {

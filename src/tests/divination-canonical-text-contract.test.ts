@@ -12,7 +12,7 @@ import {
   toZiweiHoroscopeText,
   toZiweiText,
   type DaliurenOutput,
-} from '@mingai/core';
+} from 'taibu-core';
 import { calculateBaziChartBundle, generateBaziChartText } from '@/lib/divination/bazi';
 import { calculateZiweiChartBundle, generateZiweiChartText } from '@/lib/divination/ziwei';
 

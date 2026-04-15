@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateAstrology, toAstrologyJson, toAstrologyText } from '@mingai/core';
+import { calculateAstrology, toAstrologyJson, toAstrologyText } from 'taibu-core';
 
 const ASPECT_TARGETS = {
   conjunction: 0,

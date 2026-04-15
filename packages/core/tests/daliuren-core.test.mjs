@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateDaliuren, toDaliurenJson, toDaliurenText } from '@mingai/core';
+import { calculateDaliuren, toDaliurenJson, toDaliurenText } from 'taibu-core';
 
 test('daliuren basic output should have correct structure and field types', () => {
   const result = calculateDaliuren({

@@ -68,6 +68,10 @@ function resolveLinuxDoPlanNameFromUser(user: ReturnType<typeof useSessionSafe>[
 }
 
 function buildLinuxDoClaimLockKey(userId: string) {
+  return `taibu:linuxdo-membership-claim:${userId}`;
+}
+
+function buildLegacyLinuxDoClaimLockKey(userId: string) {
   return `mingai:linuxdo-membership-claim:${userId}`;
 }
 
@@ -81,17 +85,20 @@ function persistLinuxDoClaimLock(
     nextAvailableAt,
     planName,
   }));
+  window.sessionStorage.removeItem(buildLegacyLinuxDoClaimLockKey(userId));
 }
 
 function clearLinuxDoClaimLock(userId: string) {
   if (typeof window === 'undefined') return;
   window.sessionStorage.removeItem(buildLinuxDoClaimLockKey(userId));
+  window.sessionStorage.removeItem(buildLegacyLinuxDoClaimLockKey(userId));
 }
 
 function readLinuxDoClaimLock(userId: string): { nextAvailableAt: string; planName: LinuxDoClaimPlanName | null } | null {
   if (typeof window === 'undefined') return null;
 
   const raw = window.sessionStorage.getItem(buildLinuxDoClaimLockKey(userId));
+  window.sessionStorage.removeItem(buildLegacyLinuxDoClaimLockKey(userId));
   if (!raw) {
     return null;
   }

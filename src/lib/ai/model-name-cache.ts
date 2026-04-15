@@ -1,8 +1,9 @@
-import { readLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
+import { readLocalCache, removeLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 
 type ClientModelNameMap = Record<string, string>;
 
-const MODEL_NAME_CACHE_KEY = 'mingai.model_name_map';
+const MODEL_NAME_CACHE_KEY = 'taibu.model_name_map';
+const LEGACY_MODEL_NAME_CACHE_KEY = 'mingai.model_name_map';
 
 let memoryModelNameMap: ClientModelNameMap | null = null;
 
@@ -10,6 +11,7 @@ function loadClientModelNameMap(): ClientModelNameMap {
     if (memoryModelNameMap) {
         return memoryModelNameMap;
     }
+    removeLocalCache(LEGACY_MODEL_NAME_CACHE_KEY);
     const cached = readLocalCache<ClientModelNameMap>(MODEL_NAME_CACHE_KEY, Number.POSITIVE_INFINITY) || {};
     memoryModelNameMap = cached;
     return cached;
@@ -35,6 +37,7 @@ export function registerClientModelNames(models: Array<{ id: string; name: strin
 
     memoryModelNameMap = next;
     writeLocalCache(MODEL_NAME_CACHE_KEY, next);
+    removeLocalCache(LEGACY_MODEL_NAME_CACHE_KEY);
 }
 
 export function resolveClientModelName(modelId: string, fallback?: string): string {

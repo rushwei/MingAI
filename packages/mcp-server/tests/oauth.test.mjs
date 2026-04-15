@@ -366,11 +366,11 @@ test('rotateRefreshTokenTransactionally should call rpc with scope/resource', as
 });
 
 test('exchangeAuthorizationCode should reject mismatched resource binding', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
   let signCalls = 0;
   let exchangeCalls = 0;
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getAuthorizationCode: async () => ({
       code: 'code-1',
       clientId: 'client-1',
@@ -408,11 +408,11 @@ test('exchangeAuthorizationCode should reject mismatched resource binding', asyn
 });
 
 test('exchangeAuthorizationCode should persist through transactional exchange', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
   const steps = [];
   let savedRefreshToken;
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getAuthorizationCode: async () => ({
       code: 'code-1',
       clientId: 'client-1',
@@ -451,9 +451,9 @@ test('exchangeAuthorizationCode should persist through transactional exchange', 
 });
 
 test('exchangeAuthorizationCode should fail when transactional exchange loses the race', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getAuthorizationCode: async () => ({
       code: 'code-1',
       clientId: 'client-1',
@@ -483,11 +483,11 @@ test('exchangeAuthorizationCode should fail when transactional exchange loses th
 });
 
 test('exchangeRefreshToken should reject mismatched resource binding', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
   let signCalls = 0;
   let rotationCalls = 0;
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getActiveRefreshToken: async () => ({
       userId: 'user-1',
       clientId: 'client-1',
@@ -519,11 +519,11 @@ test('exchangeRefreshToken should reject mismatched resource binding', async () 
 });
 
 test('exchangeRefreshToken should reject scope escalation and keep token active', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
   let signCalls = 0;
   let rotationCalls = 0;
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getActiveRefreshToken: async () => ({
       userId: 'user-1',
       clientId: 'client-1',
@@ -556,14 +556,14 @@ test('exchangeRefreshToken should reject scope escalation and keep token active'
 });
 
 test('exchangeRefreshToken should default scope to mcp:tools when stored scope is empty', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
   let rotated = 0;
   let signedScope;
   let signedResource;
   let rotatedScope;
   let rotatedResource;
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getActiveRefreshToken: async () => ({
       userId: 'user-1',
       clientId: 'client-1',
@@ -600,9 +600,9 @@ test('exchangeRefreshToken should default scope to mcp:tools when stored scope i
 });
 
 test('exchangeRefreshToken should fail when transactional rotation loses the race', async () => {
-  const { MingAIOAuthProvider } = await importDist('oauth/provider.js');
+  const { TaiBuOAuthProvider } = await importDist('oauth/provider.js');
 
-  const provider = new MingAIOAuthProvider({
+  const provider = new TaiBuOAuthProvider({
     getActiveRefreshToken: async () => ({
       userId: 'user-1',
       clientId: 'client-1',

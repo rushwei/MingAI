@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as mcpCore from '@mingai/core';
+import * as mcpCore from 'taibu-core';
 
 test('meihua time method basic output', () => {
   const result = mcpCore.calculateMeihua({

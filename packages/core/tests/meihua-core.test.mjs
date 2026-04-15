@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { Lunar } from 'lunar-javascript';
 
-import * as mcpCore from '@mingai/core';
-import { buildListToolsPayload, buildToolSuccessPayload, executeTool } from '@mingai/core/mcp';
+import * as mcpCore from 'taibu-core';
+import { buildListToolsPayload, buildToolSuccessPayload, executeTool } from 'taibu-core/mcp';
 
 function toIsoLocal(solar, hour = 12, minute = 0, second = 0) {
   return `${solar.getYear()}-${String(solar.getMonth()).padStart(2, '0')}-${String(solar.getDay()).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
@@ -12,7 +12,7 @@ function toIsoLocal(solar, hour = 12, minute = 0, second = 0) {
 
 function runMeihuaUnderTimeZone(timeZone) {
   const script = `
-    import { calculateMeihua } from '@mingai/core';
+    import { calculateMeihua } from 'taibu-core';
     const result = await calculateMeihua({
       question: 'tz',
       method: 'time',

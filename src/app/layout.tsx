@@ -39,8 +39,11 @@ const themeInitScript = `
     }
   };
 
-  const storedThemeMode = parseStoredValue('mingai.pref.themeMode');
-  const legacyTheme = parseStoredValue('mingai.pref.theme');
+  window.localStorage.removeItem('mingai.pref.themeMode');
+  window.localStorage.removeItem('mingai.pref.theme');
+
+  const storedThemeMode = parseStoredValue('taibu.pref.themeMode');
+  const legacyTheme = parseStoredValue('taibu.pref.theme');
   const themeMode =
     storedThemeMode === 'light' || storedThemeMode === 'dark' || storedThemeMode === 'system'
       ? storedThemeMode
@@ -71,23 +74,23 @@ const themeInitScript = `
 // SEO 元数据配置
 export const metadata: Metadata = {
   title: {
-    default: "MingAI",
-    template: "%s | MingAI"
+    default: "太卜",
+    template: "%s | 太卜"
   },
   description: "将传统命理文化与前沿AI技术深度融合，为您提供专业、私密、便捷的命理咨询服务。八字精批、紫微斗数、塔罗占卜等多种命理体系。",
   keywords: ["命理", "八字", "AI算命", "紫微斗数", "塔罗", "运势", "命盘分析"],
-  authors: [{ name: "MingAI Team" }],
-  creator: "MingAI",
+  authors: [{ name: "太卜" }],
+  creator: "太卜",
   openGraph: {
     type: "website",
     locale: "zh_CN",
-    siteName: "MingAI",
-    title: "MingAI",
+    siteName: "太卜",
+    title: "太卜",
     description: "AI驱动的个性化命理分析，多人格AI命理师，记忆式对话体验",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MingAI",
+    title: "太卜",
     description: "AI驱动的个性化命理分析",
   },
   icons: {

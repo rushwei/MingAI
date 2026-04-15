@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="public/favicon.svg" alt="MingAI" width="80" height="80">
+<img src="public/favicon.svg" alt="TaiBu" width="80" height="80">
 
-# MingAI - AI Metaphysics
+# TaiBu
 
 **Integrating traditional metaphysics with AI**
 
@@ -14,7 +14,7 @@
 
 Language: [中文](README.md) | **English**
 
-[Live Demo](https://www.mingai.fun) · [Report Issues](https://github.com/hhszzzz/MingAI/issues)
+[Live Demo](https://www.mingai.fun) · [Report Issues](https://github.com/hhszzzz/taibu/issues)
 
 </div>
 
@@ -53,7 +53,7 @@ Language: [中文](README.md) | **English**
 
 ## MCP Server
 
-MingAI provides an MCP (Model Context Protocol) server, so you can directly call metaphysics tools from MCP-compatible clients.
+TaiBu provides an MCP (Model Context Protocol) server, so you can directly call metaphysics tools from MCP-compatible clients.
 
 ### Quick Setup
 
@@ -62,9 +62,9 @@ Add to your Claude Desktop / Cherry Studio MCP config — no manual download nee
 ```json
 {
   "mcpServers": {
-    "mingai": {
+    "taibu": {
       "command": "npx",
-      "args": ["-y", "@mingai/mcp"]
+      "args": ["-y", "taibu-mcp"]
     }
   }
 }
@@ -95,10 +95,10 @@ Add to your Claude Desktop / Cherry Studio MCP config — no manual download nee
 If you want to call the calculation engine directly in your own Node.js project (without MCP), use the core library:
 
 ```bash
-npm install @mingai/core
+npm install taibu-core
 ```
 
-See [@mingai/core on npm](https://www.npmjs.com/package/@mingai/core) and [packages/core/README.md](packages/core/README.md) for full API docs and subpath exports.
+See [taibu-core on npm](https://www.npmjs.com/package/taibu-core) and [packages/core/README.md](packages/core/README.md) for full API docs and subpath exports.
 
 ---
 
@@ -134,8 +134,8 @@ Requirements:
 
 ```bash
 # Clone repository
-git clone git@github.com:hhszzzz/MingAI.git
-cd MingAI
+git clone git@github.com:hhszzzz/taibu.git
+cd taibu
 
 # Install dependencies
 pnpm install
@@ -183,7 +183,7 @@ Notes:
 
 <div align="center">
 
-**MingAI** - Interpret destiny with AI, preserve culture with technology
+**TaiBu** - Interpret destiny with AI, preserve culture with technology
 
 Made with ❤️ by [hhszzzz](https://github.com/hhszzzz)
 

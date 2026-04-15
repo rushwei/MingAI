@@ -1,5 +1,5 @@
 import { Calendar, TrendingUp } from 'lucide-react';
-import type { BaziCanonicalJSON } from '@mingai/core/bazi';
+import type { BaziCanonicalJSON } from 'taibu-core/bazi';
 import { calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo } from '@/lib/divination/bazi';
 import { DaYunTable } from '@/components/bazi/result/DaYunTable';
 import { LiuNianTable } from '@/components/bazi/result/LiuNianTable';

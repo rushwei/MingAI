@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Solar } from 'lunar-javascript';
-import { calculateBazi } from '@mingai/core/bazi';
+import { calculateBazi } from 'taibu-core/bazi';
 import type { BaziFormData } from '@/types';
 import { getEarthlyBranchByHour } from '@/lib/divination/bazi-form-utils';
 

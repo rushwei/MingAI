@@ -1,5 +1,5 @@
 /**
- * MingAI 类型定义
+ * TaiBu 类型定义
  * 
  * 这个文件集中定义项目中使用的所有 TypeScript 类型
  * 便于类型复用和统一管理
@@ -14,7 +14,7 @@ import type {
     TianGan,
     TrueSolarTimeInfo as CoreTrueSolarTimeInfo,
     WuXing,
-} from '@mingai/core';
+} from 'taibu-core';
 export type { ConversationSourceType } from '@/lib/source-contracts';
 
 // ===== 基础类型 =====

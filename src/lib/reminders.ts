@@ -8,7 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
 import { calculateDailyFortune, generateEnhancedKeyDates, compareLevels, isLevelFavorable } from '@/lib/divination/fortune';
-import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import type { BaziOutput as CoreBaziOutput } from 'taibu-core/bazi';
 import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 // ===== 提醒类型 =====

@@ -8,20 +8,20 @@
  */
 
 import { Solar } from 'lunar-javascript';
-import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import type { BaziOutput as CoreBaziOutput } from 'taibu-core/bazi';
 import {
     STEM_ELEMENTS,
     ZHI_WUXING,
     calculateTenGod,
     getElementRelation,
-} from '@mingai/core/utils';
+} from 'taibu-core/utils';
 import {
     HIDDEN_STEM_DETAILS,
     LIU_CHONG,
     LIU_HE,
     TAO_HUA,
     YI_MA,
-} from '@mingai/core/data/shensha';
+} from 'taibu-core/data/shensha';
 import { createMemoryCache } from '@/lib/cache/memory';
 import type { HeavenlyStem, FiveElement, FortuneLevel } from '@/types';
 

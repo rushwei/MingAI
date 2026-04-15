@@ -1,7 +1,7 @@
 /**
  * Web 侧塔罗封装层
  *
- * 核心牌库、牌阵、抽牌与 canonical 输出统一复用 @mingai/core/tarot。
+ * 核心牌库、牌阵、抽牌与 canonical 输出统一复用 taibu-core/tarot。
  * Web 侧仅补充图片路径与少量展示文案 overlay。
  */
 
@@ -16,7 +16,7 @@ import {
     type TarotCardResult,
     type TarotOutput as CoreTarotOutput,
     type TarotSpreadDefinition,
-} from '@mingai/core/tarot';
+} from 'taibu-core/tarot';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export type TarotSuit = 'major' | 'wands' | 'cups' | 'swords' | 'pentacles';

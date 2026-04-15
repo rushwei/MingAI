@@ -193,7 +193,7 @@ test('chat state no longer caches running task snapshots as canonical conversati
   );
   assert.doesNotMatch(
     messagingSource,
-    /mingai:knowledge-base:ingested/u,
+    /taibu:knowledge-base:ingested/u,
   );
 });
 

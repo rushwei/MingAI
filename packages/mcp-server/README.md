@@ -1,6 +1,6 @@
-# @mingai/mcp-server
+# taibu-mcp-server
 
-MingAI 的在线 MCP Server，基于 Streamable HTTP 运行，面向远程部署场景。
+TaiBu 的在线 MCP Server，基于 Streamable HTTP 运行，面向远程部署场景。
 
 当前发布线：`2.0.x`
 
@@ -8,19 +8,19 @@ MingAI 的在线 MCP Server，基于 Streamable HTTP 运行，面向远程部署
 
 ## 适用场景
 
-- 需要把 MingAI MCP 工具部署成远程服务
+- 需要把 TaiBu MCP 工具部署成远程服务
 - 需要 OAuth 2.1 + PKCE 接入 ChatGPT 等 MCP 客户端
 - 需要继续兼容用户级 API Key 调用
 
 ## 安装
 
 ```bash
-npm install @mingai/mcp-server
+npm install taibu-mcp-server
 ```
 
 ## 核心特性
 
-- 复用 `@mingai/core` 的 15 个工具能力
+- 复用 `taibu-core` 的 15 个工具能力
 - Streamable HTTP 入口：`/mcp`
 - OAuth 2.1 + PKCE + 动态客户端注册
 - `Authorization: Bearer <token>` 与 `x-api-key` 双认证链路
@@ -75,7 +75,7 @@ pnpm -C packages/mcp-server start
 | `MCP_SESSION_IDLE_MS` | 会话空闲超时 |
 | `MCP_MAX_SSE_PER_USER` | 每用户 SSE 并发上限 |
 | `MCP_TRUST_PROXY` | 反向代理后设为 `true` |
-| `MINGAI_SITE_URL` | OAuth 授权页 Logo 与站点链接来源 |
+| `TAIBU_SITE_URL` | OAuth 授权页 Logo 与站点链接来源 |
 | `AMAP_WEB_SERVICE_KEY` | 可选。出生地点解析服务所需的高德 Web Service Key |
 
 ### OAuth 2.1
@@ -96,7 +96,7 @@ pnpm -C packages/mcp-server start
 ```json
 {
   "mcpServers": {
-    "mingai": {
+    "taibu": {
       "type": "streamable-http",
       "url": "https://your-domain.example.com/mcp"
     }
@@ -109,7 +109,7 @@ pnpm -C packages/mcp-server start
 ```json
 {
   "mcpServers": {
-    "mingai": {
+    "taibu": {
       "type": "streamable-http",
       "url": "https://your-domain.example.com/mcp",
       "headers": {
@@ -124,14 +124,14 @@ Bearer token 的优先级高于 API Key；若 Bearer token 存在但无效，不
 
 ## 与其他包的关系
 
-- [`@mingai/core`](https://www.npmjs.com/package/@mingai/core): 工具注册、算法实现、transport 适配器
-- [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp): 本地 `stdio` MCP Server
+- [`taibu-core`](https://www.npmjs.com/package/taibu-core): 工具注册、算法实现、transport 适配器
+- [`taibu-mcp`](https://www.npmjs.com/package/taibu-mcp): 本地 `stdio` MCP Server
 
-注意：`@mingai/core` 仍保持纯算法边界，本身不接地图服务，也不会自动把地点名换算为经度。
+注意：`taibu-core` 仍保持纯算法边界，本身不接地图服务，也不会自动把地点名换算为经度。
 
 ## License
 
-`@mingai/mcp-server` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。
+`taibu-mcp-server` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。
 
 ## 版本批次
 

@@ -1,5 +1,5 @@
 {
-  "name": "mingai-app",
+  "name": "taibu-app",
   "version": "0.1.0",
   "private": true,
   "license": "AGPL-3.0-only",
@@ -23,7 +23,7 @@
     "@capacitor/core": "^8.0.1",
     "@capacitor/ios": "^8.0.1",
     "@lobehub/icons": "^4.0.2",
-    "@mingai/core": "workspace:*",
+    "taibu-core": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",

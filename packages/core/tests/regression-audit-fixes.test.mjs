@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 
-import * as mcpCore from '@mingai/core';
+import * as mcpCore from 'taibu-core';
 
 function runQimenUnderTimeZone(timeZone) {
   const script = `
-    import { calculateQimen } from '@mingai/core';
+    import { calculateQimen } from 'taibu-core';
     const result = await calculateQimen({
       year: 2026,
       month: 3,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateXiaoliurenData, toXiaoliurenJson, toXiaoliurenText } from '@mingai/core';
+import { calculateXiaoliurenData, toXiaoliurenJson, toXiaoliurenText } from 'taibu-core';
 
 test('xiaoliuren basic calculation - month 1, day 1, hour 1 (子时)', () => {
   const result = calculateXiaoliurenData({ lunarMonth: 1, lunarDay: 1, hour: 1 });

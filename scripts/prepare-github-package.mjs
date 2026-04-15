@@ -6,16 +6,16 @@ import { fileURLToPath } from 'node:url';
 export const GITHUB_REGISTRY = 'https://npm.pkg.github.com';
 export const GITHUB_REPOSITORY = {
   type: 'git',
-  url: 'https://github.com/hhszzzz/MingAI.git',
+  url: 'https://github.com/hhszzzz/taibu.git',
 };
 export const GITHUB_PACKAGE_TARGETS = {
   core: {
     sourceDir: 'packages/core',
-    githubName: '@hhszzzz/mingai-core',
+    githubName: '@hhszzzz/taibu-core',
   },
   mcp: {
     sourceDir: 'packages/mcp',
-    githubName: '@hhszzzz/mingai-mcp',
+    githubName: '@hhszzzz/taibu-mcp',
   },
 };
 

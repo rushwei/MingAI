@@ -5,7 +5,7 @@ import {
   calculateZiweiHoroscope,
   toZiweiHoroscopeJson,
   toZiweiHoroscopeText,
-} from '@mingai/core';
+} from 'taibu-core';
 
 const BASE_INPUT = {
   gender: 'male',

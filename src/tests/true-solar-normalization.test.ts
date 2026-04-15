@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Lunar } from 'lunar-javascript';
-import { calculateBazi } from '@mingai/core/bazi';
-import { calculateZiwei } from '@mingai/core/ziwei';
+import { calculateBazi } from 'taibu-core/bazi';
+import { calculateZiwei } from 'taibu-core/ziwei';
 
 test('true solar correction should normalize rounded minutes instead of returning impossible :60 values', () => {
   const result = calculateZiwei({

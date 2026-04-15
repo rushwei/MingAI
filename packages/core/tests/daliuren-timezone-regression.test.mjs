@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 function runUnderTimeZone(timeZone) {
   const script = `
-    import { calculateDaliuren } from '@mingai/core';
+    import { calculateDaliuren } from 'taibu-core';
     const result = calculateDaliuren({
       date: '2024-01-01',
       hour: 10,

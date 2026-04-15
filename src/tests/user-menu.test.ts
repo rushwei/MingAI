@@ -13,7 +13,13 @@ test('user menu uses registry icons and removes heavy account shortcuts', () => 
   assert.equal(source.includes("{ tab: 'general', label: '设置' }"), true);
   assert.equal(source.includes("{ tab: 'personalization', label: '个性化' }"), true);
   assert.equal(source.includes("{ tab: 'charts', label: '命盘' }"), true);
-  assert.equal(source.includes("{ tab: 'help', label: '帮助' }"), true);
+  assert.equal(source.includes('PROJECT_REPO_URL'), true);
+  assert.equal(source.includes('PROJECT_ISSUES_URL'), true);
+  assert.equal(source.includes('https://github.com/hhszzzz/taibu'), true);
+  assert.equal(source.includes('https://docs.qq.com/smartsheet/DS3JSQ0dHTUdrVWFh'), true);
+  assert.equal(source.includes('tab="help"'), true);
+  assert.equal(source.includes('帮助中心'), true);
+  assert.equal(source.includes('报告错误/需求'), true);
   assert.equal(hostSource.includes("from '@/components/settings/settings-center-icons'"), true);
   assert.equal(hostSource.includes('SETTINGS_CENTER_TAB_ICONS'), true);
   assert.equal(iconSource.includes('MetaLogoIcon'), true);
@@ -24,4 +30,5 @@ test('user menu uses registry icons and removes heavy account shortcuts', () => 
   assert.equal(source.includes('tab="admin-announcements"'), false);
   assert.equal(source.includes('rounded-2xl'), true);
   assert.equal(source.includes('rounded-xl'), true);
+  assert.equal(source.includes('HELP_SUBMENU_CLASS'), true);
 });

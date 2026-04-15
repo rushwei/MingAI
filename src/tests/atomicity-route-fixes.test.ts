@@ -991,7 +991,7 @@ test('daliuren save should persist through shared save helper and return divinat
   const routePath = require.resolve('../app/api/daliuren/route');
   const originalRequireUserContext = apiUtilsModule.requireUserContext;
   const originalGetSystemAdminClient = supabaseServerModule.getSystemAdminClient;
-  const { calculateDaliuren } = await import('@mingai/core');
+  const { calculateDaliuren } = await import('taibu-core');
 
   let insertedPayload: Record<string, unknown> | null = null;
 

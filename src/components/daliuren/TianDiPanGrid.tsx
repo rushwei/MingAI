@@ -2,7 +2,7 @@
  * 大六壬天地盘宫格组件
  * 4x4 布局，中心显示课名
  */
-import type { DaliurenCanonicalJSON } from '@mingai/core/daliuren';
+import type { DaliurenCanonicalJSON } from 'taibu-core/daliuren';
 
 const WANGSUAI_COLORS: Record<string, string> = {
     旺: 'text-red-500 font-bold',

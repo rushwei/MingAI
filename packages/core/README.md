@@ -1,6 +1,6 @@
-# @mingai/core
+# taibu-core
 
-MingAI 的命理术数算法核心库。
+TaiBu 的命理术数算法核心库。
 
 它提供两类能力：
 
@@ -30,17 +30,17 @@ MingAI 的命理术数算法核心库。
 ## 安装
 
 ```bash
-npm install @mingai/core
+npm install taibu-core
 ```
 
-如需使用 GitHub Packages 镜像包，请改用 `@hhszzzz/mingai-core`。npmjs 主包名仍然是 `@mingai/core`。
+如需使用 GitHub Packages 镜像包，请改用 `@hhszzzz/taibu-core`。npmjs 主包名仍然是 `taibu-core`。
 
 ## Quick Start
 
 ### 直接使用某个术数
 
 ```ts
-import { calculateBazi, toBaziText, toBaziJson } from '@mingai/core/bazi';
+import { calculateBazi, toBaziText, toBaziJson } from 'taibu-core/bazi';
 
 const chart = calculateBazi({
   gender: 'male',
@@ -57,7 +57,7 @@ const json = toBaziJson(chart);
 ### 按 MCP 工具名执行
 
 ```ts
-import { executeTool, renderToolResult } from '@mingai/core/mcp';
+import { executeTool, renderToolResult } from 'taibu-core/mcp';
 
 const result = await executeTool('qimen', {
   year: 2026,
@@ -73,37 +73,37 @@ const rendered = renderToolResult('qimen', result);
 
 ## 选择入口
 
-- `@mingai/core`
+- `taibu-core`
   - 根入口，聚合常用术数能力与类型
-- `@mingai/core/mcp`
+- `taibu-core/mcp`
   - MCP 工具执行与输出适配
-- `@mingai/core/<domain>`
+- `taibu-core/<domain>`
   - 某个术数的算法、类型、`to*Text()`、`to*Json()`
 
 当前 domain 子路径包括：
 
-- `@mingai/core/bazi`
-- `@mingai/core/bazi-dayun`
-- `@mingai/core/bazi-pillars-resolve`
-- `@mingai/core/astrology`
-- `@mingai/core/almanac`
-- `@mingai/core/liuyao`
-- `@mingai/core/meihua`
-- `@mingai/core/ziwei`
-- `@mingai/core/ziwei-horoscope`
-- `@mingai/core/ziwei-flying-star`
-- `@mingai/core/qimen`
-- `@mingai/core/taiyi`
-- `@mingai/core/daliuren`
-- `@mingai/core/tarot`
-- `@mingai/core/xiaoliuren`
+- `taibu-core/bazi`
+- `taibu-core/bazi-dayun`
+- `taibu-core/bazi-pillars-resolve`
+- `taibu-core/astrology`
+- `taibu-core/almanac`
+- `taibu-core/liuyao`
+- `taibu-core/meihua`
+- `taibu-core/ziwei`
+- `taibu-core/ziwei-horoscope`
+- `taibu-core/ziwei-flying-star`
+- `taibu-core/qimen`
+- `taibu-core/taiyi`
+- `taibu-core/daliuren`
+- `taibu-core/tarot`
+- `taibu-core/xiaoliuren`
 
 额外公开的共享子路径：
 
-- `@mingai/core/utils`
-- `@mingai/core/timezone-utils`
-- `@mingai/core/data/hexagrams`
-- `@mingai/core/data/shensha`
+- `taibu-core/utils`
+- `taibu-core/timezone-utils`
+- `taibu-core/data/hexagrams`
+- `taibu-core/data/shensha`
 
 ## 包结构
 
@@ -118,7 +118,7 @@ const rendered = renderToolResult('qimen', result);
 
 ## 输出约定
 
-`@mingai/core/mcp` 的 `renderToolResult(...)` 和 `buildToolSuccessPayload(...)` 使用统一输出契约：
+`taibu-core/mcp` 的 `renderToolResult(...)` 和 `buildToolSuccessPayload(...)` 使用统一输出契约：
 
 - `content`
   - 始终返回 canonical text，适合直接阅读
@@ -132,9 +132,9 @@ const rendered = renderToolResult('qimen', result);
 
 ## Related Packages
 
-- [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp)
+- [`taibu-mcp`](https://www.npmjs.com/package/taibu-mcp)
   - 适合本地 `stdio` MCP Server 场景
 
 ## License
 
-`@mingai/core` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。
+`taibu-core` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。

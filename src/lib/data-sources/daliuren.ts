@@ -1,5 +1,5 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { toDaliurenText, type DaliurenOutput } from '@mingai/core/daliuren';
+import { toDaliurenText, type DaliurenOutput } from 'taibu-core/daliuren';
 import { resolveChartTextDetailLevel } from '@/lib/divination/detail-level';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 

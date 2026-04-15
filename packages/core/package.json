@@ -1,15 +1,15 @@
 {
-  "name": "@mingai/core",
+  "name": "taibu-core",
   "version": "3.4.0",
-  "description": "MingAI Core - 命理计算工具核心库（SDK）",
+  "description": "TaiBu Core - 命理计算工具核心库（SDK）",
   "license": "MIT",
-  "homepage": "https://github.com/hhszzzz/MingAI",
+  "homepage": "https://github.com/hhszzzz/taibu",
   "bugs": {
-    "url": "https://github.com/hhszzzz/MingAI/issues"
+    "url": "https://github.com/hhszzzz/taibu/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/hhszzzz/MingAI.git",
+    "url": "https://github.com/hhszzzz/taibu.git",
     "directory": "packages/core"
   },
   "type": "module",
@@ -130,7 +130,7 @@
   },
   "keywords": [
     "mcp",
-    "mingai",
+    "taibu",
     "astrology",
     "bazi",
     "ziwei",

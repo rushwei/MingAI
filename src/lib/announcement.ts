@@ -24,7 +24,8 @@ export interface AnnouncementCenterLocalState {
     dismissedUntil?: string;
 }
 
-export const ANNOUNCEMENT_CENTER_STORAGE_KEY = 'mingai:announcement:center';
+export const ANNOUNCEMENT_CENTER_STORAGE_KEY = 'taibu:announcement:center';
+export const LEGACY_ANNOUNCEMENT_CENTER_STORAGE_KEY = 'mingai:announcement:center';
 
 const hasOwn = (value: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(value, key);
 

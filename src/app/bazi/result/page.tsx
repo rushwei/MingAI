@@ -380,7 +380,7 @@ function BaziResultContent() {
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `${formData.name}的八字命盘 - MingAI`,
+                    title: `${formData.name}的八字命盘 - 太卜`,
                     text: `查看${formData.name}的八字命盘分析`,
                     url,
                 });

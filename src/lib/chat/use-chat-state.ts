@@ -20,6 +20,7 @@ import {
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import {
     CHAT_CONVERSATION_DELETED_EVENT,
+    CHAT_NEW_EVENT,
     useConversationList,
 } from '@/lib/chat/ConversationListContext';
 import type { AttachmentState } from '@/types';
@@ -397,8 +398,8 @@ export function useChatState({
         const handler = () => {
             void handleNewChat();
         };
-        window.addEventListener('mingai:chat:new', handler);
-        return () => window.removeEventListener('mingai:chat:new', handler);
+        window.addEventListener(CHAT_NEW_EVENT, handler);
+        return () => window.removeEventListener(CHAT_NEW_EVENT, handler);
     }, [handleNewChat]);
 
     useEffect(() => {

@@ -4,7 +4,7 @@
  * 对齐 Notion 风格：极简卡片、移除渐变、标准化边框与按钮
  */
 import { User, Save, Sparkles, Info } from 'lucide-react';
-import type { BaziCanonicalJSON } from '@mingai/core/bazi';
+import type { BaziCanonicalJSON } from 'taibu-core/bazi';
 import { getElementColor } from '@/lib/divination/display-helpers';
 import { TenGodKnowledge } from '@/components/bazi/TenGodKnowledge';
 import { AIWuxingAnalysis } from '@/components/bazi/result/AIWuxingAnalysis';

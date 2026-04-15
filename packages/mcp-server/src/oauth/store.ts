@@ -13,7 +13,7 @@ import { oauthDebug, oauthError, oauthWarn } from './logger.js';
 
 // ─── Client Store（SDK 接口）───
 
-export class MingAIClientsStore implements OAuthRegisteredClientsStore {
+export class TaiBuClientsStore implements OAuthRegisteredClientsStore {
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
     let data: Record<string, unknown> | null = null;
     let error: { message?: string; code?: string } | null = null;

@@ -1,5 +1,5 @@
 import { MapPinned } from 'lucide-react';
-import type { BaziCanonicalJSON } from '@mingai/core/bazi';
+import type { BaziCanonicalJSON } from 'taibu-core/bazi';
 import type { BaziMeta } from '@/lib/divination/bazi';
 
 export function ProfileSummaryCard({

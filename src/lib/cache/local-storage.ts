@@ -42,6 +42,13 @@ export function removeLocalCache(key: string) {
   window.localStorage.removeItem(key);
 }
 
+export function removeLocalCacheKeys(keys: string[]) {
+  if (typeof window === 'undefined') return;
+  for (const key of keys) {
+    window.localStorage.removeItem(key);
+  }
+}
+
 export function removeLocalCacheByPrefix(prefix: string) {
   if (typeof window === 'undefined') return;
   const keys: string[] = [];
@@ -62,12 +69,12 @@ export type LocalCacheScope =
   | 'default_bazi_chart';
 
 const CACHE_SCOPE_PREFIXES: Record<Exclude<LocalCacheScope, 'default_bazi_chart'>, string> = {
-  data_sources: 'mingai.data_sources.',
-  knowledge_bases: 'mingai.knowledge_bases.',
+  data_sources: 'taibu.data_sources.',
+  knowledge_bases: 'taibu.knowledge_bases.',
 };
 
 const CACHE_SCOPE_KEYS: Record<'default_bazi_chart', string[]> = {
-  default_bazi_chart: ['mingai.pref.defaultBaziChartId', 'defaultBaziChartId'],
+  default_bazi_chart: ['taibu.pref.defaultBaziChartId', 'mingai.pref.defaultBaziChartId', 'defaultBaziChartId'],
 };
 
 export function invalidateLocalCaches(scopes: LocalCacheScope[]) {
@@ -75,11 +82,10 @@ export function invalidateLocalCaches(scopes: LocalCacheScope[]) {
   const uniqueScopes = Array.from(new Set(scopes));
   for (const scope of uniqueScopes) {
     if (scope === 'default_bazi_chart') {
-      for (const key of CACHE_SCOPE_KEYS.default_bazi_chart) {
-        removeLocalCache(key);
-      }
+      removeLocalCacheKeys(CACHE_SCOPE_KEYS.default_bazi_chart);
       continue;
     }
     removeLocalCacheByPrefix(CACHE_SCOPE_PREFIXES[scope]);
+    removeLocalCacheByPrefix(CACHE_SCOPE_PREFIXES[scope].replace(/^taibu/u, 'mingai'));
   }
 }

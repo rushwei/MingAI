@@ -1,5 +1,5 @@
 /**
- * MingAI MCP Server - Online (Streamable HTTP)
+ * TaiBu MCP Server - Online (Streamable HTTP)
  */
 
 import { config } from 'dotenv';
@@ -27,7 +27,7 @@ import {
   buildListToolsPayload,
   buildToolSuccessPayload,
   normalizeTransportDetailLevel,
-} from '@mingai/core/mcp';
+} from 'taibu-core/mcp';
 import { createRequire } from 'node:module';
 
 import {
@@ -41,7 +41,7 @@ import {
   type McpAuthInfo,
 } from './middleware.js';
 
-import { MingAIOAuthProvider } from './oauth/provider.js';
+import { TaiBuOAuthProvider } from './oauth/provider.js';
 import { cleanupOAuthArtifactsTransactionally, saveAuthorizationCode } from './oauth/store.js';
 import { renderAuthorizePage } from './oauth/authorize-page.js';
 import { validateOAuthLoginRequest } from './oauth/login-validation.js';
@@ -63,10 +63,10 @@ const SESSION_IDLE = readPositiveIntEnv('MCP_SESSION_IDLE_MS', 600000); // 10min
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ─── OAuth Provider ───
-const oauthProvider = new MingAIOAuthProvider();
+const oauthProvider = new TaiBuOAuthProvider();
 const issuerUrl = new URL(process.env.MCP_ISSUER_URL || 'https://mcp.mingai.fun');
 const scopesSupported = ['mcp:tools'] as const;
-const resourceName = 'MingAI MCP Server';
+const resourceName = 'TaiBu MCP Server';
 const resourceServerUrl = new URL('/mcp', issuerUrl);
 
 /**
@@ -282,7 +282,7 @@ app.use(express.json({ limit: '1mb' }));
 // 信息端点（便于手工检查服务可用性）
 app.get('/info', (_req, res) => {
   res.status(200).json({
-    name: 'MingAI MCP Server',
+    name: 'TaiBu MCP Server',
     status: 'ok',
     transport: 'streamable-http',
     mcp_endpoint: resourceServerUrl.pathname,
@@ -395,7 +395,7 @@ oauthCleanupTimer.unref?.();
 
 function createMcpServer(auth: McpAuthInfo) {
   const server = new McpServer(
-    { name: 'mingai-mcp-online', version },
+    { name: 'taibu-mcp-online', version },
     { capabilities: { tools: {} } }
   );
 
@@ -604,7 +604,7 @@ app.delete(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.MCP_HOST || '127.0.0.1';
 const httpServer = app.listen(PORT, HOST, () => {
-  console.log(`MingAI MCP Server (Streamable HTTP + OAuth 2.1) running on ${HOST}:${PORT} at /mcp`);
+  console.log(`TaiBu MCP Server (Streamable HTTP + OAuth 2.1) running on ${HOST}:${PORT} at /mcp`);
 });
 
 // ─── 优雅关闭 ───

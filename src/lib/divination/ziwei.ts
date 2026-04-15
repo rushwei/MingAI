@@ -11,13 +11,13 @@ import {
     toZiweiText,
     type ZiweiCanonicalJSON,
     type ZiweiOutput as CoreZiweiOutput,
-} from '@mingai/core/ziwei';
+} from 'taibu-core/ziwei';
 import {
     calculateZiweiHoroscopeDataWithAstrolabe,
     toZiweiHoroscopeJson,
     type ZiweiHoroscopeCanonicalJSON,
     type ZiweiHoroscopeOutput as CoreZiweiHoroscopeOutput,
-} from '@mingai/core/ziwei-horoscope';
+} from 'taibu-core/ziwei-horoscope';
 import type { Gender, CalendarType } from '@/types';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 

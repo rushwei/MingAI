@@ -9,7 +9,7 @@ import type { Mention, PromptLayerDiagnostic } from '@/types';
 import type { MembershipType } from '@/lib/user/membership';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { DATA_INDEX_INVALIDATED_EVENT } from '@/lib/browser-api';
-import { readLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
+import { readLocalCache, removeLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { formatPromptLayerLabel } from '@/lib/chat/prompt-labels';
 import { mentionTypeLabels } from '@/components/chat/mentionStyles';
@@ -27,6 +27,15 @@ export type KnowledgeBaseSummary =
 
 /** 缓存 TTL：10 分钟 */
 const MENTION_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function getMentionCacheKeys(userId: string) {
+    return {
+        dataKey: `taibu.data_sources.${userId}.v1`,
+        legacyDataKey: `mingai.data_sources.${userId}.v1`,
+        kbKey: `taibu.knowledge_bases.${userId}.v1`,
+        legacyKbKey: `mingai.knowledge_bases.${userId}.v1`,
+    };
+}
 
 export interface UseComposerStateOptions {
     userId?: string | null;
@@ -159,10 +168,11 @@ export function useComposerState(opts: UseComposerStateOptions) {
             setMentionLoading(false);
             return;
         }
-        const dataKey = `mingai.data_sources.${userId}.v1`;
-        const kbKey = `mingai.knowledge_bases.${userId}.v1`;
+        const { dataKey, kbKey, legacyDataKey, legacyKbKey } = getMentionCacheKeys(userId);
         try {
             setMentionLoading(true);
+            removeLocalCache(legacyDataKey);
+            removeLocalCache(legacyKbKey);
             const [dsResp, kbResp] = await Promise.all([
                 canMentionDataSources
                     ? fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`)
@@ -277,8 +287,10 @@ export function useComposerState(opts: UseComposerStateOptions) {
     useEffect(() => {
         if (!userId) return;
 
-        const dataKey = `mingai.data_sources.${userId}.v1`;
-        const kbKey = `mingai.knowledge_bases.${userId}.v1`;
+        const { dataKey, kbKey, legacyDataKey, legacyKbKey } = getMentionCacheKeys(userId);
+
+        removeLocalCache(legacyDataKey);
+        removeLocalCache(legacyKbKey);
 
         const cachedDs = readMentionCache<{ items: DataSourceSummary[]; errors?: DataSourceLoadError[] }>(dataKey);
         if (canMentionDataSources && cachedDs?.items) {

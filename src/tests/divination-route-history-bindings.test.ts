@@ -154,7 +154,7 @@ const routeSpecs: RouteBindingSpec[] = [
         routeModulePath: '../app/api/daliuren/route',
         url: 'http://localhost/api/daliuren',
         buildBody: () => {
-            const { calculateDaliuren } = require('@mingai/core') as typeof import('@mingai/core');
+            const { calculateDaliuren } = require('taibu-core') as typeof import('taibu-core');
             return {
                 action: 'interpret',
                 stream: true,

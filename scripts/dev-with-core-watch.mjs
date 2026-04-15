@@ -32,7 +32,7 @@ async function waitForExit(child, label) {
 
 async function main() {
   const initialBuild = run(PNPM_BIN, ['-C', 'packages/core', 'build']);
-  const buildCode = await waitForExit(initialBuild, '@mingai/core build');
+  const buildCode = await waitForExit(initialBuild, 'taibu-core build');
   if (buildCode !== 0) {
     process.exit(buildCode);
   }

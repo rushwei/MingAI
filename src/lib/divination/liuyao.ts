@@ -5,8 +5,8 @@
  * 核心排盘与断卦规则统一复用 core 的编译产物。
  */
 
-import { XUN_KONG_TABLE as CORE_XUN_KONG_TABLE } from '@mingai/core/data/shensha';
-import { HEXAGRAMS as CORE_HEXAGRAMS, type Hexagram } from '@mingai/core/data/hexagrams';
+import { XUN_KONG_TABLE as CORE_XUN_KONG_TABLE } from 'taibu-core/data/shensha';
+import { HEXAGRAMS as CORE_HEXAGRAMS, type Hexagram } from 'taibu-core/data/hexagrams';
 import {
     calculateFullYaoInfo as calculateFullYaoInfoCore,
     calculateGanZhiTime as calculateGanZhiTimeCore,
@@ -49,7 +49,7 @@ import {
     type YaoType,
     type YongShenCandidate,
     type YongShenGroup,
-} from '@mingai/core/liuyao';
+} from 'taibu-core/liuyao';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export type {

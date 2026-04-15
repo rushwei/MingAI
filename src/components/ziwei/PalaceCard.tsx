@@ -1,4 +1,4 @@
-import type { ZiweiPalaceJSON } from '@mingai/core/ziwei';
+import type { ZiweiPalaceJSON } from 'taibu-core/ziwei';
 import { StarBadge } from '@/components/ziwei/StarBadge';
 
 interface FlowInfo {

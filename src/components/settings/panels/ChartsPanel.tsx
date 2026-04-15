@@ -16,7 +16,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
-import { writeLocalCache } from '@/lib/cache/local-storage';
+import { removeLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 import { getNavItemById } from '@/lib/navigation/registry';
 import { closeSettingsCenter, getSettingsCenterCloseMode } from '@/lib/settings-center';
 import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user/charts-client';
@@ -300,7 +300,8 @@ export default function ChartsPanel() {
     try {
       await setDefaultUserChart(type, id);
       if (type === 'bazi') {
-        writeLocalCache('mingai.pref.defaultBaziChartId', id);
+        writeLocalCache('taibu.pref.defaultBaziChartId', id);
+        removeLocalCache('mingai.pref.defaultBaziChartId');
       }
       showToast('success', '默认命盘已更新');
     } catch (error) {

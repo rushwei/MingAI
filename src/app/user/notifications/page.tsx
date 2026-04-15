@@ -129,7 +129,7 @@ function NotificationsContent() {
 
     useEffect(() => {
         window.dispatchEvent(
-            new CustomEvent('mingai:notifications-unread', { detail: { count: unreadCount } }),
+            new CustomEvent('taibu:notifications-unread', { detail: { count: unreadCount } }),
         );
     }, [unreadCount]);
 

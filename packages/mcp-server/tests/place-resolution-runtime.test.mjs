@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildListToolsPayload, executeTool } from '@mingai/core/mcp';
+import { buildListToolsPayload, executeTool } from 'taibu-core/mcp';
 
 test('mcp server runtime place resolution should geocode city-level birthPlace when longitude is absent', async (t) => {
   const originalFetch = global.fetch;

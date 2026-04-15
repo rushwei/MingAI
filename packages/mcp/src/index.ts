@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * MingAI MCP Server - Local (stdio)
+ * TaiBu MCP Server - Local (stdio)
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -15,7 +15,7 @@ import {
   buildListToolsPayload,
   buildToolSuccessPayload,
   normalizeTransportDetailLevel,
-} from '@mingai/core/mcp';
+} from 'taibu-core/mcp';
 
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -23,7 +23,7 @@ const { version } = require('../package.json') as { version: string };
 
 // 创建服务器
 const server = new McpServer(
-  { name: 'mingai-mcp', version },
+  { name: 'taibu-mcp', version },
   { capabilities: { tools: {} } }
 );
 

@@ -1,4 +1,4 @@
-import { STEM_ELEMENTS, ZHI_WUXING } from '@mingai/core/utils';
+import { STEM_ELEMENTS, ZHI_WUXING } from 'taibu-core/utils';
 import type { EarthlyBranch, FiveElement, HeavenlyStem } from '@/types';
 
 const STEM_ELEMENTS_MAP = STEM_ELEMENTS as Record<HeavenlyStem, FiveElement>;

@@ -5,7 +5,7 @@
  */
 
 import { getConflictTriggers } from '@/lib/communication-templates';
-import { DI_ZHI, STEM_ELEMENTS, TIAN_GAN, ZHI_WUXING } from '@mingai/core/utils';
+import { DI_ZHI, STEM_ELEMENTS, TIAN_GAN, ZHI_WUXING } from 'taibu-core/utils';
 import { Solar } from 'lunar-javascript';
 
 // 合盘类型

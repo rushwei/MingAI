@@ -6,7 +6,7 @@
  * action: 'save'     — 保存记录
  */
 import { NextRequest } from 'next/server';
-import { DEFAULT_DIVINATION_TIMEZONE, zonedTimeToUtc } from '@mingai/core/timezone-utils';
+import { DEFAULT_DIVINATION_TIMEZONE, zonedTimeToUtc } from 'taibu-core/timezone-utils';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import {
     calculateQimenBundle,

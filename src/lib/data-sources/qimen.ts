@@ -1,5 +1,5 @@
-import { DEFAULT_DIVINATION_TIMEZONE } from '@mingai/core/timezone-utils';
-import { toQimenText } from '@mingai/core/qimen';
+import { DEFAULT_DIVINATION_TIMEZONE } from 'taibu-core/timezone-utils';
+import { toQimenText } from 'taibu-core/qimen';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import {
     calculateQimenBundle,

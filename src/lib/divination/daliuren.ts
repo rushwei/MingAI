@@ -11,14 +11,14 @@ import {
     type DaliurenCanonicalJSON,
     type DaliurenInput,
     type DaliurenOutput,
-} from '@mingai/core/daliuren';
+} from 'taibu-core/daliuren';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export type {
     DaliurenCanonicalJSON,
     DaliurenInput,
     DaliurenOutput,
-} from '@mingai/core/daliuren';
+} from 'taibu-core/daliuren';
 
 export function calculateDaliurenBundle(input: DaliurenInput): { output: DaliurenOutput } {
     return {

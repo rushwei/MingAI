@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Mail } from 'lucide-react';
+import { ChevronDown, Github, Mail } from 'lucide-react';
 
 interface FAQItem {
   question: string;
@@ -38,6 +38,7 @@ const FAQ_LIST: FAQItem[] = [
 
 export default function HelpPanel() {
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
+  const projectRepoUrl = 'https://github.com/hhszzzz/taibu';
 
   return (
     <div className="space-y-8">
@@ -70,14 +71,25 @@ export default function HelpPanel() {
 
       <section className="space-y-3">
         <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-foreground/50">联系我们</h2>
-        <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-border bg-background p-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-border bg-background p-4">
           <div className="space-y-1">
             <h3 className="text-sm font-medium text-foreground">需要更多帮助？</h3>
-            <p className="text-sm text-foreground-secondary">如果你没有找到需要的答案，欢迎通过邮件联系我们。</p>
+            <p className="text-sm text-foreground-secondary">如果你没有找到需要的答案，可以通过邮件或 GitHub 仓库联系我们。</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-md border border-border bg-background-secondary px-3 py-2 text-sm text-foreground">
-            <Mail className="h-4 w-4 text-accent" />
-            <span>support@mingai.fun</span>
+          <div className="flex w-full flex-col gap-3 sm:flex-row">
+            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-background-secondary px-3 py-2 text-sm text-foreground">
+              <Mail className="h-4 w-4 text-accent" />
+              <span>support@mingai.fun</span>
+            </div>
+            <a
+              href={projectRepoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-background-secondary/70"
+            >
+              <Github className="h-4 w-4 text-accent" />
+              <span>github.com/hhszzzz/taibu</span>
+            </a>
           </div>
         </div>
       </section>

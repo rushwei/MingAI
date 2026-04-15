@@ -10,7 +10,7 @@ import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/serv
 import type { OAuthClientInformationFull, OAuthTokens, OAuthTokenRevocationRequest } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
-import { MingAIClientsStore } from './store.js';
+import { TaiBuClientsStore } from './store.js';
 import {
   getCodeChallenge,
   getAuthorizationCode,
@@ -100,8 +100,8 @@ type OAuthProviderDeps = {
   generateRefreshToken: () => string;
 };
 
-export class MingAIOAuthProvider implements OAuthServerProvider {
-  private _clientsStore = new MingAIClientsStore();
+export class TaiBuOAuthProvider implements OAuthServerProvider {
+  private _clientsStore = new TaiBuClientsStore();
   private deps: OAuthProviderDeps;
 
   constructor(deps?: Partial<OAuthProviderDeps>) {

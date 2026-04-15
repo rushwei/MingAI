@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as mcpCore from '@mingai/core';
-import { listToolDefinitions } from '@mingai/core/mcp';
+import * as mcpCore from 'taibu-core';
+import { listToolDefinitions } from 'taibu-core/mcp';
 
 const LIU_QIN = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 const MOVEMENT_STATES = ['static', 'changing', 'hidden_moving', 'day_break'];

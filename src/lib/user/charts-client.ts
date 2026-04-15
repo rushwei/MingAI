@@ -1,5 +1,5 @@
 import { requestBrowserJson } from '@/lib/browser-api';
-import type { BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import type { BaziOutput as CoreBaziOutput } from 'taibu-core/bazi';
 import { calculateBaziOutputFromStoredFields } from '@/lib/divination/bazi-record';
 
 export type UserChartType = 'bazi' | 'ziwei';

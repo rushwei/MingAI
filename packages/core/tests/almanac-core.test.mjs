@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateDailyAlmanac, toAlmanacJson, toAlmanacText } from '@mingai/core';
+import { calculateDailyAlmanac, toAlmanacJson, toAlmanacText } from 'taibu-core';
 
 test('almanac basic output structure should include lunarDate and solarTerm fields', async () => {
   const result = await calculateDailyAlmanac({ date: '2026-04-10' });

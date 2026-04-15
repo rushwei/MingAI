@@ -1,7 +1,7 @@
 /**
  * 奇门遁甲薄封装层
  *
- * Web 侧仅保留输入归一化，计算与输出结构完全以 @mingai/core/qimen 为准。
+ * Web 侧仅保留输入归一化，计算与输出结构完全以 taibu-core/qimen 为准。
  */
 
 import {
@@ -11,10 +11,10 @@ import {
     type QimenCanonicalJSON,
     type QimenInput as CoreQimenInput,
     type QimenOutput,
-} from '@mingai/core/qimen';
+} from 'taibu-core/qimen';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
-export type { QimenCanonicalJSON, QimenOutput } from '@mingai/core/qimen';
+export type { QimenCanonicalJSON, QimenOutput } from 'taibu-core/qimen';
 export type StoredQimenZhiFuJiGong = 'ji_liuyi' | 'ji_wugong';
 
 export interface QimenInput extends Omit<CoreQimenInput, 'minute' | 'panType' | 'zhiFuJiGong'> {

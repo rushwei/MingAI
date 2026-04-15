@@ -1,4 +1,4 @@
-import { calculateBazi, type BaziOutput as CoreBaziOutput } from '@mingai/core/bazi';
+import { calculateBazi, type BaziOutput as CoreBaziOutput } from 'taibu-core/bazi';
 import { parseLongitude } from '@/lib/divination/place-resolution';
 
 type StoredBaziBase = {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateTarot, toTarotJson, toTarotText } from '@mingai/core';
+import { calculateTarot, toTarotJson, toTarotText } from 'taibu-core';
 
 test('tarot deck should contain exactly 78 cards — celtic-cross draws 10', async () => {
   const result = await calculateTarot({ spreadType: 'celtic-cross', seed: 'completeness-check' });

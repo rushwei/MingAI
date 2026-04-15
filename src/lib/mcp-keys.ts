@@ -46,12 +46,12 @@ function buildKeyPreview(keyCode: string): string {
 }
 
 /**
- * 生成 MCP Key 代码（格式: sk-mcp-mingai- + 24 位随机字符）
+ * 生成 MCP Key 代码（格式: sk-mcp-taibu- + 24 位随机字符）
  */
 export function generateMcpKeyCode(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   const randomBytes = crypto.randomBytes(24);
-  let code = 'sk-mcp-mingai-';
+  let code = 'sk-mcp-taibu-';
   for (let i = 0; i < 24; i++) {
     code += chars[randomBytes[i] % chars.length];
   }

@@ -33,7 +33,8 @@ import {
 } from '@/lib/browser-api';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 
-export const CHAT_CONVERSATION_DELETED_EVENT = 'mingai:chat:conversation-deleted';
+export const CHAT_CONVERSATION_DELETED_EVENT = 'taibu:chat:conversation-deleted';
+export const CHAT_NEW_EVENT = 'taibu:chat:new';
 
 interface ConversationListContextType {
   conversations: ConversationListItem[];
@@ -529,7 +530,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const handleNewChat = useCallback(async () => {
-    window.dispatchEvent(new CustomEvent('mingai:chat:new'));
+    window.dispatchEvent(new CustomEvent(CHAT_NEW_EVENT));
   }, []);
 
   return (

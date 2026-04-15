@@ -6,6 +6,7 @@ import { SidebarAnnouncementCenter } from '@/components/layout/SidebarAnnounceme
 import { useToast } from '@/components/ui/Toast';
 import {
     ANNOUNCEMENT_CENTER_STORAGE_KEY,
+    LEGACY_ANNOUNCEMENT_CENTER_STORAGE_KEY,
     getAnnouncementCenterLocalState,
     getEndOfLocalDayIso,
     getAnnouncementPromptIdentity,
@@ -42,6 +43,7 @@ function readAnnouncementCenterLocalState() {
     }
 
     try {
+        window.localStorage.removeItem(LEGACY_ANNOUNCEMENT_CENTER_STORAGE_KEY);
         const raw = window.localStorage.getItem(ANNOUNCEMENT_CENTER_STORAGE_KEY);
         return getAnnouncementCenterLocalState(raw ? JSON.parse(raw) : null);
     } catch {
@@ -55,6 +57,7 @@ function writeAnnouncementCenterLocalState(value: AnnouncementCenterLocalState) 
     }
 
     window.localStorage.setItem(ANNOUNCEMENT_CENTER_STORAGE_KEY, JSON.stringify(value));
+    window.localStorage.removeItem(LEGACY_ANNOUNCEMENT_CENTER_STORAGE_KEY);
 }
 
 export function useAnnouncementCenterSafe() {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateQimen, toQimenJson, toQimenText } from '@mingai/core';
+import { calculateQimen, toQimenJson, toQimenText } from 'taibu-core';
 
 test('qimen basic output should have correct structure and field types', async () => {
   const result = await calculateQimen({

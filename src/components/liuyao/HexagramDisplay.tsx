@@ -8,7 +8,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { LiuyaoYaoJSON } from '@mingai/core/liuyao';
+import type { LiuyaoYaoJSON } from 'taibu-core/liuyao';
 import {
     type Yao,
     type Hexagram,

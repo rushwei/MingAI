@@ -84,7 +84,7 @@ test('mbti save action persists reading through shared save helper', async (t) =
 });
 
 test('daliuren save action persists reading through shared save helper', async (t) => {
-    const { calculateDaliuren } = require('@mingai/core') as typeof import('@mingai/core');
+    const { calculateDaliuren } = require('taibu-core') as typeof import('taibu-core');
 
     let insertedPayload: Record<string, unknown> | null = null;
     const mockDb = {

@@ -9,15 +9,16 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { writeLocalCache } from '@/lib/cache/local-storage';
+import { removeLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 
 // 主题模式：light、dark 或 system（跟随系统）
 type ThemeMode = 'light' | 'dark' | 'system';
 // 实际应用的主题（只有 light 或 dark）
 type AppliedTheme = 'light' | 'dark';
 
-const THEME_MODE_CACHE_KEY = 'mingai.pref.themeMode';
-const LEGACY_THEME_CACHE_KEY = 'mingai.pref.theme';
+const THEME_MODE_CACHE_KEY = 'taibu.pref.themeMode';
+const LEGACY_THEME_CACHE_KEY = 'taibu.pref.theme';
+const REMOVED_THEME_CACHE_KEYS = ['mingai.pref.themeMode', 'mingai.pref.theme'];
 const THEME_COLORS: Record<AppliedTheme, string> = {
   light: '#f7f6f3',
   dark: '#0a0a0a',
@@ -108,7 +109,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // 当主题模式变化时，更新实际主题
   useEffect(() => {
     writeLocalCache(THEME_MODE_CACHE_KEY, themeMode);
+    REMOVED_THEME_CACHE_KEYS.forEach(removeLocalCache);
   }, [themeMode]);
+
+  useEffect(() => {
+    REMOVED_THEME_CACHE_KEYS.forEach(removeLocalCache);
+  }, []);
 
   // 当实际主题变化时，更新 DOM
   useEffect(() => {

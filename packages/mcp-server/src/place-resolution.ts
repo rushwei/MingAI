@@ -1,4 +1,4 @@
-import type { ToolListPayload, ToolSchema } from '@mingai/core/mcp';
+import type { ToolListPayload, ToolSchema } from 'taibu-core/mcp';
 
 const AMAP_GEOCODE_ENDPOINT = 'https://restapi.amap.com/v3/geocode/geo';
 const PLACE_RESOLUTION_TOOLS = new Set([

@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       publish_core:
-        description: Publish @hhszzzz/mingai-core
+        description: Publish @hhszzzz/taibu-core
         required: true
         type: boolean
         default: true
       publish_mcp:
-        description: Publish @hhszzzz/mingai-mcp
+        description: Publish @hhszzzz/taibu-mcp
         required: true
         type: boolean
         default: true
@@ -82,15 +82,15 @@ jobs:
           core_version="${{ steps.versions.outputs.core_version }}"
           mcp_version="${{ steps.versions.outputs.mcp_version }}"
 
-          echo "Checking @hhszzzz/mingai-core@$core_version"
-          if npm view "@hhszzzz/mingai-core@${{ steps.versions.outputs.core_version }}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+          echo "Checking @hhszzzz/taibu-core@$core_version"
+          if npm view "@hhszzzz/taibu-core@${{ steps.versions.outputs.core_version }}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "core_exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "core_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "Checking @hhszzzz/mingai-mcp@$mcp_version"
-          if npm view "@hhszzzz/mingai-mcp@${{ steps.versions.outputs.mcp_version }}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+          echo "Checking @hhszzzz/taibu-mcp@$mcp_version"
+          if npm view "@hhszzzz/taibu-mcp@${{ steps.versions.outputs.mcp_version }}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "mcp_exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "mcp_exists=false" >> "$GITHUB_OUTPUT"
@@ -100,23 +100,23 @@ jobs:
         if: ${{ inputs.publish_mcp }}
         run: |
           if [[ "${{ inputs.publish_core }}" != "true" && "${{ steps.published.outputs.core_exists }}" != "true" ]]; then
-            echo "@hhszzzz/mingai-core@${{ steps.versions.outputs.core_version }} is not available in GitHub Packages." >&2
+            echo "@hhszzzz/taibu-core@${{ steps.versions.outputs.core_version }} is not available in GitHub Packages." >&2
             echo "Publish core first, or enable publish_core in this workflow run." >&2
             exit 1
           fi
 
-      - name: Publish @hhszzzz/mingai-core
+      - name: Publish @hhszzzz/taibu-core
         if: ${{ inputs.publish_core && steps.published.outputs.core_exists != 'true' }}
         run: npm publish ./.release/github-packages/core
 
-      - name: Skip existing @hhszzzz/mingai-core version
+      - name: Skip existing @hhszzzz/taibu-core version
         if: ${{ inputs.publish_core && steps.published.outputs.core_exists == 'true' }}
-        run: echo "@hhszzzz/mingai-core@${{ steps.versions.outputs.core_version }} already exists, skipping."
+        run: echo "@hhszzzz/taibu-core@${{ steps.versions.outputs.core_version }} already exists, skipping."
 
-      - name: Publish @hhszzzz/mingai-mcp
+      - name: Publish @hhszzzz/taibu-mcp
         if: ${{ inputs.publish_mcp && steps.published.outputs.mcp_exists != 'true' }}
         run: npm publish ./.release/github-packages/mcp
 
-      - name: Skip existing @hhszzzz/mingai-mcp version
+      - name: Skip existing @hhszzzz/taibu-mcp version
         if: ${{ inputs.publish_mcp && steps.published.outputs.mcp_exists == 'true' }}
-        run: echo "@hhszzzz/mingai-mcp@${{ steps.versions.outputs.mcp_version }} already exists, skipping."
+        run: echo "@hhszzzz/taibu-mcp@${{ steps.versions.outputs.mcp_version }} already exists, skipping."

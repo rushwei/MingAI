@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mingai-web:latest
-    container_name: mingai-web
+    image: taibu-web:latest
+    container_name: taibu-web
     restart: unless-stopped
     env_file:
       - .env

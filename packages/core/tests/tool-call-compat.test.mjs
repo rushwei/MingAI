@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { executeTool, listToolDefinitions } from '@mingai/core/mcp';
+import { executeTool, listToolDefinitions } from 'taibu-core/mcp';
 
 test('core should only expose canonical renamed tool names', async () => {
   const toolNames = new Set(listToolDefinitions().map((item) => item.name));

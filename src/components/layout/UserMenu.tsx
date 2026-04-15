@@ -1,7 +1,7 @@
 'use client';
 
 import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { LogOut } from 'lucide-react';
+import { Bug, ChevronRight, Github, LogOut } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { signOut } from '@/lib/auth';
 import { buildMembershipInfo } from '@/lib/user/membership';
@@ -67,9 +67,12 @@ function useIsDesktopSidebar() {
   );
 }
 
-const MENU_PANEL_CLASS = 'absolute bottom-full mb-2 z-[100] overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.14)] animate-in fade-in zoom-in-95 duration-100 origin-bottom-left';
+const MENU_PANEL_CLASS = 'absolute bottom-full mb-2 z-[100] overflow-visible rounded-2xl border border-gray-200/90 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.14)] animate-in fade-in zoom-in-95 duration-100 origin-bottom-left';
 const MENU_ITEM_CLASS = 'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-[#37352f]/78 transition-colors hover:bg-[#efedea] hover:text-[#37352f]';
 const MENU_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 text-[#37352f]/42';
+const HELP_SUBMENU_CLASS = 'absolute bottom-0 left-full z-[110] w-[168px] overflow-hidden rounded-2xl border border-gray-200/90 bg-white p-2 shadow-[0_20px_50px_rgba(15,23,42,0.14)] animate-in fade-in zoom-in-95 duration-100 origin-left';
+const PROJECT_REPO_URL = 'https://github.com/hhszzzz/taibu';
+const PROJECT_ISSUES_URL = 'https://docs.qq.com/smartsheet/DS3JSQ0dHTUdrVWFh';
 
 type UserMenuShortcut = {
   tab: Extract<SettingsCenterTab, 'general' | 'personalization' | 'charts' | 'help'>;
@@ -91,6 +94,7 @@ function UserMenuShortcutLink({
 
 export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const isDesktopSidebar = useIsDesktopSidebar();
@@ -114,6 +118,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
+        setIsHelpMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -124,6 +129,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     if (signingOut) return;
     setSigningOut(true);
     try {
+      setIsHelpMenuOpen(false);
       await signOut();
       setIsMenuOpen(false);
       window.location.reload();
@@ -137,14 +143,21 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     { tab: 'general', label: '设置' },
     ...(personalizationEnabled ? [{ tab: 'personalization', label: '个性化' } as const] : []),
     ...(chartsEnabled ? [{ tab: 'charts', label: '命盘' } as const] : []),
-    ...(helpEnabled ? [{ tab: 'help', label: '帮助' } as const] : []),
   ];
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         type="button"
-        onClick={() => setIsMenuOpen((prev) => !prev)}
+        onClick={() => {
+          setIsMenuOpen((prev) => {
+            const next = !prev;
+            if (!next) {
+              setIsHelpMenuOpen(false);
+            }
+            return next;
+          });
+        }}
         className={`flex w-full items-center rounded-2xl transition-colors duration-150 ${
           collapsed ? 'justify-center p-2' : 'px-2.5 py-2'
         } ${
@@ -182,6 +195,62 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                 <UserMenuShortcutLink key={item.tab} {...item} onClick={() => setIsMenuOpen(false)} />
               ))}
             </div>
+
+            {helpEnabled ? <div className="mx-1 my-1 h-px bg-gray-100" /> : null}
+
+            {helpEnabled ? (
+              <div
+                className="relative"
+                onMouseLeave={() => setIsHelpMenuOpen(false)}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsHelpMenuOpen((prev) => !prev)}
+                  onMouseEnter={() => setIsHelpMenuOpen(true)}
+                  onFocus={() => setIsHelpMenuOpen(true)}
+                  className={`${MENU_ITEM_CLASS} w-full justify-between`}
+                >
+                  <span className="flex items-center gap-3">
+                    {createElement(SETTINGS_CENTER_TAB_ICONS.help, { size: 18, className: MENU_ICON_CLASS })}
+                    <span>帮助</span>
+                  </span>
+                  <ChevronRight
+                    className={`h-4 w-4 shrink-0 text-[#37352f]/35 transition-transform ${isHelpMenuOpen ? 'translate-x-0.5 text-[#37352f]/60' : ''}`}
+                  />
+                </button>
+
+                {isHelpMenuOpen ? (
+                  <div className={HELP_SUBMENU_CLASS}>
+                    <div className="flex flex-col gap-1">
+                      <SettingsCenterLink tab="help" onClick={() => setIsMenuOpen(false)} className={MENU_ITEM_CLASS}>
+                        {createElement(SETTINGS_CENTER_TAB_ICONS.help, { size: 18, className: MENU_ICON_CLASS })}
+                        <span>帮助中心</span>
+                      </SettingsCenterLink>
+                      <a
+                        href={PROJECT_REPO_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => setIsMenuOpen(false)}
+                        className={MENU_ITEM_CLASS}
+                      >
+                        <Github className={MENU_ICON_CLASS} />
+                        <span>GitHub</span>
+                      </a>
+                      <a
+                        href={PROJECT_ISSUES_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => setIsMenuOpen(false)}
+                        className={MENU_ITEM_CLASS}
+                      >
+                        <Bug className={MENU_ICON_CLASS} />
+                        <span>报告错误/需求</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="mx-1 my-1 h-px bg-gray-100" />
 

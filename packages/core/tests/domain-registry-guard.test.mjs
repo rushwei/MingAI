@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { listToolDefinitions } from '@mingai/core/mcp';
+import { listToolDefinitions } from 'taibu-core/mcp';
 
 const coreRoot = resolve(process.cwd(), 'packages/core');
 const packageJson = JSON.parse(readFileSync(resolve(coreRoot, 'package.json'), 'utf8'));
@@ -39,7 +39,7 @@ test('public core domains should stay aligned across exports, docs, and MCP regi
     assert.match(typesIndex, new RegExp(`domains/${domain}/types\\.js`), `${domain} should be exported from src/types.ts`);
     assert.match(jsonTypesIndex, new RegExp(`domains/${domain}/json-types\\.js`), `${domain} should be exported from src/json-types.ts`);
     assert.ok(packageJson.exports[`./${domain}`], `${domain} should have a package.json subpath export`);
-    assert.match(readme, new RegExp(`@mingai/core/${domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`), `${domain} should be documented in README domain list`);
+    assert.match(readme, new RegExp(`taibu-core/${domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`), `${domain} should be documented in README domain list`);
     assert.match(mcpTools, new RegExp(`domains/${domain}/tool\\.js`), `${domain} should be registered in src/mcp/tools.ts`);
     assert.equal(toolNames.has(tool), true, `${tool} should be exposed via MCP`);
     assert.match(readme, new RegExp(`\\|\\s+\\\`${tool.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\\`\\s+\\|`), `${tool} should be documented in README tool list`);

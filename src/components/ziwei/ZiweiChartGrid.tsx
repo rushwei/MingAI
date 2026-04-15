@@ -8,7 +8,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { ZiweiCanonicalJSON } from '@mingai/core/ziwei';
+import type { ZiweiCanonicalJSON } from 'taibu-core/ziwei';
 import { getBranchIndex, getTriangleSquare } from '@/lib/divination/ziwei';
 import { getBranchElement, getStemElement, getElementColor } from '@/lib/divination/display-helpers';
 import { PalaceCard } from '@/components/ziwei/PalaceCard';

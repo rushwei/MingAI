@@ -152,7 +152,7 @@ test('dist auth middleware should revalidate cached key and reject revoked key a
 
     const requestUrl = `http://127.0.0.1:${mcpPort}/mcp`;
     const headers = {
-      'x-api-key': 'sk-mcp-mingai-test-key',
+      'x-api-key': 'sk-mcp-taibu-test-key',
       'content-type': 'application/json',
       accept: 'application/json, text/event-stream',
     };

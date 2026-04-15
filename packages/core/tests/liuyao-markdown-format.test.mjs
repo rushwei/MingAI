@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateLiuyao, toLiuyaoCanonicalJson } from '@mingai/core/liuyao';
-import { buildToolSuccessPayload, renderToolResult } from '@mingai/core/mcp';
+import { calculateLiuyao, toLiuyaoCanonicalJson } from 'taibu-core/liuyao';
+import { buildToolSuccessPayload, renderToolResult } from 'taibu-core/mcp';
 
 const DEFAULT_SAMPLE = {
   seed: 'seed',

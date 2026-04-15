@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateTaiyi, toTaiyiJson, toTaiyiText } from '@mingai/core';
+import { calculateTaiyi, toTaiyiJson, toTaiyiText } from 'taibu-core';
 
 test('taiyi day mode should produce complete four-layer star context', () => {
   const result = calculateTaiyi({

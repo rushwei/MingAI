@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: packages/mcp-server/Dockerfile
-    image: mingai-mcp:latest
-    container_name: mingai-mcp
+    image: taibu-mcp:latest
+    container_name: taibu-mcp
     restart: unless-stopped
     env_file:
       - .env

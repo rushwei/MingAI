@@ -53,7 +53,7 @@ const SETTINGS_CENTER_TAB_META: Record<SettingsCenterTab, Omit<SettingsCenterTab
   upgrade: { id: 'upgrade', label: '订阅', group: 'account' },
   help: { id: 'help', label: '帮助', group: 'account' },
   personalization: { id: 'personalization', label: '个性化', group: 'extensions' },
-  byok: { id: 'byok', label: 'BYOK', group: 'extensions' },
+  byok: { id: 'byok', label: '自定义模型', group: 'extensions' },
   charts: { id: 'charts', label: '命盘', group: 'extensions' },
   'knowledge-base': { id: 'knowledge-base', label: '知识库', group: 'extensions' },
   'mcp-service': { id: 'mcp-service', label: 'MCP', group: 'extensions' },
@@ -135,8 +135,8 @@ export function getSettingsCenterDisabledState(
   }
 }
 
-export const SETTINGS_CENTER_EVENT = 'mingai:settings-center:change';
-const SETTINGS_CENTER_STATE_KEY = '__mingaiSettingsCenter';
+export const SETTINGS_CENTER_EVENT = 'taibu:settings-center:change';
+const SETTINGS_CENTER_STATE_KEY = '__taibuSettingsCenter';
 export type SettingsCenterCloseMode = 'back' | 'replace';
 
 export function isSettingsCenterTab(value: unknown): value is SettingsCenterTab {

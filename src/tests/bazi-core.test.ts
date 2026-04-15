@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { DI_ZHI, getDiShi, STEM_ELEMENTS, TIAN_GAN, ZHI_WUXING as BRANCH_ELEMENTS } from '@mingai/core/utils';
-import { calculateBaziFiveElementsStats } from '@mingai/core/bazi';
+import { DI_ZHI, getDiShi, STEM_ELEMENTS, TIAN_GAN, ZHI_WUXING as BRANCH_ELEMENTS } from 'taibu-core/utils';
+import { calculateBaziFiveElementsStats } from 'taibu-core/bazi';
 import {
     HIDDEN_STEMS,
     calculateTenGod,

@@ -271,22 +271,22 @@ mustNotMatch(
 
 mustMatch(
   'src/lib/divination/tarot.ts',
-  /from ['"]@mingai\/core\/tarot['"]/u,
+  /from ['"]taibu-core\/tarot['"]/u,
   'tarot wrapper should import tarot APIs from the tarot domain subpath',
 );
 mustNotMatch(
   'src/lib/divination/tarot.ts',
-  /from ['"]@mingai\/core['"]/u,
+  /from ['"]taibu-core['"]/u,
   'tarot wrapper should not import the root core entry',
 );
 mustMatch(
   'src/lib/divination/daliuren.ts',
-  /from ['"]@mingai\/core\/daliuren['"]/u,
+  /from ['"]taibu-core\/daliuren['"]/u,
   'daliuren wrapper should import daliuren APIs from the daliuren domain subpath',
 );
 mustNotMatch(
   'src/lib/divination/daliuren.ts',
-  /from ['"]@mingai\/core\/daliuren-core['"]/u,
+  /from ['"]taibu-core\/daliuren-core['"]/u,
   'daliuren wrapper should not depend on the removed daliuren-core subpath',
 );
 mustMatch(
@@ -296,12 +296,12 @@ mustMatch(
 );
 mustMatch(
   'src/lib/divination/qimen.ts',
-  /from ['"]@mingai\/core\/qimen['"]/u,
+  /from ['"]taibu-core\/qimen['"]/u,
   'qimen wrapper should import the qimen domain subpath',
 );
 mustNotMatch(
   'src/lib/divination/qimen.ts',
-  /from ['"]@mingai\/core['"]/u,
+  /from ['"]taibu-core['"]/u,
   'qimen wrapper should not import the root core entry',
 );
 mustMatch(
@@ -316,7 +316,7 @@ mustMatch(
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
-  /from ['"]@mingai\/core\/liuyao['"]/u,
+  /from ['"]taibu-core\/liuyao['"]/u,
   'liuyao web adapter should import shared liuyao helpers from the liuyao domain subpath',
 );
 mustMatch(
@@ -336,12 +336,12 @@ mustMatch(
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
-  /@mingai\/core\/data\/hexagrams/u,
+  /taibu-core\/data\/hexagrams/u,
   'liuyao web adapter should import shared hexagram data from core',
 );
 mustMatch(
   'src/lib/divination/liuyao.ts',
-  /@mingai\/core\/data\/shensha/u,
+  /taibu-core\/data\/shensha/u,
   'liuyao web adapter should import shared shensha data from core',
 );
 mustNotMatch(
@@ -351,32 +351,32 @@ mustNotMatch(
 );
 mustMatch(
   'src/lib/divination/bazi.ts',
-  /from ['"]@mingai\/core\/bazi['"]/u,
+  /from ['"]taibu-core\/bazi['"]/u,
   'bazi wrapper should import bazi APIs from the bazi domain subpath',
 );
 mustMatch(
   'src/lib/divination/bazi.ts',
-  /from ['"]@mingai\/core\/bazi-dayun['"]/u,
+  /from ['"]taibu-core\/bazi-dayun['"]/u,
   'bazi wrapper should import dayun APIs from the bazi-dayun domain subpath',
 );
 mustNotMatch(
   'src/lib/divination/bazi.ts',
-  /from ['"]@mingai\/core['"]/u,
+  /from ['"]taibu-core['"]/u,
   'bazi wrapper should not import the root core entry',
 );
 mustMatch(
   'src/lib/divination/ziwei.ts',
-  /from ['"]@mingai\/core\/ziwei['"]/u,
+  /from ['"]taibu-core\/ziwei['"]/u,
   'ziwei wrapper should import chart APIs from the ziwei domain subpath',
 );
 mustMatch(
   'src/lib/divination/ziwei.ts',
-  /from ['"]@mingai\/core\/ziwei-horoscope['"]/u,
+  /from ['"]taibu-core\/ziwei-horoscope['"]/u,
   'ziwei wrapper should import horoscope APIs from the ziwei-horoscope subpath',
 );
 mustNotMatch(
   'src/lib/divination/ziwei.ts',
-  /from ['"]@mingai\/core['"]/u,
+  /from ['"]taibu-core['"]/u,
   'ziwei wrapper should not import the root core entry',
 );
 mustMatch(
@@ -417,7 +417,7 @@ mustNotMatch(
 );
 mustMatch(
   'src/lib/data-sources/qimen.ts',
-  /import\s*\{[\s\S]*toQimenText[\s\S]*\}\s*from ['"]@mingai\/core\/qimen['"]/u,
+  /import\s*\{[\s\S]*toQimenText[\s\S]*\}\s*from ['"]taibu-core\/qimen['"]/u,
   'qimen data source should use direct core qimen text renderer',
 );
 mustNotMatch(

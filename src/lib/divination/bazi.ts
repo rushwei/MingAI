@@ -17,12 +17,12 @@ import {
     toBaziText,
     type BaziCanonicalJSON,
     type BaziOutput as CoreBaziOutput,
-} from '@mingai/core/bazi';
-import { calculateBaziDayun } from '@mingai/core/bazi-dayun';
+} from 'taibu-core/bazi';
+import { calculateBaziDayun } from 'taibu-core/bazi-dayun';
 import {
     DI_ZHI as CORE_DI_ZHI,
     calculateTenGod as calculateTenGodCore,
-} from '@mingai/core/utils';
+} from 'taibu-core/utils';
 import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 import {
     HIDDEN_STEM_DETAILS,
@@ -30,7 +30,7 @@ import {
     LIU_HE as CORE_LIU_HE,
     LIU_HE_HUA,
     SAN_HE as CORE_SAN_HE,
-} from '@mingai/core/data/shensha';
+} from 'taibu-core/data/shensha';
 import type {
     BaziFormData,
     CalendarType,

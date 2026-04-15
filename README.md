@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="public/favicon.svg" alt="MingAI" width="80" height="80">
+<img src="public/favicon.svg" alt="太卜" width="80" height="80">
 
-# MingAI - AI命理
+# 太卜
 
 **将传统命理文化与AI深度融合**
 
@@ -14,7 +14,7 @@
 
 Language: **中文** | [English](README.en.md)
 
-[在线体验](https://www.mingai.fun) · [报告问题](https://github.com/hhszzzz/MingAI/issues)
+[在线体验](https://www.mingai.fun) · [报告问题](https://github.com/hhszzzz/taibu/issues)
 
 </div>
 
@@ -53,7 +53,7 @@ Language: **中文** | [English](README.en.md)
 
 ## MCP
 
-MingAI 提供 MCP，可在支持 MCP 的客户端中直接调用命理工具。
+太卜提供 MCP，可在支持 MCP 的客户端中直接调用命理工具。
 
 ### 快速配置
 
@@ -62,9 +62,9 @@ MingAI 提供 MCP，可在支持 MCP 的客户端中直接调用命理工具。
 ```json
 {
   "mcpServers": {
-    "mingai": {
+    "taibu": {
       "command": "npx",
-      "args": ["-y", "@mingai/mcp"]
+      "args": ["-y", "taibu-mcp"]
     }
   }
 }
@@ -95,10 +95,10 @@ MingAI 提供 MCP，可在支持 MCP 的客户端中直接调用命理工具。
 如果你想在自己的 Node.js 项目中直接调用计算引擎（无需 MCP 协议），可以使用核心库：
 
 ```bash
-npm install @mingai/core
+npm install taibu-core
 ```
 
-详见 [@mingai/core npm 页面](https://www.npmjs.com/package/@mingai/core) 
+详见 [taibu-core npm 页面](https://www.npmjs.com/package/taibu-core) 
 
 ---
 
@@ -134,8 +134,8 @@ docker compose -f docker-compose.mcp.yml up -d --build
 
 ```bash
 # 克隆项目
-git clone git@github.com:hhszzzz/MingAI.git
-cd MingAI
+git clone git@github.com:hhszzzz/taibu.git
+cd taibu
 
 # 安装依赖
 pnpm install
@@ -179,7 +179,7 @@ pnpm dev
 
 <div align="center">
 
-**MingAI** - 用AI解读命运，用科技传承文化
+**太卜** - 用AI解读命运，用科技传承文化
 
 Made with ❤️ by [hhszzzz](https://github.com/hhszzzz)
 

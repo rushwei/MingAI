@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as mcpCore from '@mingai/core';
+import * as mcpCore from 'taibu-core';
 
 test('mcp liuyao uses fixed najia for 天风姤 and should not treat second yao as 妻财', async () => {
   const result = await mcpCore.calculateLiuyao({

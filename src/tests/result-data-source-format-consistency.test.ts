@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toDaliurenText, toQimenText } from '@mingai/core';
+import { toDaliurenText, toQimenText } from 'taibu-core';
 import { resolveChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';

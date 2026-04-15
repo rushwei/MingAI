@@ -19,7 +19,7 @@ import {
   toZiweiFlyingStarJson,
   toZiweiHoroscopeJson,
   toZiweiJson,
-} from '@mingai/core';
+} from 'taibu-core';
 
 function createBaziResult(overrides = {}) {
   return {

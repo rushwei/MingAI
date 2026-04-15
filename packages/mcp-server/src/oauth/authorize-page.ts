@@ -2,7 +2,7 @@
  * MCP OAuth 授权页面 HTML 模板
  */
 
-import { listToolDefinitions } from '@mingai/core/mcp';
+import { listToolDefinitions } from 'taibu-core/mcp';
 
 // 工具名到中文显示名的映射
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
@@ -51,7 +51,7 @@ export function renderAuthorizePage(params: {
     ? `<div class="error"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#dc2626" stroke-width="1.5"/><path d="M8 4.5v4M8 10.5v.5" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg><span>${escapeHtml(params.error)}</span></div>`
     : '';
 
-  const siteUrl = process.env.MINGAI_SITE_URL || 'https://mingai.fun';
+  const siteUrl = process.env.TAIBU_SITE_URL || 'https://www.mingai.fun';
   const logoUrl = `${siteUrl}/Logo.svg`;
   const tools = getToolChips();
 
@@ -60,7 +60,7 @@ export function renderAuthorizePage(params: {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>授权登录 - Ming AI</title>
+  <title>授权登录 - 太卜</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -276,8 +276,8 @@ export function renderAuthorizePage(params: {
 
   <div class="page">
     <div class="brand">
-      <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="Ming AI" onerror="this.style.display='none'" />
-      <div class="brand-name"><span>Ming</span> AI MCP</div>
+      <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="太卜" onerror="this.style.display='none'" />
+      <div class="brand-name"><span>太</span>卜 MCP</div>
     </div>
 
     <div class="client-bar">
@@ -285,7 +285,7 @@ export function renderAuthorizePage(params: {
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
       </div>
       <div class="client-text">
-        <span class="client-name">${escapeHtml(displayName)}</span> 请求访问你的 Ming AI 账户
+        <span class="client-name">${escapeHtml(displayName)}</span> 请求访问你的太卜账户
       </div>
     </div>
 

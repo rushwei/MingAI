@@ -3,8 +3,8 @@ export type McpPublicTool = {
   label: string;
 };
 
-export const MCP_STDIO_PACKAGE_NAME = '@mingai/mcp';
-export const MCP_STDIO_GLOBAL_COMMAND = 'mingai-mcp';
+export const MCP_STDIO_PACKAGE_NAME = 'taibu-mcp';
+export const MCP_STDIO_GLOBAL_COMMAND = 'taibu-mcp';
 export const MCP_OAUTH_URL = 'https://mcp.mingai.fun/mcp';
 
 export const MCP_PUBLIC_TOOLS: McpPublicTool[] = [
@@ -28,7 +28,7 @@ export const MCP_PUBLIC_TOOLS: McpPublicTool[] = [
 export function buildMcpStdioNpxConfig(): string {
   return JSON.stringify({
     mcpServers: {
-      mingai: {
+      taibu: {
         command: 'npx',
         args: ['-y', MCP_STDIO_PACKAGE_NAME],
       },
@@ -39,7 +39,7 @@ export function buildMcpStdioNpxConfig(): string {
 export function buildMcpStdioGlobalConfig(): string {
   return JSON.stringify({
     mcpServers: {
-      mingai: {
+      taibu: {
         command: MCP_STDIO_GLOBAL_COMMAND,
       },
     },
@@ -49,7 +49,7 @@ export function buildMcpStdioGlobalConfig(): string {
 export function buildMcpOAuthConfig(): string {
   return JSON.stringify({
     mcpServers: {
-      mingai: {
+      taibu: {
         type: 'streamable-http',
         url: MCP_OAUTH_URL,
       },

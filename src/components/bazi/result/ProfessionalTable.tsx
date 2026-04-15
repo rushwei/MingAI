@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { BaziCanonicalJSON } from '@mingai/core/bazi';
+import type { BaziCanonicalJSON } from 'taibu-core/bazi';
 import {
     type DaYunInfo,
     type LiuNianInfo,

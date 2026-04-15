@@ -5,7 +5,7 @@ import {
   calculateZiwei,
   toZiweiJson,
   toZiweiText,
-} from '@mingai/core';
+} from 'taibu-core';
 
 const BASE_INPUT = {
   gender: 'male',

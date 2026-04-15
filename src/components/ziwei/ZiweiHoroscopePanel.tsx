@@ -9,8 +9,8 @@
 
 import { useReducer, useMemo, useEffect, useCallback } from 'react';
 import { TrendingUp, Calendar } from 'lucide-react';
-import type { ZiweiCanonicalJSON, ZiweiOutput as CoreZiweiOutput } from '@mingai/core/ziwei';
-import type { ZiweiHoroscopeCanonicalJSON } from '@mingai/core/ziwei-horoscope';
+import type { ZiweiCanonicalJSON, ZiweiOutput as CoreZiweiOutput } from 'taibu-core/ziwei';
+import type { ZiweiHoroscopeCanonicalJSON } from 'taibu-core/ziwei-horoscope';
 import type { Astrolabe, DecadalInfo } from '@/lib/divination/ziwei';
 import { buildZiweiHoroscopeCanonicalJSON } from '@/lib/divination/ziwei';
 import { getStemElement, getBranchElement, getElementColor } from '@/lib/divination/display-helpers';

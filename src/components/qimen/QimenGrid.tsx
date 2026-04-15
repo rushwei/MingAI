@@ -6,7 +6,7 @@
  */
 'use client';
 
-import type { QimenPalaceJSON } from '@mingai/core/qimen';
+import type { QimenPalaceJSON } from 'taibu-core/qimen';
 
 /** 五行旺衰颜色映射 */
 const PHASE_COLORS: Record<string, string> = {

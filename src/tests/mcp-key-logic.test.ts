@@ -19,12 +19,12 @@ type FakeFromQuery = {
   };
 };
 
-test('generateMcpKeyCode uses sk-mcp-mingai- prefix', async () => {
+test('generateMcpKeyCode uses sk-mcp-taibu- prefix', async () => {
   const { generateMcpKeyCode } = await import('../lib/mcp-keys');
   const key = generateMcpKeyCode();
 
-  assert.ok(key.startsWith('sk-mcp-mingai-'));
-  assert.equal(key.length, 'sk-mcp-mingai-'.length + 24);
+  assert.ok(key.startsWith('sk-mcp-taibu-'));
+  assert.equal(key.length, 'sk-mcp-taibu-'.length + 24);
 });
 
 test('resetMcpKey should call mcp_reset_key RPC and return updated key', async () => {
@@ -192,7 +192,7 @@ test('getAllMcpKeys should use admin_list_mcp_keys rpc', async () => {
           {
             id: 'key-1',
             user_id: 'user-1',
-            key_code: 'sk-mcp-mingai-abcdef1234567890abcdef12',
+            key_code: 'sk-mcp-taibu-abcdef1234567890abcdef12',
             is_active: true,
             is_banned: false,
             created_at: '2026-02-11T00:00:00.000Z',
