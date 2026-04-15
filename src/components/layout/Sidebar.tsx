@@ -40,7 +40,7 @@ export function Sidebar() {
 function SidebarSkeleton() {
     return (
         <aside className="
-            hidden lg:flex flex-col h-screen sticky top-0
+            hidden lg:flex flex-col h-screen sticky top-0 z-20
             bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
             transition-all duration-150 ease-in-out
             w-[var(--sidebar-width)]
@@ -64,7 +64,7 @@ function SidebarSkeleton() {
 function SidebarLoadError({ onRetry }: { onRetry: () => void }) {
     return (
         <aside className="
-            hidden lg:flex flex-col h-screen sticky top-0
+            hidden lg:flex flex-col h-screen sticky top-0 z-20
             bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
             w-[var(--sidebar-width)]
         ">
@@ -136,7 +136,7 @@ function SidebarInner() {
         <>
             <aside
                 className="
-                    hidden lg:flex flex-col h-screen sticky top-0
+                    hidden lg:flex flex-col h-screen sticky top-0 z-20
                     bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
                     transition-all duration-150 ease-in-out
                     w-[var(--sidebar-width)]
