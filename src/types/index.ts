@@ -334,6 +334,8 @@ export interface CustomProviderRequest {
 
 /** 自定义Provider (BYOK) 客户端配置 */
 export interface CustomProviderConfig extends CustomProviderRequest {
+    providerKey?: AIVendor | 'other';
+    providerLabel?: string;
     modelName?: string;
 }
 

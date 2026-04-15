@@ -15,6 +15,34 @@ import { getModelUsageType, isUserSelectableUsageType } from '@/lib/ai/source-ru
 
 export async function GET(request: NextRequest) {
     try {
+        const catalog = request.nextUrl.searchParams.get('catalog');
+
+        // BYOK 目录独立于本站会员限制，只暴露聊天模型的安全元数据。
+        if (catalog === 'byok') {
+            const models = (await getModelsAsync()).filter((model) => getModelUsageType(model) === 'chat');
+            const dedupedModels = new Map<string, {
+                id: string;
+                name: string;
+                vendor: string;
+                supportsReasoning: boolean;
+                isReasoningDefault: boolean;
+            }>();
+
+            for (const model of models) {
+                const modelId = model.modelId || model.id;
+                if (!modelId || dedupedModels.has(modelId)) continue;
+                dedupedModels.set(modelId, {
+                    id: modelId,
+                    name: model.name,
+                    vendor: model.vendor,
+                    supportsReasoning: model.supportsReasoning,
+                    isReasoningDefault: model.isReasoningDefault ?? false,
+                });
+            }
+
+            return jsonOk({ models: Array.from(dedupedModels.values()) });
+        }
+
         const auth = await getAuthContext(request);
         if (auth.authError) {
             return jsonError(auth.authError.message, auth.authError.status);

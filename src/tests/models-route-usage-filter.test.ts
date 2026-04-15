@@ -87,3 +87,89 @@ test('/api/models should only expose chat and vision models', async (t) => {
     ['deepseek-v3.2', 'qwen-vl-plus'],
   );
 });
+
+test('/api/models?catalog=byok should expose chat models without membership filtering', async (t) => {
+  const aiConfigServerModule = require('../lib/server/ai-config') as any;
+  const membershipModule = require('../lib/user/membership-server') as any;
+  const aiAccessModule = require('../lib/ai/ai-access') as any;
+  const apiUtilsModule = require('../lib/api-utils') as any;
+
+  const originalGetModelsAsync = aiConfigServerModule.getModelsAsync;
+  const originalGetEffectiveMembershipType = membershipModule.getEffectiveMembershipType;
+  const originalGetModelAccessForMembershipAsync = aiAccessModule.getModelAccessForMembershipAsync;
+  const originalGetAuthContext = apiUtilsModule.getAuthContext;
+
+  aiConfigServerModule.getModelsAsync = async () => [
+    {
+      id: 'deepseek-v3.2',
+      name: 'DeepSeek',
+      vendor: 'deepseek',
+      usageType: 'chat',
+      modelId: 'deepseek-chat',
+      apiUrl: '',
+      apiKeyEnvVar: '',
+      supportsReasoning: false,
+      isReasoningDefault: false,
+    },
+    {
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      vendor: 'gemini',
+      usageType: 'chat',
+      modelId: 'gemini-2.5-pro',
+      apiUrl: '',
+      apiKeyEnvVar: '',
+      supportsReasoning: true,
+      isReasoningDefault: false,
+    },
+    {
+      id: 'qwen-vl-plus',
+      name: 'Qwen VL',
+      vendor: 'qwen-vl',
+      usageType: 'vision',
+      modelId: 'qwen-vl-plus',
+      apiUrl: '',
+      apiKeyEnvVar: '',
+      supportsReasoning: true,
+      supportsVision: true,
+    },
+  ];
+  membershipModule.getEffectiveMembershipType = async () => {
+    throw new Error('membership should not be resolved for BYOK catalog');
+  };
+  aiAccessModule.getModelAccessForMembershipAsync = async () => {
+    throw new Error('membership access should not be checked for BYOK catalog');
+  };
+  apiUtilsModule.getAuthContext = async () => {
+    throw new Error('auth should not be required for BYOK catalog');
+  };
+
+  t.after(() => {
+    aiConfigServerModule.getModelsAsync = originalGetModelsAsync;
+    membershipModule.getEffectiveMembershipType = originalGetEffectiveMembershipType;
+    aiAccessModule.getModelAccessForMembershipAsync = originalGetModelAccessForMembershipAsync;
+    apiUtilsModule.getAuthContext = originalGetAuthContext;
+  });
+
+  const { GET } = await import('../app/api/models/route');
+  const response = await GET(new NextRequest('http://localhost/api/models?catalog=byok'));
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.models, [
+    {
+      id: 'deepseek-chat',
+      name: 'DeepSeek',
+      vendor: 'deepseek',
+      supportsReasoning: false,
+      isReasoningDefault: false,
+    },
+    {
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      vendor: 'gemini',
+      supportsReasoning: true,
+      isReasoningDefault: false,
+    },
+  ]);
+});

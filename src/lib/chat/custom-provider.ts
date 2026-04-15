@@ -31,6 +31,8 @@ function readStoredCustomProvider(key: string): CustomProviderConfig | null {
 
 function writeStoredCustomProvider(key: string, config: CustomProviderConfig): void {
     sessionStorage.setItem(key, JSON.stringify({
+        providerKey: config.providerKey,
+        providerLabel: config.providerLabel?.trim() || undefined,
         apiUrl: normalizeCustomProviderBaseUrl(config.apiUrl),
         apiKey: config.apiKey.trim(),
         modelId: config.modelId.trim(),
