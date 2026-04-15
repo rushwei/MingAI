@@ -48,7 +48,7 @@ function SidebarSkeleton() {
             <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-white/10 justify-between">
                 <Link href="/" className="flex items-center gap-2 min-w-0">
                     <Image src="/Logo.svg" alt="MingAI Logo" width={28} height={28} className="rounded-md flex-shrink-0 dark:invert" />
-                    <span className="font-bold text-base text-[#37352f] dark:text-[#f5f3ee] whitespace-nowrap">MingAI</span>
+                    <span className="font-bold text-base text-[#37352f] dark:text-[#f5f3ee] whitespace-nowrap">支个摊</span>
                 </Link>
                 <div className="w-8 h-8 rounded-md bg-[#efedea] dark:bg-white/10 animate-pulse" />
             </div>

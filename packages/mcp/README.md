@@ -86,6 +86,10 @@ node packages/mcp/dist/index.js
 
 - [`@mingai/core`](https://www.npmjs.com/package/@mingai/core): 共享算法、工具定义与 transport 适配器
 
+## License
+
+`@mingai/mcp` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。
+
 ## 版本批次
 
 | 版本 | 批次说明 |

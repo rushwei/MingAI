@@ -160,7 +160,24 @@ Issues and Pull Requests are welcome.
 
 ## License
 
-This project is for learning and communication purposes only.
+This repository uses a mixed licensing model:
+
+- `packages/core`
+- `packages/mcp`
+- `packages/mcp-server`
+
+These three packages are licensed under `MIT`. See the `LICENSE` file inside
+each package directory.
+
+All other web app, server, deployment, and runtime code in this repository is
+licensed under `AGPL-3.0-only`. See the repository root [LICENSE](LICENSE).
+
+Notes:
+
+- `AGPL-3.0-only` does not prohibit commercial use, but it does require source
+  sharing obligations when modified network services are offered to users
+- The `MIT` packages allow commercial use, redistribution, and modification,
+  subject to preserving the copyright and license notice
 
 ---
 

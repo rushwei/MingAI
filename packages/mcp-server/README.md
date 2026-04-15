@@ -129,6 +129,10 @@ Bearer token 的优先级高于 API Key；若 Bearer token 存在但无效，不
 
 注意：`@mingai/core` 仍保持纯算法边界，本身不接地图服务，也不会自动把地点名换算为经度。
 
+## License
+
+`@mingai/mcp-server` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。
+
 ## 版本批次
 
 | 版本 | 批次说明 |

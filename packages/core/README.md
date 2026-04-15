@@ -134,3 +134,7 @@ const rendered = renderToolResult('qimen', result);
 
 - [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp)
   - 适合本地 `stdio` MCP Server 场景
+
+## License
+
+`@mingai/core` 使用 `MIT` 许可证，详见当前目录下的 `LICENSE` 文件。

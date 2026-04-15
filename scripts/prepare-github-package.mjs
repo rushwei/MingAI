@@ -178,7 +178,10 @@ export async function prepareGitHubPackage({
     await cp(readmeSource, path.join(outputDir, 'README.md'));
   }
 
-  const licenseSource = path.join(repoRoot, 'LICENSE');
+  const localLicenseSource = path.join(sourceDir, 'LICENSE');
+  const licenseSource = await pathExists(localLicenseSource)
+    ? localLicenseSource
+    : path.join(repoRoot, 'LICENSE');
   if (await pathExists(licenseSource)) {
     await cp(licenseSource, path.join(outputDir, 'LICENSE'));
   }

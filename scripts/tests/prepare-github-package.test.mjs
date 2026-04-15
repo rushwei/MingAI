@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const execFileAsync = promisify(execFile);
@@ -34,6 +35,29 @@ test('prepare-github-package rewrites core metadata for GitHub Packages', async 
     type: 'git',
     url: 'https://github.com/hhszzzz/MingAI.git',
   });
+});
+
+test('prepare-github-package copies the package-local LICENSE when available', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'mingai-license-check-'));
+
+  try {
+    await execFileAsync(process.execPath, [
+      scriptPath,
+      '--package',
+      'core',
+      '--output',
+      tempRoot,
+    ], {
+      cwd: repoRoot,
+    });
+
+    const preparedLicense = await readFile(path.join(tempRoot, 'core', 'LICENSE'), 'utf8');
+    const sourceLicense = await readFile(path.join(repoRoot, 'packages', 'core', 'LICENSE'), 'utf8');
+
+    assert.equal(preparedLicense, sourceLicense);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('prepare-github-package rewrites workspace dependencies for GitHub Packages', async () => {
