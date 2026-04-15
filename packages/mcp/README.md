@@ -94,6 +94,7 @@ node packages/mcp/dist/index.js
 
 | 版本 | 批次说明 |
 |------|----------|
+| `3.4.1` | 修复 npm 包中 `taibu-core` 依赖误发为 `workspace:*`，恢复 `npx -y taibu-mcp` 可用性 |
 | `3.4.0` | 新增 `astrology` 西方占星命盘与流运 |
 | `3.3.0` | 新增 `taiyi` 太乙九星观测 |
 | `3.2.0` | 新增 `xiaoliuren` 小六壬占测 |
