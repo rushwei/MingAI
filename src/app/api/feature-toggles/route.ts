@@ -21,13 +21,7 @@ export async function GET() {
   
   const toggles = await getFeatureToggles();
   
-  // 如果获取失败，返回默认配置（全部开启）
-  if (toggles === false) {
-    console.warn('[feature-toggles] Failed to load from DB, using defaults');
-    togglesCache.set('all', DEFAULT_TOGGLES);
-    return jsonOk({ toggles: DEFAULT_TOGGLES });
-  }
-  
+  // 使用默认配置（getFeatureToggles 内部已处理错误情况，总是返回有效数据）
   togglesCache.set('all', toggles);
   return jsonOk({ toggles });
 }
