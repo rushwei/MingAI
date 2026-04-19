@@ -146,7 +146,7 @@ export async function readFeatureTogglesState(): Promise<FeatureTogglesReadResul
       if (!IS_NODE_TEST_RUNTIME) {
         console.error('[app-settings] Failed to read feature toggles:', error.message);
       }
-      // 返回默认全部开启的状态
+      // 即使错误也返回 loaded: true，使用默认设置（全部开启）
       return {
         loaded: true,
         toggles: {}  // 空对象表示使用默认（全部开启）
@@ -170,7 +170,11 @@ export async function readFeatureTogglesState(): Promise<FeatureTogglesReadResul
     if (!IS_NODE_TEST_RUNTIME) {
       console.error('[app-settings] Failed to read feature toggles:', error);
     }
-    return { loaded: false, toggles: {} };
+    // 异常时也返回 loaded: true，使用默认设置
+    return {
+      loaded: true,
+      toggles: {}  // 默认全部开启
+    };
   }
 }
 

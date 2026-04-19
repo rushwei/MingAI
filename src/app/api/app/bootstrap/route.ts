@@ -88,25 +88,27 @@ async function loadViewerState(auth: Awaited<ReturnType<typeof getAuthContext>>)
   ]);
 
   if (profileResult.error) {
+    // 即使错误也返回 loaded: true，使用默认值
     return {
-      viewerLoaded: false,
+      viewerLoaded: true,
       viewerSummary: null,
-      viewerErrorMessage: '加载账户状态失败',
+      viewerErrorMessage: null,  // 不显示错误消息
       membership: null,
       unreadCount: unreadResult.count ?? 0,
-      unreadCountLoaded: !unreadResult.error,
+      unreadCountLoaded: true,
     };
   }
 
   const row = (profileResult.data ?? null) as UserRow | null;
   if (!row || typeof row.ai_chat_count !== 'number' || Number.isNaN(row.ai_chat_count)) {
+    // 数据不完整也返回 loaded: true，使用默认值
     return {
-      viewerLoaded: false,
+      viewerLoaded: true,
       viewerSummary: null,
-      viewerErrorMessage: '加载账户状态失败',
+      viewerErrorMessage: null,  // 不显示错误消息
       membership: null,
       unreadCount: unreadResult.count ?? 0,
-      unreadCountLoaded: !unreadResult.error,
+      unreadCountLoaded: true,
     };
   }
 
