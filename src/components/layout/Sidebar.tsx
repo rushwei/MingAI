@@ -14,7 +14,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { Bell, LogIn } from 'lucide-react';
-import { useState, useCallback, useMemo, Suspense } from 'react';
+import { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { SidebarUserCard } from '@/components/layout/UserMenu';
 import { SidebarConversations } from '@/components/layout/SidebarConversations';
@@ -30,21 +30,37 @@ const navItems = getSidebarNavItems();
 const toolItems = getSidebarToolItems();
 
 export function Sidebar() {
+    // 添加 hydration 状态检查，避免 SSR/CSR 不匹配
+    // 在 hydration 完成前，始终渲染 Skeleton，确保服务端和客户端一致
+    const [isHydrated, setIsHydrated] = useState(false);
+
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
+
+    // 始终返回相同结构，只是内容不同
+    return (
+        <aside className="
+            hidden lg:flex flex-col h-screen sticky top-0 z-20
+            w-[var(--sidebar-width)] lg:w-[calc(var(--sidebar-width))] xl:w-[var(--sidebar-width-expanded)]
+            bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]">
+            {isHydrated ? <SidebarContent /> : <SidebarSkeleton />}
+        </aside>
+    );
+}
+
+// 提取内容组件
+function SidebarContent() {
     return (
         <Suspense fallback={<SidebarSkeleton />}>
-            <SidebarInner />
+            <SidebarInner isHydrated={true} />
         </Suspense>
     );
 }
 
 function SidebarSkeleton() {
     return (
-        <aside className="
-            hidden lg:flex flex-col h-screen sticky top-0 z-20
-            bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
-            transition-all duration-150 ease-in-out
-            w-[var(--sidebar-width)]
-        ">
+        <>
             <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-white/10 justify-between">
                 <Link href="/" className="flex items-center gap-2 min-w-0">
                     <Image src="/Logo.svg" alt="太卜 Logo" width={28} height={28} className="rounded-md flex-shrink-0 dark:invert" />
@@ -57,17 +73,13 @@ function SidebarSkeleton() {
                     <div key={index} className="rounded-md bg-[#efedea] dark:bg-white/10 animate-pulse h-10 w-full" />
                 ))}
             </div>
-        </aside>
+        </>
     );
 }
 
 function SidebarLoadError({ onRetry }: { onRetry: () => void }) {
     return (
-        <aside className="
-            hidden lg:flex flex-col h-screen sticky top-0 z-20
-            bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
-            w-[var(--sidebar-width)]
-        ">
+        <>
             <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-white/10">
                 <Link href="/" className="flex items-center gap-2 min-w-0">
                     <Image src="/Logo.svg" alt="太卜 Logo" width={28} height={28} className="rounded-md flex-shrink-0 dark:invert" />
@@ -84,11 +96,11 @@ function SidebarLoadError({ onRetry }: { onRetry: () => void }) {
                     重试
                 </button>
             </div>
-        </aside>
+        </>
     );
 }
 
-function SidebarInner() {
+function SidebarInner({ isHydrated }: { isHydrated: boolean }) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -120,6 +132,11 @@ function SidebarInner() {
         });
     }, [notificationsEnabled, openAnnouncementCenter, user]);
 
+    // Hydration 期间保持与服务端一致的渲染，避免 hydration 不匹配
+    if (!isHydrated) {
+        return <SidebarSkeleton />;
+    }
+
     if (isNavLoading) {
         return <SidebarSkeleton />;
     }
@@ -134,145 +151,136 @@ function SidebarInner() {
 
     return (
         <>
-            <aside
-                className="
-                    hidden lg:flex flex-col h-screen sticky top-0 z-20
-                    bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
-                    transition-all duration-150 ease-in-out
-                    w-[var(--sidebar-width)]
-                "
-            >
-                <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-white/10 justify-between transition-all duration-150 flex-shrink-0">
-                    <Link href="/" className="flex items-center gap-2 min-w-0">
-                        <Image
-                            src="/Logo.svg"
-                            alt="太卜 Logo"
-                            width={28}
-                            height={28}
-                            className="rounded-md flex-shrink-0 dark:invert"
-                        />
-                        <span className="font-bold text-base text-[#37352f] dark:text-[#f5f3ee] whitespace-nowrap">
-                            太卜
+            <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-white/10 justify-between transition-all duration-150 flex-shrink-0">
+                <Link href="/" className="flex items-center gap-2 min-w-0">
+                    <Image
+                        src="/Logo.svg"
+                        alt="太卜 Logo"
+                        width={28}
+                        height={28}
+                        className="rounded-md flex-shrink-0 dark:invert"
+                    />
+                    <span className="font-bold text-base text-[#37352f] dark:text-[#f5f3ee] whitespace-nowrap">
+                        太卜
+                    </span>
+                </Link>
+                <button
+                    onClick={toggleAnnouncementCenter}
+                    className="relative p-1.5 rounded-md flex-shrink-0 transition-all duration-150 text-[#37352f]/60 dark:text-[#f5f3ee]/60 hover:bg-[#efedea] dark:hover:bg-white/8 hover:text-[#37352f] dark:hover:text-[#f5f3ee]"
+                    aria-label="打开公告中心"
+                >
+                    <Bell className="w-5 h-5" />
+                    {badgeCount > 0 ? (
+                        <span className="absolute -right-0.5 -top-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-[#2383e2] text-white text-[10px] font-bold leading-none flex items-center justify-center">
+                            {badgeCount > 99 ? '99+' : badgeCount}
                         </span>
-                    </Link>
-                    <button
-                        onClick={toggleAnnouncementCenter}
-                        className="relative p-1.5 rounded-md flex-shrink-0 transition-all duration-150 text-[#37352f]/60 dark:text-[#f5f3ee]/60 hover:bg-[#efedea] dark:hover:bg-white/8 hover:text-[#37352f] dark:hover:text-[#f5f3ee]"
-                        aria-label="打开公告中心"
-                    >
-                        <Bell className="w-5 h-5" />
-                        {badgeCount > 0 ? (
-                            <span className="absolute -right-0.5 -top-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-[#2383e2] text-white text-[10px] font-bold leading-none flex items-center justify-center">
-                                {badgeCount > 99 ? '99+' : badgeCount}
-                            </span>
-                        ) : null}
-                    </button>
+                    ) : null}
+                </button>
+            </div>
+
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="pt-4 px-2 flex-shrink-0 border-b border-gray-100/50 dark:border-white/6">
+                    <div className="px-3 text-[11px] font-semibold text-[#37352f]/50 dark:text-[#f5f3ee]/45 uppercase tracking-wider mb-1">
+                        命理体系
+                    </div>
+                    <ul className="space-y-0.5">
+                        {filteredNavItems.map((item) => {
+                            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                            const Icon = item.icon;
+
+                            return (
+                                <li key={item.href}>
+                                    <Link
+                                        href={item.href}
+                                        className={`
+                                            flex items-center px-3 gap-2 py-1.5 rounded-md
+                                            transition-colors duration-150
+                                            ${isActive
+                                                ? 'bg-[#e3e1db] dark:bg-white/8 text-[#37352f] dark:text-[#f5f3ee]'
+                                                : 'text-[#37352f] dark:text-[#f5f3ee] hover:bg-[#efedea] dark:hover:bg-white/6'
+                                            }
+                                        `}
+                                    >
+                                        <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f] dark:text-[#f5f3ee]' : 'text-[#37352f]/70 dark:text-[#f5f3ee]/70'}`} />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-medium truncate">{item.label}</div>
+                                        </div>
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 </div>
 
-                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <div className="pt-4 px-2 flex-shrink-0 border-b border-gray-100/50 dark:border-white/6">
-                        <div className="px-3 text-[11px] font-semibold text-[#37352f]/50 dark:text-[#f5f3ee]/45 uppercase tracking-wider mb-1">
-                            命理体系
-                        </div>
-                        <ul className="space-y-0.5">
-                            {filteredNavItems.map((item) => {
-                                const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-                                const Icon = item.icon;
-
-                                return (
-                                    <li key={item.href}>
-                                        <Link
-                                            href={item.href}
-                                            className={`
-                                                flex items-center px-3 gap-2 py-1.5 rounded-md
-                                                transition-colors duration-150
-                                                ${isActive
-                                                    ? 'bg-[#e3e1db] dark:bg-white/8 text-[#37352f] dark:text-[#f5f3ee]'
-                                                    : 'text-[#37352f] dark:text-[#f5f3ee] hover:bg-[#efedea] dark:hover:bg-white/6'
-                                                }
-                                            `}
-                                        >
-                                            <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f] dark:text-[#f5f3ee]' : 'text-[#37352f]/70 dark:text-[#f5f3ee]/70'}`} />
-                                            <div className="min-w-0 flex-1">
-                                                <div className="text-sm font-medium truncate">{item.label}</div>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                );
-                            })}
-                        </ul>
+                <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 px-2">
+                    <div className="sticky top-0 z-30 bg-[#f7f6f3] dark:bg-[#181715] px-3 pt-3 pb-1.5 text-[11px] font-semibold text-[#37352f]/50 dark:text-[#f5f3ee]/45 uppercase tracking-wider">
+                        AI
                     </div>
 
-                    <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 px-2">
-                        <div className="sticky top-0 z-30 bg-[#f7f6f3] dark:bg-[#181715] px-3 pt-3 pb-1.5 text-[11px] font-semibold text-[#37352f]/50 dark:text-[#f5f3ee]/45 uppercase tracking-wider">
-                            AI
-                        </div>
+                    <ul className="space-y-0.5">
+                        {filteredToolItems.map((item) => {
+                            const isChatItem = item.id === 'chat';
+                            const isActive = isChatItem
+                                ? pathname === item.href && !activeConvId
+                                : pathname === item.href;
+                            const Icon = item.icon;
 
-                        <ul className="space-y-0.5">
-                            {filteredToolItems.map((item) => {
-                                const isChatItem = item.id === 'chat';
-                                const isActive = isChatItem
-                                    ? pathname === item.href && !activeConvId
-                                    : pathname === item.href;
-                                const Icon = item.icon;
+                            return (
+                                <li key={item.href}>
+                                    <Link
+                                        href={item.href}
+                                        className={`
+                                            flex items-center px-3 gap-2 py-1.5 rounded-md
+                                            transition-colors duration-150
+                                            ${isActive
+                                                ? 'bg-[#e3e1db] dark:bg-white/8 text-[#37352f] dark:text-[#f5f3ee]'
+                                                : 'text-[#37352f] dark:text-[#f5f3ee] hover:bg-[#efedea] dark:hover:bg-white/6'
+                                            }
+                                        `}
+                                        onClick={(event) => {
+                                            if (isChatItem) {
+                                                event.preventDefault();
+                                                handleNewChat().then(() => {
+                                                    router.push('/chat');
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f] dark:text-[#f5f3ee]' : 'text-[#37352f]/70 dark:text-[#f5f3ee]/70'}`} />
+                                        <span className="text-sm font-medium whitespace-nowrap">
+                                            {item.label}
+                                        </span>
+                                    </Link>
 
-                                return (
-                                    <li key={item.href}>
-                                        <Link
-                                            href={item.href}
-                                            className={`
-                                                flex items-center px-3 gap-2 py-1.5 rounded-md
-                                                transition-colors duration-150
-                                                ${isActive
-                                                    ? 'bg-[#e3e1db] dark:bg-white/8 text-[#37352f] dark:text-[#f5f3ee]'
-                                                    : 'text-[#37352f] dark:text-[#f5f3ee] hover:bg-[#efedea] dark:hover:bg-white/6'
-                                                }
-                                            `}
-                                            onClick={(event) => {
-                                                if (isChatItem) {
-                                                    event.preventDefault();
-                                                    handleNewChat().then(() => {
-                                                        router.push('/chat');
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f] dark:text-[#f5f3ee]' : 'text-[#37352f]/70 dark:text-[#f5f3ee]/70'}`} />
-                                            <span className="text-sm font-medium whitespace-nowrap">
-                                                {item.label}
-                                            </span>
-                                        </Link>
+                                    {isChatItem && user ? (
+                                        <SidebarConversations />
+                                    ) : null}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </nav>
+            </div>
 
-                                        {isChatItem && user ? (
-                                            <SidebarConversations />
-                                        ) : null}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </nav>
-                </div>
-
-                <div className="border-t border-gray-200 dark:border-white/10 p-2 flex-shrink-0">
-                    {user ? (
-                        <SidebarUserCard user={user} />
-                    ) : (
-                        <button
-                            onClick={() => setShowAuthModal(true)}
-                            className="
-                                flex items-center gap-1.5 px-3 py-2 justify-center rounded-md w-full
-                                text-sm font-medium
-                                bg-[#2383e2] text-white
-                                hover:bg-[#2383e2]/90 active:bg-[#1a65b0]
-                                transition-colors duration-150
-                            "
-                        >
-                            <LogIn className="w-4 h-4 flex-shrink-0" />
-                            <span>登录</span>
-                        </button>
-                    )}
-                </div>
-            </aside>
+            <div className="border-t border-gray-200 dark:border-white/10 p-2 flex-shrink-0">
+                {user ? (
+                    <SidebarUserCard user={user} />
+                ) : (
+                    <button
+                        onClick={() => setShowAuthModal(true)}
+                        className="
+                            flex items-center gap-1.5 px-3 py-2 justify-center rounded-md w-full
+                            text-sm font-medium
+                            bg-[#2383e2] text-white
+                            hover:bg-[#2383e2]/90 active:bg-[#1a65b0]
+                            transition-colors duration-150
+                        "
+                    >
+                        <LogIn className="w-4 h-4 flex-shrink-0" />
+                        <span>登录</span>
+                    </button>
+                )}
+            </div>
             <AuthModal
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}

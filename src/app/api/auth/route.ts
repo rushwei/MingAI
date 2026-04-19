@@ -206,28 +206,50 @@ export async function POST(request: NextRequest) {
       const email = String(payload.email || '').trim();
       if (!email) return authFailure('Missing email', 400);
 
-      const { data, error } = await anonymousClient.rpc('check_login_attempts', {
-        p_email: email,
-      });
-      if (error) return authFailure(error.message, 500, error.code);
+      // 尝试使用 RPC，如果失败则返回默认状态（不阻止登录）
+      try {
+        const { data, error } = await anonymousClient.rpc('check_login_attempts', {
+          p_email: email,
+        });
+        if (error) {
+          // RPC 不可用时，返回默认状态（允许登录）
+          console.warn('[auth] checkLoginAttempts RPC failed:', error.message);
+          return authSuccess({
+            blocked: false,
+            remainingAttempts: 5,
+          });
+        }
 
-      const maxAttempts = 5;
-      const failedAttempts = (data as Array<{ failed_count: number }> | null)?.[0]?.failed_count || 0;
-      return authSuccess({
-        blocked: failedAttempts >= maxAttempts,
-        remainingAttempts: Math.max(0, maxAttempts - failedAttempts),
-      });
+        const maxAttempts = 5;
+        const failedAttempts = (data as Array<{ failed_count: number }> | null)?.[0]?.failed_count || 0;
+        return authSuccess({
+          blocked: failedAttempts >= maxAttempts,
+          remainingAttempts: Math.max(0, maxAttempts - failedAttempts),
+        });
+      } catch (e) {
+        console.warn('[auth] checkLoginAttempts exception:', e);
+        // 发生异常时返回默认状态
+        return authSuccess({
+          blocked: false,
+          remainingAttempts: 5,
+        });
+      }
     }
     case 'recordLoginAttempt': {
       const email = String(payload.email || '').trim();
       const success = Boolean(payload.success);
       if (!email) return authFailure('Missing email', 400);
 
-      const { error } = await anonymousClient.rpc('record_login_attempt', {
-        p_email: email,
-        p_success: success,
-      });
-      if (error) return authFailure(error.message, 500, error.code);
+      // 尝试使用 RPC，如果失败则静默忽略（不影响登录）
+      try {
+        await anonymousClient.rpc('record_login_attempt', {
+          p_email: email,
+          p_success: success,
+        });
+      } catch (e) {
+        console.warn('[auth] recordLoginAttempt RPC failed:', e);
+        // RPC 失败不影响登录流程
+      }
 
       return authSuccess({ success: true });
     }

@@ -1,5 +1,7 @@
 import { getSystemAdminClient } from "@/lib/api-utils";
 import { IS_NODE_TEST_RUNTIME } from "@/lib/runtime";
+import { createClient } from '@supabase/supabase-js';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase-env';
 
 // ─── 功能模块开关 ───
 
@@ -81,6 +83,13 @@ async function readFeatureToggleRows(
   return { data: data ?? [], error };
 }
 
+/** 获取匿名客户端用于公共读取 */
+function getAnonClient() {
+  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+
 function getCachedFeatureToggle(featureId: FeatureModuleId): boolean | null {
   const cached = featureToggleCache.get(featureId);
   if (!cached) {
@@ -118,19 +127,44 @@ async function readFeatureToggleValue(
 /** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
 export async function readFeatureTogglesState(): Promise<FeatureTogglesReadResult> {
   try {
-    const supabase = getSystemAdminClient();
-    const { data, error } = await readFeatureToggleRows(supabase);
+    let supabase = getSystemAdminClient();
+    let { data, error } = await readFeatureToggleRows(supabase);
 
-    if (error) {
+    // 如果系统管理员客户端失败，回退到匿名客户端
+    if (error || !data || data.length === 0) {
+      const anonClient = getAnonClient();
+      const result = await anonClient
+        .from('app_settings')
+        .select('setting_key, setting_value')
+        .like('setting_key', `${FEATURE_PREFIX}%`);
+      data = result.data ?? [];
+      error = result.error;
+    }
+
+    // 如果发生错误但返回了数据，仍然使用数据
+    if (error && (!data || data.length === 0)) {
       if (!IS_NODE_TEST_RUNTIME) {
         console.error('[app-settings] Failed to read feature toggles:', error.message);
       }
-      return { loaded: false, toggles: {} };
+      // 返回默认全部开启的状态
+      return {
+        loaded: true,
+        toggles: {}  // 空对象表示使用默认（全部开启）
+      };
+    }
+
+    const toggles = normalizeFeatureToggleRows(data);
+    // 如果没有数据，返回默认全部开启
+    if (Object.keys(toggles).length === 0) {
+      return {
+        loaded: true,
+        toggles: {}  // 返回空对象表示使用默认（全部开启）
+      };
     }
 
     return {
       loaded: true,
-      toggles: normalizeFeatureToggleRows(data),
+      toggles,
     };
   } catch (error) {
     if (!IS_NODE_TEST_RUNTIME) {

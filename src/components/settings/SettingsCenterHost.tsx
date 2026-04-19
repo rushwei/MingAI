@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComponentType, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -190,11 +190,13 @@ export function SettingsCenterHost() {
   const activeTab = useActiveSettingsCenterTab();
   const { isFeatureEnabled, loaded: featureTogglesLoaded } = useFeatureToggles();
   const { user } = useSessionSafe();
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+  
+  // 使用 useEffect 来追踪 hydration 完成状态
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
   const { profile, loading: profileLoading, error: profileError } = useCurrentUserProfile({ enabled: !!activeTab });
   const isAdmin = !!profile?.is_admin;
   const setActiveTab = useCallback((tab: SettingsCenterTab) => {
@@ -238,9 +240,9 @@ export function SettingsCenterHost() {
       : [];
 
   useEffect(() => {
-    if (!mounted || !shouldFallbackToGeneral) return;
+    if (!isMounted || !shouldFallbackToGeneral) return;
     openSettingsCenter('general', { replace: true });
-  }, [mounted, shouldFallbackToGeneral]);
+  }, [isMounted, shouldFallbackToGeneral]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -254,7 +256,7 @@ export function SettingsCenterHost() {
     });
   }, [resolvedActiveTab]);
 
-  if (!mounted) {
+  if (!isMounted) {
     return null;
   }
 
