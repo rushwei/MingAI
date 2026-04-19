@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     let useFallback = false;
     
     // 尝试系统管理员客户端，如果失败则使用匿名客户端
-    const { data: testData, error: testError } = await supabase
+    const { error: testError } = await supabase
         .from('announcements')
         .select('id', { count: 'exact', head: true })
         .limit(1);
