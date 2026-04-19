@@ -141,12 +141,12 @@ export async function readFeatureTogglesState(): Promise<FeatureTogglesReadResul
       error = result.error;
     }
 
-    // 如果发生错误但返回了数据，仍然使用数据
-    if (error && (!data || data.length === 0)) {
-      if (!IS_NODE_TEST_RUNTIME) {
+    // 如果有任何错误或无数据，返回默认配置（全部开启）
+    if (error || !data || data.length === 0) {
+      if (!IS_NODE_TEST_RUNTIME && error) {
         console.error('[app-settings] Failed to read feature toggles:', error.message);
       }
-      // 即使错误也返回 loaded: true，使用默认设置（全部开启）
+      // 返回默认设置（全部开启）
       return {
         loaded: true,
         toggles: {}  // 空对象表示使用默认（全部开启）

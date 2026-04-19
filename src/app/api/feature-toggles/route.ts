@@ -6,6 +6,11 @@ import { createMemoryCache } from '@/lib/cache/memory';
 const CACHE_TTL_MS = 30_000;
 const togglesCache = createMemoryCache<Record<string, boolean>>(CACHE_TTL_MS);
 
+// 默认功能开关（全部开启）
+const DEFAULT_TOGGLES: Record<string, boolean> = Object.fromEntries(
+  FEATURE_MODULE_IDS.map(id => [id, false])  // false = 开启
+);
+
 export async function GET() {
   // feature-toggles 是公共配置，匿名用户也需要知道哪些功能开启
 
@@ -13,7 +18,16 @@ export async function GET() {
   if (cached !== null) {
     return jsonOk({ toggles: cached });
   }
+  
   const toggles = await getFeatureToggles();
+  
+  // 如果获取失败，返回默认配置（全部开启）
+  if (toggles === false) {
+    console.warn('[feature-toggles] Failed to load from DB, using defaults');
+    togglesCache.set('all', DEFAULT_TOGGLES);
+    return jsonOk({ toggles: DEFAULT_TOGGLES });
+  }
+  
   togglesCache.set('all', toggles);
   return jsonOk({ toggles });
 }
