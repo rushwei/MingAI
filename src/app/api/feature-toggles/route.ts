@@ -1,15 +1,9 @@
-import { NextRequest } from "next/server";
-import { getFeatureToggles, setFeatureToggle, FEATURE_MODULE_IDS, type FeatureModuleId } from "@/lib/app-settings";
+import { getFeatureToggles } from "@/lib/app-settings";
 import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
 import { createMemoryCache } from '@/lib/cache/memory';
 
 const CACHE_TTL_MS = 30_000;
 const togglesCache = createMemoryCache<Record<string, boolean>>(CACHE_TTL_MS);
-
-// 默认功能开关（全部开启）
-const DEFAULT_TOGGLES: Record<string, boolean> = Object.fromEntries(
-  FEATURE_MODULE_IDS.map(id => [id, false])  // false = 开启
-);
 
 export async function GET() {
   // feature-toggles 是公共配置，匿名用户也需要知道哪些功能开启
