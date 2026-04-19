@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { getFeatureToggles } from "@/lib/app-settings";
 import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
 import { createMemoryCache } from '@/lib/cache/memory';
