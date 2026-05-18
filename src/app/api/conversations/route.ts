@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireUserContext, resolveRequestDbClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils-local';
 import { isValidChatMessagePayload } from '@/lib/server/conversation-messages';
 import type { ChatMessage } from '@/types';
+import { query } from '@/lib/db/postgres-client';
 
 const CONVERSATION_LIST_SELECT = [
     'id',
@@ -11,9 +12,7 @@ const CONVERSATION_LIST_SELECT = [
     'created_at',
     'updated_at',
     'source_type',
-    'question_preview:source_data->>question',
-    'is_archived',
-    'archived_kb_ids',
+    "coalesce((source_data->>'question'), '') as question_preview",
 ].join(', ');
 
 function isObjectBody(value: unknown): value is Record<string, unknown> {
@@ -35,8 +34,6 @@ function normalizeConversationTitle(title: string | null | undefined): string | 
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-    const db = resolveRequestDbClient(auth);
-    if (!db) return jsonError('加载对话列表失败', 500);
 
     const { searchParams } = new URL(request.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
@@ -45,46 +42,46 @@ export async function GET(request: NextRequest) {
     const sourceType = searchParams.get('sourceType');
     const chartId = searchParams.get('chartId');
 
-    let query = db
-        .from('conversations_with_archive_status')
-        .select(CONVERSATION_LIST_SELECT)
-        .eq('user_id', auth.user.id)
-        .order('updated_at', { ascending: false });
+    let sql = `SELECT ${CONVERSATION_LIST_SELECT} FROM conversations`;
+    const params: unknown[] = [auth.user.id];
+    let paramIndex = 1;
 
-    if (!includeArchived) {
-        query = query.eq('is_archived', false);
-    }
+    sql += ` WHERE user_id = $${paramIndex++}`;
+
     if (sourceType) {
-        query = query.eq('source_type', sourceType);
+        sql += ` AND source_type = $${paramIndex++}`;
+        params.push(sourceType);
     }
     if (chartId) {
-        query = query.eq('source_data->>chart_id', chartId);
+        sql += ` AND source_data->>'chart_id' = $${paramIndex++}`;
+        params.push(chartId);
     }
 
-    const { data, error } = await query.range(offset, offset + limit);
-    if (error) {
+    sql += ` ORDER BY updated_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
+    params.push(limit + 1, offset);
+
+    try {
+        const result = await query(sql, params);
+        const rows = result.rows;
+        const hasMore = rows.length > limit;
+        const conversations = hasMore ? rows.slice(0, limit) : rows;
+
+        return jsonOk({
+            conversations,
+            pagination: {
+                hasMore,
+                nextOffset: hasMore ? offset + limit : null,
+            },
+        });
+    } catch (error) {
         console.error('[conversations] failed to load list:', error);
         return jsonError('加载对话列表失败', 500);
     }
-
-    const rows = data ?? [];
-    const hasMore = rows.length > limit;
-    const conversations = hasMore ? rows.slice(0, limit) : rows;
-
-    return jsonOk({
-        conversations,
-        pagination: {
-            hasMore,
-            nextOffset: hasMore ? offset + limit : null,
-        },
-    });
 }
 
 export async function POST(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
-    const db = resolveRequestDbClient(auth);
-    if (!db) return jsonError('创建对话失败', 500);
 
     let body: {
         personality?: string;
@@ -125,19 +122,23 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    const { data, error } = await db.rpc('create_conversation_with_messages', {
-        p_user_id: auth.user.id,
-        p_title: normalizedTitle || '新对话',
-        p_personality: body.personality || 'general',
-        p_source_type: null,
-        p_source_data: null,
-        p_messages: initialMessages as ChatMessage[],
-    });
+    const conversationId = await query(
+        'INSERT INTO conversations (user_id, title, personality, source_type, source_data) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [auth.user.id, normalizedTitle || '新对话', body.personality || 'general', null, null]
+    );
 
-    if (error || typeof data !== 'string') {
-        console.error('[conversations] failed to create conversation transactionally:', error || data);
+    if (!conversationId.rows[0]?.id) {
         return jsonError('创建对话失败', 500);
     }
 
-    return jsonOk({ id: data }, 201);
+    if (initialMessages.length > 0) {
+        for (const message of initialMessages) {
+            await query(
+                'INSERT INTO conversation_messages (conversation_id, role, content, created_at) VALUES ($1, $2, $3, $4)',
+                [conversationId.rows[0].id, message.role, JSON.stringify(message.content), message.createdAt || new Date()]
+            );
+        }
+    }
+
+    return jsonOk({ id: conversationId.rows[0].id }, 201);
 }

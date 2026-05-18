@@ -30,6 +30,13 @@ function getSystemAuthClient(): SupabaseClient {
 }
 
 async function signInSystemAdmin(): Promise<Session | null> {
+    const databaseType = process.env.DATABASE_TYPE;
+    
+    if (databaseType === 'postgres') {
+        console.log('[supabase-server] Using local PostgreSQL, skipping Supabase Auth');
+        return null;
+    }
+
     const email = process.env.SUPABASE_SYSTEM_ADMIN_EMAIL;
     const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
 
@@ -40,18 +47,26 @@ async function signInSystemAdmin(): Promise<Session | null> {
         return null;
     }
 
-    const client = getSystemAuthClient();
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    try {
+        const client = getSystemAuthClient();
+        const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-    if (error || !data.session) {
+        if (error || !data.session) {
+            if (SYSTEM_ADMIN_SESSION_REQUIRED) {
+                throw new Error('[supabase-server] Failed to sign in system admin session');
+            }
+            console.error('[supabase-server] Failed to sign in system admin:', error);
+            return null;
+        }
+
+        return data.session;
+    } catch (error) {
         if (SYSTEM_ADMIN_SESSION_REQUIRED) {
-            throw new Error('[supabase-server] Failed to sign in system admin session');
+            throw error;
         }
         console.error('[supabase-server] Failed to sign in system admin:', error);
         return null;
     }
-
-    return data.session;
 }
 
 async function getSystemAccessToken(): Promise<string | null> {

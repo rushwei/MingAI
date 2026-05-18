@@ -1,15 +1,6 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getSystemAdminClient, jsonError, jsonOk } from '@/lib/api-utils';
-import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase-env';
+import { getSystemAdminClient, createAnonClient, jsonError, jsonOk } from '@/lib/api-utils';
 import { serializeAnnouncement, type AnnouncementRow } from '@/lib/announcement';
-
-/** 获取匿名客户端用于公共读取 */
-function getAnonClient() {
-  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
 
 export async function GET(request: NextRequest) {
     let supabase = getSystemAdminClient();

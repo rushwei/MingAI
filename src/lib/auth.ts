@@ -56,13 +56,21 @@ const LOGIN_GUARD_UNAVAILABLE_CODE = 'login_guard_unavailable';
 const LOGIN_GUARD_UNAVAILABLE_MESSAGE = '登录保护服务暂不可用，请稍后重试';
 
 function emitAuthEvent(event: AuthChangeEvent, session: Session | null) {
+    console.log('[auth] emitAuthEvent called:', event, 'session:', session?.user?.email);
+    console.log('[auth] Number of listeners to notify:', authListeners.size);
+    
+    let count = 0;
     for (const listener of authListeners) {
         try {
+            console.log('[auth] Notifying listener #', ++count);
             listener(event, session);
+            console.log('[auth] Listener #', count, 'notified successfully');
         } catch (error) {
             console.error('[auth] auth listener error:', error);
         }
     }
+    
+    console.log('[auth] emitAuthEvent completed');
 }
 
 function applySession(session: Session | null, event?: AuthChangeEvent) {
@@ -145,6 +153,7 @@ async function loadSessionFromServer(
         }
 
         const nextSession = result.data?.session ?? null;
+        
         cachedSession = nextSession;
         cachedUser = result.data?.user ?? result.data?.session?.user ?? null;
         hasInitializedSession = true;
@@ -334,22 +343,53 @@ export const supabase = {
 export const authClient = supabase;
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
-    const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    });
+    try {
+        console.log('[auth] signInWithEmail called for:', email);
+        const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'signInWithPassword',
+                email,
+                password,
+            }),
+        });
 
-    if (error) {
+        const result = await response.json();
+        console.log('[auth] signInWithEmail result:', JSON.stringify(result, null, 2));
+
+        if (result.error) {
+            return {
+                success: false,
+                error: {
+                    message: getErrorMessage(result.error.message),
+                    code: result.error.code || result.error.message,
+                },
+            };
+        }
+
+        if (result.data?.session) {
+            console.log('[auth] Session received, applying session...');
+            localStorage.setItem('access_token', result.data.session.access_token);
+            applySession(result.data.session, 'SIGNED_IN');
+            console.log('[auth] Session applied successfully');
+            console.log('[auth] Current cachedUser:', JSON.stringify(cachedUser, null, 2));
+            console.log('[auth] Number of auth listeners:', authListeners.size);
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('[auth] signInWithEmail error:', error);
         return {
             success: false,
             error: {
-                message: getErrorMessage(error.message),
-                code: error.code || error.message,
+                message: '登录失败',
+                code: 'network_error',
             },
         };
     }
-
-    return { success: true };
 }
 
 export async function signUpWithEmail(

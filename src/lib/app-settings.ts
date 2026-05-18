@@ -1,7 +1,5 @@
-import { getSystemAdminClient } from "@/lib/api-utils";
+import { getSystemAdminClient, createAnonClient } from "@/lib/api-utils";
 import { IS_NODE_TEST_RUNTIME } from "@/lib/runtime";
-import { createClient } from '@supabase/supabase-js';
-import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase-env';
 
 // ─── 功能模块开关 ───
 
@@ -83,12 +81,7 @@ async function readFeatureToggleRows(
   return { data: data ?? [], error };
 }
 
-/** 获取匿名客户端用于公共读取 */
-function getAnonClient() {
-  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
+
 
 function getCachedFeatureToggle(featureId: FeatureModuleId): boolean | null {
   const cached = featureToggleCache.get(featureId);
@@ -132,7 +125,7 @@ export async function readFeatureTogglesState(): Promise<FeatureTogglesReadResul
 
     // 如果系统管理员客户端失败，回退到匿名客户端
     if (error || !data || data.length === 0) {
-      const anonClient = getAnonClient();
+      const anonClient = createAnonClient();
       const result = await anonClient
         .from('app_settings')
         .select('setting_key, setting_value')

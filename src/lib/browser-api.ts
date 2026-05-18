@@ -165,22 +165,38 @@ export function dispatchApiWriteEvents(
   }
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 10000;
+
 export async function fetchBrowserJson<T>(input: RequestInfo, init?: RequestInit): Promise<{
   ok: boolean;
   status: number;
   result: BrowserApiPayload<T>;
 }> {
   const requestBody = parseRequestBody(init?.body);
+  const accessToken = localStorage.getItem('access_token');
+  const timeout = init?.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const headers: Record<string, string> = {
+      ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(init?.headers || {}),
+    };
+
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(input, {
       credentials: 'include',
-      headers: {
-        ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(init?.headers || {}),
-      },
+      headers,
+      signal: controller.signal,
       ...init,
     });
+
+    clearTimeout(timeoutId);
 
     const payload = await response.json().catch(() => null) as
       | { data?: T | null; error?: unknown; count?: number | null; status?: number; statusText?: string }
